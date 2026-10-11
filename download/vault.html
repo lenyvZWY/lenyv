@@ -49,7 +49,7 @@
 }
 
 
-/* ===== lenyv · 极简基础样式 =====
+/* ===== 极简基础样式 =====
    原则：留白、细分隔线、单一强调色、几乎不用阴影 / 渐变 / 模糊。 */
 
 *,*::before,*::after{box-sizing:border-box}
@@ -382,8 +382,8 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
       <section id="lock-view">
         <header class="vault-head">
           <span class="hero-eyebrow">保险库</span>
-          <h1>一扇门，两把钥匙</h1>
-          <p class="muted">数据只存在这台设备的浏览器里，加密后才落盘。<strong>密钥永远不离开你的浏览器</strong>，任何服务器都拿不到明文。</p>
+          <h1>打开你的密码本</h1>
+          <p class="muted">密码在本机加密后才保存，<strong>钥匙在你手里</strong>，服务器看不到内容。</p>
         </header>
 
         <!-- 首次使用：创建 -->
@@ -507,14 +507,10 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
         </div>
 
         <div class="note-box">
-          <strong>关于安全，说人话：</strong><br>
-          · 你的密码用 <strong>AES-GCM</strong> 加密后才写进这台设备的浏览器数据库（IndexedDB）。<br>
-          · 开门的钥匙由「U 盘密钥文件 + 主密码」推出来，<strong>只在你解锁时短暂存在于内存</strong>，刷新页面即消失。<br>
-          · 所以：关掉网页 = 门自动锁上；别人拿到你的电脑，没有 U 盘也打不开。<br>
-          · U 盘密钥文件请备份一份。真丢了，就用「恢复问题」那把钥匙开门，然后换一把新钥匙。<br>
-          · <strong>用法</strong>：点「① 复制账号」贴上去，回来点「② 复制密码」再贴 —— 密码 30 秒后自动从剪贴板清空。<br>
-          · 电脑上按 <strong>/</strong> 跳到搜索框，按 <strong>n</strong> 新建条目。网站一栏填了域名就能直接点开。<br>
-          · 数据存放位置：<strong id="storage-note">检测中……</strong>
+          <strong>怎么用</strong>：点「① 复制账号」→ 粘贴 → 回来点「② 复制密码」。密码 30 秒后自动从剪贴板清空。<br>
+          <strong>快捷键</strong>：电脑上按 <strong>/</strong> 搜索，按 <strong>n</strong> 新建。<br>
+          <strong>安全</strong>：密码加密后才保存，钥匙只在解锁时短暂存在内存，关掉网页就自动上锁。<strong>U 盘密钥文件务必备份</strong> —— 丢了就用「恢复问题」那把钥匙开门，再换一把新的。<br>
+          <strong>数据位置</strong>：<strong id="storage-note">检测中……</strong>
         </div>
       </section>
 
