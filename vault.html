@@ -109,6 +109,11 @@
           </div>
         </header>
 
+        <div id="cloud-bar" class="keyhole">
+          <span id="cloud-status">云端同步：检查中……</span>
+          <button id="btn-cloud-open" class="mini" type="button">设置</button>
+        </div>
+
         <div id="recovery-nudge" class="keyhole hidden">
           <span>恢复钥匙口：<strong>还没有配钥匙</strong>。U 盘要是坏了就打不开，建议现在设置一个恢复问题。</span>
           <button id="btn-nudge-set" class="mini" type="button">去设置</button>
@@ -272,9 +277,47 @@
     </div>
   </div>
 
+  <!-- 云同步弹层 -->
+  <div id="cloud-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>云端同步</h3>
+      <p class="hint">云上<strong>只存密文</strong>。你的密码在上传之前就已经在本机加密好了，服务器看不到任何内容 —— 这叫「零知识」。换台电脑登录同一个账号，下载下来用钥匙一解就全回来了。</p>
+
+      <div id="cloud-login" class="verify-block">
+        <h4>① 用手机号登录</h4>
+        <p class="hint">手机号只是用来认出「哪一份密文是你的」，跟你的密码无关。验证码发到你手机上。</p>
+        <input id="cloud-phone" type="tel" inputmode="numeric" placeholder="11 位手机号">
+        <button id="btn-cloud-send" class="btn btn-ghost" type="button">获取验证码</button>
+        <div class="row">
+          <input id="cloud-code" type="text" inputmode="numeric" placeholder="收到的验证码">
+          <button id="btn-cloud-login" class="btn btn-primary" type="button">登录 / 注册</button>
+        </div>
+        <div id="cloud-login-msg" class="msg"></div>
+      </div>
+
+      <div id="cloud-panel" class="verify-block hidden">
+        <h4>② 同步</h4>
+        <p class="hint" id="cloud-who">已登录</p>
+        <p class="hint" id="cloud-times"></p>
+        <div class="row">
+          <button id="btn-cloud-push" class="btn btn-primary" type="button">上传到云端</button>
+          <button id="btn-cloud-pull" class="btn btn-ghost" type="button">从云端下载</button>
+        </div>
+        <div id="cloud-msg" class="msg"></div>
+        <button id="btn-cloud-signout" class="mini" type="button">退出登录</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-cloud-close" class="btn btn-ghost" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <div id="site-footer"></div>
+  <!-- 云服务 SDK（本项目是无构建的纯静态站，所以用 CDN 形式加载） -->
+  <script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
   <script src="/assets/js/main.js"></script>
   <script src="/assets/js/vault.js"></script>
 </body>

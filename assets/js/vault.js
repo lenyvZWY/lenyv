@@ -45,6 +45,22 @@
      1. 常量（写死的配置项）
      ========================================================================== */
 
+  /* ==========================================================================
+     云服务配置（来自「开通云服务」时平台返回的 publicConfig）
+     --------------------------------------------------------------------------
+     这三个值不是密钥，可以放在前端代码里 —— 浏览器里本来就看得见。
+     · endpoint        本应用的后端地址，由平台分配
+     · publishableKey  只用来标识「是哪个应用」，本身不含任何权限；
+                       真正的安全由服务器端的域名校验 + 数据库的 RLS 策略负责
+     · oauthRelayBaseUrl  微信扫码登录用的中转地址（本项目暂时用手机号登录，先留着）
+     ⚠️ endpoint 不要手改，也不要从 location 里推 —— 写错会直接导致登录失败。
+     ========================================================================== */
+  var CLOUD_CONFIG = {
+    endpoint: 'https://lenyv-vault.app.workbuddy.host',
+    oauthRelayBaseUrl: 'https://www.workbuddy.cn/v2/as/genie-baas/oauth',
+    publishableKey: 'wbpk_Si7P7nvqJ2Kw8v6Tyk2uag_UQiCGuDBVwox3YDfGeGXLB2a3UOF4TNJ'
+  };
+
   var DB_NAME = 'lenyv_vault';             // IndexedDB 数据库名
   var STORE = 'vault';                     // 数据库里的表名
   var REC_ID = 'main';                     // 整库只存一条记录，用这个固定 id
@@ -140,6 +156,13 @@
     STORAGE_BLOCKED: '浏览器不让这个页面保存数据。如果你是在「预览小窗口」里打开的，请改用真正的浏览器窗口打开本页；如果是无痕模式，请换成普通窗口。',
     STORAGE_ABORTED: '写入本地存储时被打断了，请再试一次。',
     STORAGE_FULL: '本地存储空间不够了，清理一点浏览器数据再试。',
+    // ---- 云同步相关 ----
+    CLOUD_SDK_MISSING: '云服务组件没加载出来（通常是网络问题）。刷新页面再试一次。',
+    CLOUD_READ_FAIL: '读取云端数据失败，请稍后重试。',
+    CLOUD_WRITE_FAIL: '上传到云端失败，请稍后重试。',
+    CLOUD_WRITE_DENIED: '上传被服务器拒绝了：这条数据不属于当前账号。请先登录你自己的账号。',
+    CLOUD_EMPTY: '云端还没有数据。先在存着最新密码的那台设备上点一次「上传到云端」。',
+    CLOUD_NOT_LOGGED_IN: '还没有登录云账号，请先登录。',
 
     // ---- 浏览器抛出的异常（按异常名称翻译）----
     NotAllowedError: '浏览器拒绝了这次操作。如果你正在用「无痕 / 隐私模式」，请换成普通窗口打开本页。',
@@ -725,6 +748,7 @@
     renderEntries();                        // 画出所有条目
     updateRecoveryStatus();                 // 更新恢复钥匙口的提示
     updateVerifyNudge();                    // 更新「该体检了」的提醒
+    updateCloudBar();                       // 检查云同步状态（没登录就提示没登录）
     // 电脑上直接把光标放进搜索框，打开就能打字找条目（触屏设备不抢焦点，免得弹键盘）
     if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) {
       var s = $('#search');
@@ -1132,7 +1156,205 @@
   }
 
   /* ==========================================================================
-     13. 事件绑定（把所有按钮接到对应的函数上）
+     13. 云同步（可选功能）
+     --------------------------------------------------------------------------
+     设计原则：上传的永远只是「已经加密好的那一坨」——
+     保险库密钥、主密码、明文条目，一步都不出浏览器。云端那张表里，
+     每个用户只有一行，存的就是本地那个 record 的副本（全是密文）。
+
+     为什么不做「自动覆盖」：万一云端是旧的、本地是新的，
+     自动拉下来就把你刚记的密码冲掉了。所以永远是「先告诉你状态，你再决定」。
+
+     换台电脑怎么用：登录同一个手机号 → 从云端下载 → 用你的钥匙解锁。
+     因为下载回来的还是同一把保险库密钥的包裹，所以原来那把钥匙照样能开。
+     ========================================================================== */
+
+  var cloudClient = null;   // SDK 客户端（整个页面只建一次）
+  var pendingOtp = null;    // 发过验证码之后暂存起来，登录时要用（不能重新发一次）
+  var cloudInfo = null;     // 云端那一行的最新信息 { payload, updatedAt }
+
+  // 懒创建客户端。SDK 是 CDN 加载的，万一没加载出来就返回 null，界面给提示。
+  function getCloud() {
+    if (cloudClient) return cloudClient;
+    if (!window.WorkBuddyCloud || !window.WorkBuddyCloud.createWorkBuddyCloud) return null;
+    cloudClient = window.WorkBuddyCloud.createWorkBuddyCloud({
+      endpoint: CLOUD_CONFIG.endpoint,
+      oauthRelayBaseUrl: CLOUD_CONFIG.oauthRelayBaseUrl,
+      publishableKey: CLOUD_CONFIG.publishableKey
+    });
+    return cloudClient;
+  }
+
+  // 当前登录状态：返回 session 或 null（没登录 / SDK 没加载出来）
+  function cloudSession() {
+    var c = getCloud();
+    if (!c) return Promise.resolve(null);
+    return c.auth.getSession().then(function (r) {
+      return (r && r.data) ? r.data : null;
+    }).catch(function () { return null; });
+  }
+
+  // 手机号打码：界面上不要完整显示
+  function maskPhone(p) {
+    var s = String(p || '').replace(/\s/g, '');
+    return s.length >= 7 ? s.slice(0, 3) + '****' + s.slice(-4) : '已登录';
+  }
+
+  // 把「毫秒数」或「ISO 时间字符串」统一成毫秒数
+  function toMs(v) {
+    if (!v) return 0;
+    if (typeof v === 'number') return v;
+    var t = Date.parse(v);
+    return isNaN(t) ? 0 : t;
+  }
+
+  // 把时间说成人话
+  function humanAgo(ms) {
+    if (!ms) return '未知';
+    var s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + ' 分钟前';
+    if (s < 86400) return Math.floor(s / 3600) + ' 小时前';
+    return Math.floor(s / 86400) + ' 天前';
+  }
+
+  // 读取云端那一行（没有就返回 null）。RLS 保证只能读到自己那行。
+  function cloudFetchRow() {
+    var c = getCloud();
+    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
+    return c.database.from('vault_sync').select('payload, updated_at').maybeSingle()
+      .then(function (r) {
+        if (r.error) throw new Error('CLOUD_READ_FAIL');
+        if (!r.data) return null;
+        return { payload: r.data.payload, updatedAt: toMs(r.data.updated_at) };
+      });
+  }
+
+  /* 上传：把本地那份密文推上去。
+     用 owner_id 当冲突键 —— 每个用户永远只有一行，重复上传是覆盖，不是新增。
+     注意：绝不传 owner_id，交给数据库的 DEFAULT auth.uid() 填。 */
+  function cloudPush() {
+    requireUnlocked();
+    var c = getCloud();
+    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
+    return c.database.from('vault_sync')
+      .upsert(
+        { payload: JSON.stringify(record), updated_at: new Date().toISOString() },
+        { onConflict: 'owner_id' }
+      )
+      .select('updated_at')
+      .then(function (r) {
+        if (r.error) throw new Error('CLOUD_WRITE_FAIL');
+        // 返回空数组 ≠ 成功 —— 那是被 RLS 挡下来了，必须当成失败
+        if (!Array.isArray(r.data) || r.data.length === 0) throw new Error('CLOUD_WRITE_DENIED');
+        return toMs(r.data[0].updated_at);
+      });
+  }
+
+  /* 下载：把云端那份密文写回本地。
+     写完之后必须上锁 —— 因为换了一份数据，内存里那把密钥已经和新的包裹对不上了，
+     要继续用就得重新走一次解锁流程。这也是「拉下来之后要重新解锁」的原因。 */
+  function cloudPull() {
+    var c = getCloud();
+    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
+    return cloudFetchRow().then(function (row) {
+      if (!row) throw new Error('CLOUD_EMPTY');
+      var rec;
+      try { rec = JSON.parse(row.payload); } catch (e) { throw new Error('DATA_CORRUPT'); }
+      // 结构不对就直接拒绝，别把一个坏记录写进本地把好数据顶掉
+      if (!rec || !rec.primary || !rec.verifier) throw new Error('DATA_CORRUPT');
+      return storePut(rec).then(function () {
+        record = rec;
+        lock();      // 回到锁定界面，让用户用钥匙重新开
+      });
+    });
+  }
+
+  // 退出登录：只清掉云端的会话，本地保险库和钥匙完全不受影响
+  function cloudSignOut() {
+    var c = getCloud();
+    if (!c) return Promise.resolve();
+    return c.auth.signOut().then(function () {
+      cloudInfo = null;
+      pendingOtp = null;
+    });
+  }
+
+  /* 刷新保险库页面上那条云同步状态。
+     三种说法：没登录 / 云上有更新的 / 本地有改动没上传 / 已是最新。 */
+  function updateCloudBar() {
+    var el = $('#cloud-status');
+    var btn = $('#btn-cloud-open');
+    if (!el) return;
+
+    // SDK 没加载出来（比如断网），先给个能看懂的提示
+    if (!getCloud()) {
+      el.textContent = '云端同步：组件没加载出来（可能没联网）';
+      if (btn) btn.textContent = '重试';
+      return;
+    }
+
+    cloudSession().then(function (s) {
+      if (!s) {
+        el.textContent = '云端同步：没登录（数据只在这台设备上）';
+        if (btn) btn.textContent = '设置';
+        return;
+      }
+      var who = maskPhone(s.user && (s.user.phone || s.user.email));
+      return cloudFetchRow().then(function (row) {
+        cloudInfo = row;
+        if (!row) {
+          el.textContent = '云端同步：已登录（' + who + '），云上还没有数据';
+          return;
+        }
+        var local = record ? (record.updatedAt || 0) : 0;
+        // 留 2 秒容差，避免时钟误差导致的来回抖动
+        if (row.updatedAt > local + 2000) {
+          el.textContent = '云端同步：云端有更新的数据（' + humanAgo(row.updatedAt) + '），建议下载';
+        } else if (local > row.updatedAt + 2000) {
+          el.textContent = '云端同步：本地有改动还没上传（本地 ' + humanAgo(local) + '）';
+        } else {
+          el.textContent = '云端同步：已是最新（' + humanAgo(row.updatedAt) + '）';
+        }
+      });
+    }).catch(function () {
+      el.textContent = '云端同步：检查失败，点右边重试';
+      if (btn) btn.textContent = '重试';
+    });
+  }
+
+  // 刷新云同步弹层：没登录显示登录框，登录了显示同步面板
+  function refreshCloudModal() {
+    var loginBox = $('#cloud-login');
+    var panel = $('#cloud-panel');
+
+    if (!getCloud()) {
+      setMsg($('#cloud-login-msg'), '云服务组件没加载出来，可能是网络问题。刷新页面再试。', 'err');
+      show(loginBox); hide(panel);
+      return;
+    }
+
+    cloudSession().then(function (s) {
+      if (!s) { show(loginBox); hide(panel); return; }
+      hide(loginBox); show(panel);
+
+      var who = $('#cloud-who');
+      if (who) who.textContent = '已登录：' + maskPhone(s.user && (s.user.phone || s.user.email));
+
+      return cloudFetchRow().then(function (row) {
+        cloudInfo = row;
+        var local = record ? (record.updatedAt || 0) : 0;
+        var t = $('#cloud-times');
+        if (t) {
+          t.textContent = '本地数据：' + humanAgo(local) +
+            ' ｜ 云端数据：' + (row ? humanAgo(row.updatedAt) : '还没有');
+        }
+      });
+    }).catch(function () { /* 状态刷新失败不打扰用户，手动点按钮时会再报 */ });
+  }
+
+  /* ==========================================================================
+     14. 事件绑定（把所有按钮接到对应的函数上）
      ========================================================================== */
 
   /* 通用「执行一个异步动作」的包装：
@@ -1464,8 +1686,123 @@
       refreshBackupInfo();
     });
 
+    // ---- 云同步弹层 ----
+    $('#btn-cloud-open').addEventListener('click', function () {
+      setMsg($('#cloud-login-msg'), '');
+      setMsg($('#cloud-msg'), '');
+      refreshCloudModal();
+      show($('#cloud-modal'));
+    });
+    $('#btn-cloud-close').addEventListener('click', function () { hide($('#cloud-modal')); });
+
+    // 输入手机号时，把上一次的错误提示清掉
+    $('#cloud-phone').addEventListener('input', function () {
+      setMsg($('#cloud-login-msg'), '');
+    });
+
+    // 第一步：获取验证码。注意这一步只「发送」，不验证。
+    $('#btn-cloud-send').addEventListener('click', function () {
+      var phone = $('#cloud-phone').value.trim();
+      // 中国大陆手机号：正好 11 位、以 1 开头
+      if (!/^1\d{10}$/.test(phone)) {
+        setMsg($('#cloud-login-msg'), '请输入正确的 11 位手机号', 'err');
+        return;
+      }
+      var c = getCloud();
+      if (!c) { setMsg($('#cloud-login-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
+      setMsg($('#cloud-login-msg'), '正在发送……');
+      // 原样传进去，不要自己加 +86 —— SDK 会做规范化
+      c.auth.sendOtp({ phone: phone }).then(function (r) {
+        if (r.error) { showError($('#cloud-login-msg'), '发送失败：', r.error); return; }
+        // 保存这次的凭据：登录时必须用它，不能重新发一次
+        pendingOtp = {
+          phone: phone,
+          verificationId: r.data.verificationId,
+          isExistingUser: r.data.isExistingUser
+        };
+        setMsg($('#cloud-login-msg'), '验证码已发送，请查看手机短信。', 'ok');
+      }).catch(function (err) {
+        showError($('#cloud-login-msg'), '发送失败：', err);
+      });
+    });
+
+    // 第二步：用验证码登录 / 注册。这一步不发新验证码。
+    $('#btn-cloud-login').addEventListener('click', function () {
+      var phone = $('#cloud-phone').value.trim();
+      var token = $('#cloud-code').value.trim();
+      // 号码变了或者压根没发过 → 让用户重新获取，而不是直接调接口
+      if (!pendingOtp || pendingOtp.phone !== phone) {
+        setMsg($('#cloud-login-msg'), '请先点「获取验证码」（号码变了就要重新获取）', 'err');
+        return;
+      }
+      if (!token) { setMsg($('#cloud-login-msg'), '请输入收到的验证码', 'err'); return; }
+
+      var c = getCloud();
+      if (!c) { setMsg($('#cloud-login-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
+      setMsg($('#cloud-login-msg'), '正在登录……');
+      c.auth.verifyOtp({
+        phone: pendingOtp.phone,
+        verificationId: pendingOtp.verificationId,
+        isExistingUser: pendingOtp.isExistingUser,
+        token: token
+      }).then(function (r) {
+        if (r.error) { showError($('#cloud-login-msg'), '登录失败：', r.error); return; }
+        pendingOtp = null;                 // 用掉了就清掉
+        $('#cloud-code').value = '';
+        setMsg($('#cloud-login-msg'), '');
+        refreshCloudModal();
+        updateCloudBar();
+        toast('已登录云账号');
+      }).catch(function (err) {
+        showError($('#cloud-login-msg'), '登录失败：', err);
+      });
+    });
+
+    // 上传到云端
+    $('#btn-cloud-push').addEventListener('click', function () {
+      var c = getCloud();
+      if (!c) { setMsg($('#cloud-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
+      cloudSession().then(function (s) {
+        if (!s) throw new Error('CLOUD_NOT_LOGGED_IN');
+        setMsg($('#cloud-msg'), '正在上传……');
+        return cloudPush();
+      }).then(function () {
+        setMsg($('#cloud-msg'), '上传成功。云端现在是最新的了。', 'ok');
+        refreshCloudModal();
+        updateCloudBar();
+      }).catch(function (err) {
+        showError($('#cloud-msg'), '上传失败：', err);
+      });
+    });
+
+    // 从云端下载（会覆盖本地，必须先确认）
+    $('#btn-cloud-pull').addEventListener('click', function () {
+      var c = getCloud();
+      if (!c) { setMsg($('#cloud-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
+      if (!window.confirm('这会用云端的数据覆盖这台设备上的保险库。\n\n如果这台设备上有还没上传的改动，会被丢掉。\n确定要继续吗？')) return;
+      cloudSession().then(function (s) {
+        if (!s) throw new Error('CLOUD_NOT_LOGGED_IN');
+        setMsg($('#cloud-msg'), '正在下载……');
+        return cloudPull();
+      }).then(function () {
+        hide($('#cloud-modal'));
+        toast('已从云端恢复。请用你的钥匙重新解锁。');
+      }).catch(function (err) {
+        showError($('#cloud-msg'), '下载失败：', err);
+      });
+    });
+
+    // 退出登录
+    $('#btn-cloud-signout').addEventListener('click', function () {
+      cloudSignOut().then(function () {
+        refreshCloudModal();
+        updateCloudBar();
+        toast('已退出云账号（本地保险库不受影响）');
+      });
+    });
+
     // ---- 点弹层外面的遮罩就关掉它 ----
-    [$('#modal'), $('#recovery-modal'), $('#key-modal'), $('#verify-modal')].forEach(function (m) {
+    [$('#modal'), $('#recovery-modal'), $('#key-modal'), $('#verify-modal'), $('#cloud-modal')].forEach(function (m) {
       m.addEventListener('click', function (ev) { if (ev.target === m) hide(m); });
     });
 
@@ -1477,6 +1814,7 @@
         hide($('#recovery-modal'));
         hide($('#key-modal'));
         hide($('#verify-modal'));
+        hide($('#cloud-modal'));
         return;
       }
       var t = ev.target || {};
@@ -1499,7 +1837,7 @@
   }
 
   /* ==========================================================================
-     14. 启动
+     15. 启动
      ========================================================================== */
 
   function init() {
