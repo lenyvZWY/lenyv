@@ -794,8 +794,8 @@
     if (text) {
       var d = daysSinceVerified();
       text.textContent = (d === null)
-        ? '还没做过体检。花一分钟确认一下：你的钥匙真的还能打开这个保险库吗？'
-        : '已经 ' + d + ' 天没体检了，建议每月做一次，确认钥匙都还灵。';
+        ? '还没做过体检。花一分钟验一下：U 盘密钥文件 + 主密码，现在还打得开这个保险库吗？'
+        : '已经 ' + d + ' 天没验过密钥和主密码了。建议每月验一次 —— 别等要用的时候才发现打不开。';
     }
     show(box);
   }
@@ -1411,18 +1411,23 @@
       });
     });
 
-    // 体检①：U 盘钥匙还能不能开门
+    // 体检①：U 盘密钥文件 + 主密码，这两样配在一起还能不能开门
     $('#btn-v-check-key').addEventListener('click', function () {
       if (!verifyKeyBytes) { setMsg($('#v-key-result'), '先选择 U 盘里的密钥文件。', 'err'); return; }
+      var pw = $('#v-password').value;
       setMsg($('#v-key-result'), '正在检查……');
-      verifyPrimaryKey(verifyKeyBytes, $('#v-password').value).then(function (good) {
+      verifyPrimaryKey(verifyKeyBytes, pw).then(function (good) {
         if (!good) {
-          setMsg($('#v-key-result'), '打不开：密钥文件或主密码不对。先确认是不是选错了文件。', 'err');
+          setMsg($('#v-key-result'), '打不开：密钥文件或主密码不对。先确认是不是选错了文件，再确认密码有没有打错。', 'err');
           return;
         }
         // 检查通过 → 盖时间戳，提醒条随之消失
+        // 顺便说清楚到底验了什么：这个库设过主密码没有，说法不一样
+        var what = pw.length > 0
+          ? 'U 盘密钥文件和主密码都对'
+          : 'U 盘密钥文件没问题（这个库没有设主密码）';
         return markVerified().then(function () {
-          setMsg($('#v-key-result'), '能打开 —— 这把钥匙是好的。', 'ok');
+          setMsg($('#v-key-result'), '能打开 —— ' + what + '。', 'ok');
           updateVerifyNudge();
         });
       }).catch(function (err) {
@@ -1440,11 +1445,11 @@
         .then(function () { return verifyRecoveryAnswer(ans); })
         .then(function (good) {
           if (!good) {
-            setMsg($('#v-rec-result'), '打不开：答案不对。再想想那句话是怎么说的。', 'err');
+            setMsg($('#v-rec-result'), '打不开：答案不对。再想想那句话是怎么说的（标点、字数都要一样）。', 'err');
             return;
           }
           return markVerified().then(function () {
-            setMsg($('#v-rec-result'), '能打开 —— 这条后路是通的。', 'ok');
+            setMsg($('#v-rec-result'), '能打开 —— 恢复答案是对的，这条后路是通的。', 'ok');
             updateVerifyNudge();
           });
         })

@@ -235,28 +235,28 @@
       <p class="hint">趁现在不着急，先确认你的钥匙都还能打开这个保险库。<strong>只读检查，不会改动任何密码条目。</strong></p>
 
       <div class="verify-block">
-        <h4>① U 盘钥匙</h4>
-        <p class="hint">选中 U 盘里的密钥文件，再输一次主密码，看看能不能对上。</p>
+        <h4>① U 盘密钥文件 + 主密码</h4>
+        <p class="hint">这两样是配对使用的：选中 U 盘里的密钥文件、再输一次主密码，一起验一遍。</p>
         <label class="btn btn-ghost file-btn">选择密钥文件
           <input id="v-key-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
         </label>
         <p id="v-key-status" class="hint muted">尚未选择</p>
         <div class="pw-row">
-          <input id="v-password" type="password" autocomplete="off" placeholder="主密码（如果设过）">
+          <input id="v-password" type="password" autocomplete="off" placeholder="主密码（没设过就留空）">
           <button class="mini pw-toggle" type="button">显示</button>
         </div>
-        <button id="btn-v-check-key" class="btn btn-primary" type="button">检查这把钥匙</button>
+        <button id="btn-v-check-key" class="btn btn-primary" type="button">检查密钥 + 主密码</button>
         <div id="v-key-result" class="msg"></div>
       </div>
 
       <div class="verify-block">
-        <h4>② 恢复钥匙</h4>
-        <p class="hint">输入那句恢复答案，确认它还能开门。这是 U 盘坏掉时的唯一后路。</p>
+        <h4>② 恢复问题的答案</h4>
+        <p class="hint">U 盘坏掉时的唯一后路。输入那句答案，确认它还能开门。</p>
         <div class="pw-row">
           <input id="v-answer" type="password" autocomplete="off" placeholder="恢复问题的答案">
           <button class="mini pw-toggle" type="button">显示</button>
         </div>
-        <button id="btn-v-check-rec" class="btn btn-primary" type="button">检查这把钥匙</button>
+        <button id="btn-v-check-rec" class="btn btn-primary" type="button">检查这个答案</button>
         <div id="v-rec-result" class="msg"></div>
       </div>
 
