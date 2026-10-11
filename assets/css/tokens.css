@@ -1,0 +1,42 @@
+:root{
+  /* 品牌色（以后可整体替换） */
+  --brand-500:#6366f1;
+  --brand-600:#4f46e5;
+  --brand-400:#818cf8;
+  --accent:#22d3ee;
+
+  /* 浅色主题（默认） */
+  --bg:#f7f8fc;
+  --bg-elev:#ffffff;
+  --bg-subtle:#eef0f6;
+  --text:#1f2430;
+  --text-soft:#5b6273;
+  --border:#e3e6ef;
+  --shadow:0 10px 30px rgba(31,36,48,.08);
+  --shadow-sm:0 4px 14px rgba(31,36,48,.06);
+
+  /* 间距 */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+
+  /* 圆角 */
+  --r-sm:8px; --r-md:14px; --r-lg:22px; --r-full:999px;
+
+  /* 字体 */
+  --font-sans:"Inter","Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+
+  /* 布局 */
+  --container:1100px;
+  --header-h:64px;
+}
+
+[data-theme="dark"]{
+  --bg:#0d1018;
+  --bg-elev:#151a26;
+  --bg-subtle:#1c2230;
+  --text:#e8ebf2;
+  --text-soft:#9aa3b5;
+  --border:#262d3d;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+  --shadow-sm:0 4px 14px rgba(0,0,0,.28);
+}

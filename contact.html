@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>联系 · lenyv</title>
+  <meta name="description" content="联系页面 —— 待补充。">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body data-page="contact">
+  <div id="site-header"></div>
+
+  <main>
+    <section class="page-head">
+      <div class="container">
+        <h1>联系</h1>
+        <p>留下你的方式，方便别人找到你。表单样式已备好，接上后端（或表单服务）即可真正收发消息。</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <form class="contact-form placeholder" onsubmit="return false;">
+          <label>名字
+            <input type="text" name="name" placeholder="你的名字" autocomplete="name">
+          </label>
+          <label>邮箱
+            <input type="email" name="email" placeholder="you@example.com" autocomplete="email">
+          </label>
+          <label>留言
+            <textarea name="message" rows="5" placeholder="想说点什么……"></textarea>
+          </label>
+          <button class="btn btn-primary" type="submit">发送</button>
+          <p class="form-note">提示：当前为静态站点，表单尚未连接后端。需要真正收发消息时，可以接一个表单服务或云函数。</p>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <div id="site-footer"></div>
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>
