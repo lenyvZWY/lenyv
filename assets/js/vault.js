@@ -288,9 +288,11 @@
     return deriveAesKey(pass, usbBytes).then(function (primaryKey) {
       return encryptBytes(primaryKey, mat);
     }).then(function (wrap) {
-      var dk = importDataKey(mat);
-      return Promise.all([dk, encryptBytes(dk, enc.encode(VERIFIER_TEXT))]).then(function (r) {
-        return { wrap: wrap, verifier: r[1], mat: mat };
+      // 注意：importDataKey 返回的是 Promise，必须先取到真正的 CryptoKey 才能用来加密
+      return importDataKey(mat).then(function (dk) {
+        return encryptBytes(dk, enc.encode(VERIFIER_TEXT)).then(function (verifier) {
+          return { wrap: wrap, verifier: verifier, mat: mat };
+        });
       });
     }).then(function (r) {
       var rec = {
