@@ -58,6 +58,7 @@
     RECOVERY_WRONG: '打不开：答案不对。再想想那句话是怎么说的。',
     NO_RECOVERY: '这个保险库还没有设置恢复问题，所以这条路暂时走不通。',
     NO_VAULT: '这台设备上还没有保险库。',
+    LOCKED: '保险库已经锁上了，请先解锁再操作。',
     BAD_FILE: '这不是有效的 lenyv 保险库备份文件。',
     STORAGE_BLOCKED: '浏览器不让这个页面保存数据。如果你是在「预览小窗口」里打开的，请改用真正的浏览器窗口打开本页；如果是无痕模式，请换成普通窗口。',
     STORAGE_ABORTED: '写入本地存储时被打断了，请再试一次。',
@@ -254,12 +255,13 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
   }
-  function copyText(text, btn) {
+  function copyText(text, btnOrCb) {
     var done = function () {
-      if (!btn) return;
-      var old = btn.textContent;
-      btn.textContent = '已复制';
-      setTimeout(function () { btn.textContent = old; }, 1200);
+      if (typeof btnOrCb === 'function') { btnOrCb(); return; }
+      if (!btnOrCb) return;
+      var old = btnOrCb.textContent;
+      btnOrCb.textContent = '已复制';
+      setTimeout(function () { btnOrCb.textContent = old; }, 1200);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
@@ -271,6 +273,48 @@
     document.body.appendChild(ta); ta.select();
     try { document.execCommand('copy'); done(); } catch (e) { /* ignore */ }
     ta.remove();
+  }
+
+  // ---------------- 底部轻提示 ----------------
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $('#toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2800);
+  }
+
+  // ---------------- 复制密码：一段时间后自动清空剪贴板 ----------------
+  var CLEAR_AFTER = 30000;
+  var clipTimer = null, clipMine = '';
+  function copySecret(text, label) {
+    copyText(text, function () {
+      clipMine = text;
+      if (clipTimer) clearTimeout(clipTimer);
+      clipTimer = setTimeout(clearClipboard, CLEAR_AFTER);
+      toast(label + '已复制 · ' + (CLEAR_AFTER / 1000) + ' 秒后自动清空剪贴板');
+    });
+  }
+  function clearClipboard() {
+    if (!navigator.clipboard || !navigator.clipboard.readText) return; // 读不了就不动，免得误删你自己复制的东西
+    navigator.clipboard.readText().then(function (cur) {
+      if (cur !== clipMine) return;
+      navigator.clipboard.writeText('').then(function () {
+        clipMine = '';
+        toast('剪贴板里的密码已自动清空');
+      }).catch(function () { /* ignore */ });
+    }).catch(function () { /* ignore */ });
+  }
+
+  // ---------------- 网站 → 可点链接 ----------------
+  function siteUrl(site) {
+    if (!site) return null;
+    var s = String(site).trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    if (/^[\w-]+(\.[\w-]+)+([\/?#]\S*)?$/.test(s)) return 'https://' + s;
+    return null;
   }
 
   // ---------------- 会话状态 ----------------
@@ -351,7 +395,13 @@
   }
 
   // ---------------- 保存条目 ----------------
+  // 防御：没解锁就调用加密函数，会给出一句看不懂的 WebCrypto 报错，这里提前拦住
+  function requireUnlocked() {
+    if (!vaultKeyMat) throw new Error('LOCKED');
+  }
+
   function persistEntries() {
+    requireUnlocked();
     var dk = importDataKey(vaultKeyMat);
     return dk.then(function (k) {
       return encryptBytes(k, enc.encode(JSON.stringify(entries))).then(function (blob) {
@@ -364,6 +414,7 @@
 
   // ---------------- 恢复问题 ----------------
   function saveRecovery(question, answer) {
+    requireUnlocked();
     var salt = randomBytes(16);
     return deriveAesKey(answer, salt).then(function (key) {
       return encryptBytes(key, vaultKeyMat);
@@ -376,6 +427,7 @@
 
   // ---------------- 更换钥匙 ----------------
   function changePrimaryKey(usbBytes, password) {
+    requireUnlocked();
     var pass = (password && password.length) ? password : NO_PASSWORD;
     return deriveAesKey(pass, usbBytes).then(function (key) {
       return encryptBytes(key, vaultKeyMat);
@@ -392,6 +444,11 @@
     show($('#vault-view'));
     renderEntries();
     updateRecoveryStatus();
+    // 桌面端进来就直接把光标放到搜索框，敲字即可找条目（触屏不抢焦点）
+    if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) {
+      var s = $('#search');
+      if (s) s.focus();
+    }
   }
   function lock() {
     vaultKeyMat = null; entries = []; editingId = null;
@@ -440,8 +497,9 @@
     var box = $('#entries');
     var q = ($('#search').value || '').trim().toLowerCase();
     box.innerHTML = '';
+    // 最近用过的排前面
     var list = entries.slice().sort(function (a, b) {
-      return (b.updatedAt || 0) - (a.updatedAt || 0);
+      return (b.lastUsedAt || b.updatedAt || 0) - (a.lastUsedAt || a.updatedAt || 0);
     });
     if (q) {
       list = list.filter(function (e) {
@@ -466,12 +524,25 @@
     t.textContent = e.title || '(未命名)';
     var s = document.createElement('div');
     s.className = 'entry-site';
-    s.textContent = e.site || '';
+
+    var url = siteUrl(e.site);
+    if (url) {
+      var a = document.createElement('a');
+      a.className = 'entry-link';
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = e.site;
+      a.title = '在新标签页打开 ' + url;
+      s.appendChild(a);
+    } else {
+      s.textContent = e.site || '';
+    }
     top.appendChild(t); top.appendChild(s);
     el.appendChild(top);
 
-    if (e.username) el.appendChild(line('账号', e.username, true));
-    if (e.password) el.appendChild(passwordLine(e.password));
+    if (e.username) el.appendChild(line('账号', e.username, true, e));
+    if (e.password) el.appendChild(passwordLine(e.password, e));
     if (e.note) {
       var n = document.createElement('div');
       n.className = 'entry-note';
@@ -481,23 +552,66 @@
 
     var tools = document.createElement('div');
     tools.className = 'entry-tools';
+    if (e.username || e.password) tools.appendChild(copyFlowButton(e));
     tools.appendChild(mini('编辑', function () { openEdit(e.id); }));
     tools.appendChild(mini('删除', function () { removeEntry(e.id); }, true));
     el.appendChild(tools);
     return el;
   }
 
-  function line(key, value, copyable) {
+  // 记一笔「刚用过」，让这条下次浮到最上面（不立刻重排，免得打字/点按位置跳动）
+  function touchEntry(e) {
+    if (!e) return;
+    e.lastUsedAt = Date.now();
+    persistEntries().catch(function () { /* ignore */ });
+  }
+
+  // 「① 复制账号 → ② 复制密码」两连击：粘完账号回来点第二下，密码才进剪贴板
+  function copyFlowButton(e) {
+    var step = 'account';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mini primary';
+
+    function paint() {
+      if (step === 'password') { btn.textContent = '② 复制密码'; return; }
+      btn.textContent = e.username ? '① 复制账号' : '复制密码';
+    }
+    btn.addEventListener('click', function () {
+      if (step === 'account' && e.username) {
+        copyText(e.username, function () {
+          toast('账号已复制，粘贴后回来再点一次 —— 换密码');
+          step = 'password';
+          paint();
+        });
+        touchEntry(e);
+        return;
+      }
+      if (!e.password) { toast('这条没有存密码'); return; }
+      copySecret(e.password, '密码');
+      touchEntry(e);
+      step = 'account';
+      paint();
+    });
+    paint();
+    return btn;
+  }
+
+  function line(key, value, copyable, entry) {
     var row = document.createElement('div');
     row.className = 'entry-line';
     var k = document.createElement('span'); k.className = 'k'; k.textContent = key;
     var v = document.createElement('span'); v.className = 'v'; v.textContent = value;
     row.appendChild(k); row.appendChild(v);
-    if (copyable) row.appendChild(mini('复制', function (btn) { copyText(value, btn); }));
+    if (copyable) {
+      row.appendChild(mini('复制', function () {
+        copyText(value, function () { toast(key + '已复制'); touchEntry(entry); });
+      }));
+    }
     return row;
   }
 
-  function passwordLine(pw) {
+  function passwordLine(pw, entry) {
     var row = document.createElement('div');
     row.className = 'entry-line';
     var k = document.createElement('span'); k.className = 'k'; k.textContent = '密码';
@@ -509,7 +623,10 @@
       v.textContent = shown ? pw : '••••••••';
       btn.textContent = shown ? '隐藏' : '显示';
     }));
-    row.appendChild(mini('复制', function (btn) { copyText(pw, btn); }));
+    row.appendChild(mini('复制', function () {
+      copySecret(pw, '密码');
+      touchEntry(entry);
+    }));
     return row;
   }
 
@@ -800,7 +917,24 @@
       m.addEventListener('click', function (ev) { if (ev.target === m) hide(m); });
     });
     document.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape') { hide($('#modal')); hide($('#recovery-modal')); hide($('#key-modal')); }
+      if (ev.key === 'Escape') {
+        hide($('#modal')); hide($('#recovery-modal')); hide($('#key-modal'));
+        return;
+      }
+      var t = ev.target || {};
+      var typing = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
+      var unlocked = !$('#vault-view').classList.contains('hidden');
+      // 按 / 直接跳到搜索框
+      if (ev.key === '/' && !typing && unlocked) {
+        ev.preventDefault();
+        $('#search').focus();
+        return;
+      }
+      // 按 n 新建条目
+      if ((ev.key === 'n' || ev.key === 'N') && !typing && unlocked && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        ev.preventDefault();
+        openAdd();
+      }
     });
   }
 

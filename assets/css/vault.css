@@ -90,6 +90,25 @@
 .is-ok{color:#3ecf8e}
 .is-err{color:#ff6b6b}
 
+/* 底部轻提示 */
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:200;
+  background:var(--text);color:var(--bg);padding:10px 20px;border-radius:var(--r-full);
+  font-size:.88rem;font-weight:500;max-width:calc(100vw - 48px);text-align:center;
+  pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+.toast.hidden{opacity:0;transform:translateX(-50%) translateY(8px)}
+
+/* 条目上的主操作按钮（复制账号 → 复制密码） */
+.mini.primary{border-color:var(--brand);color:var(--brand);font-weight:600}
+.mini.primary:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.mini.primary.done{border-color:var(--border);color:var(--text-soft);background:transparent;font-weight:400}
+
+/* 网站链接 */
+a.entry-link{color:var(--brand);border-bottom:1px solid transparent;transition:border-color .15s}
+a.entry-link:hover{border-bottom-color:var(--brand)}
+
+/* 复制后短暂高亮整个条目 */
+.entry.flash{border-color:var(--brand)}
+
 /* 恢复钥匙口的状态提示 */
 .keyhole{display:flex;gap:var(--sp-3);align-items:center;justify-content:space-between;flex-wrap:wrap;
   border:1px dashed var(--border);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-5);
