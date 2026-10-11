@@ -109,6 +109,13 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
 /* 复制后短暂高亮整个条目 */
 .entry.flash{border-color:var(--brand)}
 
+/* 体检弹层里的分区 */
+.verify-block{border-top:1px solid var(--border);margin-top:var(--sp-5);padding-top:var(--sp-5);
+  display:grid;gap:10px;justify-items:start}
+.verify-block h4{font-family:var(--font-display);font-size:1rem;margin:0;font-weight:700}
+.verify-block .pw-row{width:100%}
+.verify-block .msg{margin:0}
+
 /* 恢复钥匙口的状态提示 */
 .keyhole{display:flex;gap:var(--sp-3);align-items:center;justify-content:space-between;flex-wrap:wrap;
   border:1px dashed var(--border);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-5);

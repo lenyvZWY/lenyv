@@ -80,6 +80,15 @@
     return u;
   }
 
+  // 比较两串字节是不是完全一样（体检时用来判断「解出来的密钥对不对」）
+  // 用「逐位异或再累加」的写法，而不是提前 return，避免比较耗时泄露信息
+  function sameBytes(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+    return diff === 0;
+  }
+
   // 生成 n 个「密码学安全」的随机字节（不是 Math.random，那个能被预测）
   function randomBytes(n) {
     var a = new Uint8Array(n);
@@ -639,6 +648,73 @@
   }
 
   /* ==========================================================================
+     8.5 钥匙体检
+     --------------------------------------------------------------------------
+     为什么需要：很多人是「出事那天」才发现恢复方式早就失灵了 ——
+     比如 U 盘里的密钥文件被别的操作覆盖了、主密码其实记错了、
+     或者当初根本没把恢复问题设上。那时候再发现就来不及了。
+
+     所以建议每个月体检一次：在你还不急着用的时候，先确认钥匙都还能开门。
+     体检是【只读】的 —— 只拿钥匙去解一下已经存好的包裹，和内存里的密钥比一比，
+     不碰任何条目数据。
+     ========================================================================== */
+
+  // 体检①：用「U 盘密钥文件 +（可选）主密码」，看它能不能解开钥匙口①
+  function verifyPrimaryKey(usbBytes, password) {
+    requireUnlocked();
+    return deriveAesKey(passOrDefault(password), usbBytes).then(function (key) {
+      // 解开包裹拿到里面的保险库密钥，和内存里正在用的那把比对
+      return decryptBytes(key, record.primary.wrap).then(function (mat) {
+        return sameBytes(mat, vaultKeyMat);   // 一样 = 这把钥匙真的能开门
+      }, function () {
+        return false;                          // 解不开 = 钥匙不对
+      });
+    });
+  }
+
+  // 体检②：用「恢复问题的答案」，看它能不能解开钥匙口②
+  function verifyRecoveryAnswer(answer) {
+    requireUnlocked();
+    if (!record.recovery) throw new Error('NO_RECOVERY');  // 压根没配这把钥匙
+    return deriveAesKey(answer, b64ToU8(record.recovery.salt)).then(function (key) {
+      return decryptBytes(key, record.recovery.wrap).then(function (mat) {
+        return sameBytes(mat, vaultKeyMat);
+      }, function () {
+        return false;
+      });
+    });
+  }
+
+  // 体检通过后盖个时间戳，页面上就不再提醒了
+  function markVerified() {
+    requireUnlocked();
+    record.lastVerifiedAt = Date.now();
+    return storePut(record);
+  }
+
+  // 记录「刚导出过备份」，备份提醒靠它。
+  // 这一步只是往记录上加个时间，不需要密钥，所以不做 requireUnlocked 检查。
+  function markBackedUp() {
+    if (!record) return Promise.resolve();
+    record.lastBackupAt = Date.now();
+    return storePut(record);
+  }
+
+  // 距离上次体检过了几天（从没体检过就返回 null）
+  function daysSinceVerified() {
+    if (!record || !record.lastVerifiedAt) return null;
+    return Math.floor((Date.now() - record.lastVerifiedAt) / 86400000);
+  }
+
+  // 该不该提醒做体检：超过 30 天没做，或者从没做过
+  var VERIFY_EVERY_DAYS = 30;
+  function needsVerify() {
+    if (!record) return false;
+    var d = daysSinceVerified();
+    return d === null || d >= VERIFY_EVERY_DAYS;
+  }
+
+  /* ==========================================================================
      9. 视图切换
      ========================================================================== */
 
@@ -648,6 +724,7 @@
     show($('#vault-view'));                 // 展开展示保险库
     renderEntries();                        // 画出所有条目
     updateRecoveryStatus();                 // 更新恢复钥匙口的提示
+    updateVerifyNudge();                    // 更新「该体检了」的提醒
     // 电脑上直接把光标放进搜索框，打开就能打字找条目（触屏设备不抢焦点，免得弹键盘）
     if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) {
       var s = $('#search');
@@ -704,6 +781,23 @@
     }
     var nudge = $('#recovery-nudge');         // 没设置时顶部的提醒条
     if (nudge) nudge.classList.toggle('hidden', has);
+  }
+
+  /* 体检提醒条：超过 30 天没体检（或从没体检过）就显示出来。
+     体检的意义是「趁现在不着急，先确认钥匙还灵」——
+     真到要用的时候才发现打不开，就来不及了。 */
+  function updateVerifyNudge() {
+    var box = $('#verify-nudge');
+    if (!box) return;
+    if (!needsVerify()) { hide(box); return; }   // 刚体检过，不打扰
+    var text = $('#verify-nudge-text');
+    if (text) {
+      var d = daysSinceVerified();
+      text.textContent = (d === null)
+        ? '还没做过体检。花一分钟确认一下：你的钥匙真的还能打开这个保险库吗？'
+        : '已经 ' + d + ' 天没体检了，建议每月做一次，确认钥匙都还灵。';
+    }
+    show(box);
   }
 
   /* ==========================================================================
@@ -1017,6 +1111,7 @@
     var name = 'lenyv-vault-backup-' + d.getFullYear() + '-' +
       String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.json';
     download(payload, name, 'application/json');
+    markBackedUp();     // 记一下备份时间，体检弹层里会显示「上次备份：N 天前」
   }
 
   // 导入备份：把备份里的密文记录写回本地存储
@@ -1275,8 +1370,97 @@
       });
     });
 
+    // ---- 钥匙体检弹层 ----
+    var verifyKeyBytes = null;                     // 体检时选中的 U 盘密钥文件字节
+
+    // 刷新「上次备份」那行字
+    function refreshBackupInfo() {
+      var el = $('#v-backup-info');
+      if (!el || !record) return;
+      var last = record.lastBackupAt;
+      if (!last) {
+        el.textContent = '还没有导出过备份。建议每月导一份，放到别的地方（比如另一块 U 盘）。';
+        return;
+      }
+      var days = Math.floor((Date.now() - last) / 86400000);
+      el.textContent = '上次备份：' + days + ' 天前。建议每月导一份，放到别的地方。';
+    }
+
+    // 打开体检弹层，并把上次的状态清干净
+    function openVerifyModal() {
+      verifyKeyBytes = null;
+      setMsg($('#v-key-status'), '尚未选择');
+      setMsg($('#v-key-result'), '');
+      setMsg($('#v-rec-result'), '');
+      $('#v-password').value = '';
+      $('#v-answer').value = '';
+      refreshBackupInfo();
+      show($('#verify-modal'));
+    }
+    $('#btn-verify').addEventListener('click', openVerifyModal);       // 提醒条上的按钮
+    $('#btn-verify-foot').addEventListener('click', openVerifyModal);  // 底部工具区的按钮
+    $('#btn-v-close').addEventListener('click', function () { hide($('#verify-modal')); });
+
+    // 选 U 盘密钥文件
+    $('#v-key-file').addEventListener('change', function (ev) {
+      var f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      readFileBytes(f).then(function (b) {
+        verifyKeyBytes = b;
+        setMsg($('#v-key-status'), '已选择：「' + f.name + '」', 'ok');
+      });
+    });
+
+    // 体检①：U 盘钥匙还能不能开门
+    $('#btn-v-check-key').addEventListener('click', function () {
+      if (!verifyKeyBytes) { setMsg($('#v-key-result'), '先选择 U 盘里的密钥文件。', 'err'); return; }
+      setMsg($('#v-key-result'), '正在检查……');
+      verifyPrimaryKey(verifyKeyBytes, $('#v-password').value).then(function (good) {
+        if (!good) {
+          setMsg($('#v-key-result'), '打不开：密钥文件或主密码不对。先确认是不是选错了文件。', 'err');
+          return;
+        }
+        // 检查通过 → 盖时间戳，提醒条随之消失
+        return markVerified().then(function () {
+          setMsg($('#v-key-result'), '能打开 —— 这把钥匙是好的。', 'ok');
+          updateVerifyNudge();
+        });
+      }).catch(function (err) {
+        showError($('#v-key-result'), '检查失败：', err);
+      });
+    });
+
+    // 体检②：恢复答案还能不能开门
+    $('#btn-v-check-rec').addEventListener('click', function () {
+      var ans = $('#v-answer').value;
+      if (!ans) { setMsg($('#v-rec-result'), '请输入恢复答案。', 'err'); return; }
+      setMsg($('#v-rec-result'), '正在检查……');
+      // 包一层 Promise：因为没配恢复问题时，verifyRecoveryAnswer 会同步抛错
+      Promise.resolve()
+        .then(function () { return verifyRecoveryAnswer(ans); })
+        .then(function (good) {
+          if (!good) {
+            setMsg($('#v-rec-result'), '打不开：答案不对。再想想那句话是怎么说的。', 'err');
+            return;
+          }
+          return markVerified().then(function () {
+            setMsg($('#v-rec-result'), '能打开 —— 这条后路是通的。', 'ok');
+            updateVerifyNudge();
+          });
+        })
+        .catch(function (err) {
+          showError($('#v-rec-result'), '检查失败：', err);
+        });
+    });
+
+    // 体检③：导出一份新备份
+    $('#btn-v-backup').addEventListener('click', function () {
+      exportBackup();
+      refreshBackupInfo();
+    });
+
     // ---- 点弹层外面的遮罩就关掉它 ----
-    [$('#modal'), $('#recovery-modal'), $('#key-modal')].forEach(function (m) {
+    [$('#modal'), $('#recovery-modal'), $('#key-modal'), $('#verify-modal')].forEach(function (m) {
       m.addEventListener('click', function (ev) { if (ev.target === m) hide(m); });
     });
 
@@ -1287,6 +1471,7 @@
         hide($('#modal'));
         hide($('#recovery-modal'));
         hide($('#key-modal'));
+        hide($('#verify-modal'));
         return;
       }
       var t = ev.target || {};

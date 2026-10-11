@@ -35,7 +35,8 @@ function makeVault() {
   const storePut = rec => { disk[rec.id] = JSON.parse(JSON.stringify(rec)); return Promise.resolve(); };
   const code = A + '\n' + B + `
     return { createVault, unlockWithPrimary, unlockWithRecovery, saveRecovery, changePrimaryKey,
-      persistEntries, storageLabelStub: null,
+      persistEntries, verifyPrimaryKey, verifyRecoveryAnswer, markVerified, markBackedUp,
+      daysSinceVerified, needsVerify,
       setMat: function (m) { vaultKeyMat = m; },
       setRecord: function (r) { record = r; },
       setEntries: function (e) { entries = e; },
@@ -203,8 +204,7 @@ const section = s => console.log('\n' + s);
     t(fresh.api.getEntries().length === 1, '换个浏览器 + 带 U 盘 → 能开且条目齐全');
   }
 
-  section('[7] 密文里不该出现明文');
-  {
+  section('[7] 密文里不该出现明文');  {
     const { api, disk } = makeVault();
     await api.createVault(USB, 'pw1');
     await api.setEntries([{ id: 'x', title: '秘密标题', username: 'secret-user', password: 'secret-pass-123' }]);
@@ -216,6 +216,56 @@ const section = s => console.log('\n' + s);
     t(dump.indexOf('秘密标题') === -1, '标题明文没出现在落盘数据里');
     t(dump.indexOf(ANSWER) === -1, '恢复答案明文没出现在落盘数据里');
     t(dump.indexOf('你今天什么心情？') !== -1, '问题文本是明文（本来就要显示给用户）');
+  }
+
+  section('[7b] 钥匙体检（每月一次的「确认钥匙还灵」）');
+  {
+    const { api, disk } = makeVault();
+    await api.createVault(USB, 'oldpw');
+    await api.saveRecovery('你今天什么心情？', ANSWER);
+    api.setEntries([{ id: '1', title: '某网站', username: 'me', password: 'p@ss' }]);
+    await api.persistEntries();
+
+    // ---- U 盘钥匙 ----
+    t((await api.verifyPrimaryKey(USB, 'oldpw')) === true, 'U 盘 + 正确主密码 → 体检通过');
+    t((await api.verifyPrimaryKey(USB, 'WRONG')) === false, '主密码错 → 体检不通过');
+    t((await api.verifyPrimaryKey(USB2, 'oldpw')) === false, 'U 盘文件错 → 体检不通过');
+    t((await api.verifyPrimaryKey(USB, '')) === false, '主密码留空（实际设过）→ 不通过');
+
+    // ---- 恢复钥匙 ----
+    t((await api.verifyRecoveryAnswer(ANSWER)) === true, '恢复答案正确 → 体检通过');
+    t((await api.verifyRecoveryAnswer('随便乱说')) === false, '恢复答案错 → 体检不通过');
+
+    // ---- 没配恢复钥匙时应明确报「没设置」，而不是说答案错 ----
+    const n2 = makeVault();
+    await n2.api.createVault(USB, 'pw');
+    let code = '(没抛错)';
+    try { await n2.api.verifyRecoveryAnswer('x'); } catch (e) { code = e.message; }
+    t(code === 'NO_RECOVERY', '还没配恢复钥匙 → 抛 NO_RECOVERY（会被翻译成准确中文）');
+
+    // ---- 体检是只读的，不能动到条目 ----
+    const before = JSON.stringify(api.getEntries());
+    await api.verifyPrimaryKey(USB, 'oldpw');
+    await api.verifyRecoveryAnswer(ANSWER);
+    t(JSON.stringify(api.getEntries()) === before, '体检不改动任何条目（只读检查）');
+
+    // ---- 时间戳与提醒逻辑 ----
+    t(api.daysSinceVerified() === null, '从没体检过 → 天数为 null');
+    t(api.needsVerify() === true, '从没体检过 → 应该提醒');
+    await api.markVerified();
+    t(api.daysSinceVerified() === 0, '刚体检完 → 天数为 0');
+    t(api.needsVerify() === false, '刚体检完 → 不再提醒');
+    t(!!disk.main.lastVerifiedAt, '体检时间存进了密文记录里');
+
+    // 手动把时间调成 40 天前，应该重新提醒
+    disk.main.lastVerifiedAt = Date.now() - 40 * 86400000;
+    api.setRecord(disk.main);
+    t(api.daysSinceVerified() === 40, '假装 40 天前体检过 → 天数算对了');
+    t(api.needsVerify() === true, '超过 30 天 → 重新提醒');
+
+    // 备份时间戳
+    await api.markBackedUp();
+    t(!!disk.main.lastBackupAt, '导出备份会记下时间');
   }
 
   section('[8] 存储降级（IndexedDB 用不了时自动落回 localStorage）');

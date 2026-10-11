@@ -114,6 +114,11 @@
           <button id="btn-nudge-set" class="mini" type="button">去设置</button>
         </div>
 
+        <div id="verify-nudge" class="keyhole hidden">
+          <span id="verify-nudge-text">该做体检了。</span>
+          <button id="btn-verify" class="mini" type="button">去体检</button>
+        </div>
+
         <div class="toolbar">
           <input id="search" type="search" placeholder="搜索标题 / 账号 / 网站">
           <button id="btn-add" class="btn btn-primary" type="button">＋ 新条目</button>
@@ -123,6 +128,7 @@
         <p id="empty-hint" class="placeholder hidden">还没有条目。点「新条目」放进去第一个。</p>
 
         <div class="vault-foot">
+          <button id="btn-verify-foot" class="btn btn-ghost" type="button">钥匙体检</button>
           <button id="btn-change-key" class="btn btn-ghost" type="button">更换钥匙（U 盘）</button>
           <button id="btn-recovery-settings" class="btn btn-ghost" type="button">恢复问题</button>
           <button id="btn-export" class="btn btn-ghost" type="button">导出加密备份</button>
@@ -219,6 +225,50 @@
         <button id="btn-k-save" class="btn btn-primary" type="button">保存</button>
       </div>
       <div id="k-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 钥匙体检弹层 -->
+  <div id="verify-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>钥匙体检</h3>
+      <p class="hint">趁现在不着急，先确认你的钥匙都还能打开这个保险库。<strong>只读检查，不会改动任何密码条目。</strong></p>
+
+      <div class="verify-block">
+        <h4>① U 盘钥匙</h4>
+        <p class="hint">选中 U 盘里的密钥文件，再输一次主密码，看看能不能对上。</p>
+        <label class="btn btn-ghost file-btn">选择密钥文件
+          <input id="v-key-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
+        </label>
+        <p id="v-key-status" class="hint muted">尚未选择</p>
+        <div class="pw-row">
+          <input id="v-password" type="password" autocomplete="off" placeholder="主密码（如果设过）">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <button id="btn-v-check-key" class="btn btn-primary" type="button">检查这把钥匙</button>
+        <div id="v-key-result" class="msg"></div>
+      </div>
+
+      <div class="verify-block">
+        <h4>② 恢复钥匙</h4>
+        <p class="hint">输入那句恢复答案，确认它还能开门。这是 U 盘坏掉时的唯一后路。</p>
+        <div class="pw-row">
+          <input id="v-answer" type="password" autocomplete="off" placeholder="恢复问题的答案">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <button id="btn-v-check-rec" class="btn btn-primary" type="button">检查这把钥匙</button>
+        <div id="v-rec-result" class="msg"></div>
+      </div>
+
+      <div class="verify-block">
+        <h4>③ 备份</h4>
+        <p class="hint" id="v-backup-info">还没有导出过备份。</p>
+        <button id="btn-v-backup" class="btn btn-ghost" type="button">现在导出一份加密备份</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-v-close" class="btn btn-ghost" type="button">关闭</button>
+      </div>
     </div>
   </div>
 
