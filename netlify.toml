@@ -28,6 +28,7 @@
   from = "/.netlify/scripts/hud"
   to = "/404"
   status = 404
+  force = true
 
 # ---- 把内部文件挡在外面 ----
 # publish = "." 会把仓库根目录整个发出去，下面这些是给开发用的，不该被公开访问。
