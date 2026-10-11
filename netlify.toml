@@ -19,17 +19,6 @@
   to = "/.netlify/functions/vault"
   status = 200
 
-# ---- 挡掉 Netlify 强制注入的角标脚本 ----
-# Netlify 会在每个页面 </html> 之后插入 /.netlify/scripts/hud，渲染「技术支持来自 Netlify」角标。
-# 后台开关（Project configuration > General > Powered by Netlify badge）在某些账号/语言下看不到，
-# 所以这里直接在边缘把它 404 掉 —— 脚本加载失败，角标就画不出来。
-# 注意：只匹配这一个路径，绝不能用 /.netlify/* 通配，否则会连同步接口一起挡掉。
-[[redirects]]
-  from = "/.netlify/scripts/hud"
-  to = "/404"
-  status = 404
-  force = true
-
 # ---- 把内部文件挡在外面 ----
 # publish = "." 会把仓库根目录整个发出去，下面这些是给开发用的，不该被公开访问。
 # 放在同步接口规则**后面**，避免抢走 /api/vault。
