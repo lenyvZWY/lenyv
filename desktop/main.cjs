@@ -35,10 +35,15 @@
    · 数据存在应用自己的目录里，跟浏览器的「清缓存」完全无关
    ============================================================================ */
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+
+// 完整性自检 + 盘符扫描 + 密钥文件名：放在一起，供下面统一使用。
+// 拆到 desktop/integrity.cjs 是为了能脱离 Electron 单独写测试。
+const integrity = require('./integrity.cjs');
+const { KEY_FILE_NAMES, listDrives } = integrity;
 
 // 项目根目录（desktop/ 的上一级）
 const ROOT = path.join(__dirname, '..');
@@ -67,9 +72,6 @@ function log(msg) {
   try { console.log(line); } catch (e) { /* GUI 下没有控制台 */ }
   try { fs.appendFileSync(resolveLogPath(), line + os.EOL); } catch (e) { /* 写不了就算了 */ }
 }
-
-// 密钥文件的默认名字（跟网页版生成的一致）
-const KEY_FILE_NAMES = ['vault-key.bin', 'vault-key-new.bin'];
 
 /* ---------------------------------------------------------------------------
    本地静态服务：只发白名单里的文件
@@ -141,18 +143,6 @@ function startServer() {
    U 盘识别：扫所有盘符的根目录，找密钥文件
    --------------------------------------------------------------------------- */
 
-// 列出当前所有存在的盘符，例如 ['C:', 'D:', 'E:']
-function listDrives() {
-  const out = [];
-  for (let i = 65; i <= 90; i++) {          // A 到 Z
-    const letter = String.fromCharCode(i);
-    try {
-      if (fs.existsSync(letter + ':/')) out.push(letter + ':');
-    } catch (e) { /* 没有这个盘，跳过 */ }
-  }
-  return out;
-}
-
 // 在所有盘的根目录里找密钥文件
 function findKeyFiles() {
   const found = [];
@@ -188,6 +178,52 @@ app.commandLine.appendSwitch('disable-software-rasterizer');
    GPU 子进程会崩溃，然后主程序直接自杀 —— 用户看到的就是「双击没反应」。
    加上它之后窗口能正常出现。对纯文字界面没有任何副作用。 */
 app.commandLine.appendSwitch('in-process-gpu');
+
+/* ---------------------------------------------------------------------------
+   完整性自检（防破坏）
+   ---------------------------------------------------------------------------
+   具体逻辑放在 desktop/integrity.cjs 里 —— 那一份不依赖 Electron，
+   所以可以脱离界面单独写测试（见 tests/integrity.test.cjs）。
+   这里只负责：算一次 → 不通过就弹窗 → 默认不让打开。
+   --------------------------------------------------------------------------- */
+function integrityGate() {
+  const r = integrity.checkIntegrity(path.join(__dirname, '..'));
+
+  if (r.source === 'none') {
+    log('完整性自检：跳过（开发模式，没有清单）');
+    return true;
+  }
+  if (r.ok) {
+    log('完整性自检：通过（依据：' + (r.source === 'usb' ? 'U 盘封印 ' + r.sealPath : '本机清单') +
+        '，核对了 ' + r.checked + ' 个文件）');
+    return true;
+  }
+
+  log('⚠️ 完整性自检不通过！有问题的文件：' + r.problems.join('；'));
+
+  const byUsb = r.source === 'usb';
+  const choice = dialog.showMessageBoxSync({
+    type: 'error',
+    title: '程序文件被动过',
+    message: byUsb
+      ? '⚠️ 保险库的程序代码和 U 盘上的封印对不上'
+      : '⚠️ 保险库的程序代码和自带的清单对不上',
+    detail:
+      '发现这些问题：\n\n· ' + r.problems.join('\n· ') + '\n\n' +
+      (byUsb
+        ? '这是拿你 U 盘里的「封印」比出来的 —— 没有你 U 盘的人伪造不出来，\n所以基本可以确定：代码确实被人动过，不是误报。\n\n'
+        : '这是跟程序自带的清单比出来的（没找到 U 盘封印）。\n\n') +
+      '代码被人改过的后果：你输入的密码可能被偷偷记下来发出去。\n\n' +
+      '建议先点「取消」，然后把 dist\\保险库 整个文件夹删掉，\n' +
+      '从你自己的 U 盘（F:\\保险库）复制一份干净的过来。',
+    buttons: ['取消（推荐）', '我知道风险，仍然打开'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true
+  });
+
+  return choice === 1;
+}
 
 /* ---------------------------------------------------------------------------
    窗口
@@ -256,7 +292,15 @@ if (!app.requestSingleInstanceLock()) {
     }
   });
 
-  app.whenReady().then(createWindow);
+  app.whenReady().then(() => {
+    // 开门之前先对指纹：代码被人动过就报警，并且默认不往下走
+    if (!integrityGate()) {
+      log('用户选择取消，退出。');
+      app.quit();
+      return;
+    }
+    createWindow();
+  });
 
   app.on('window-all-closed', () => {
     if (server) { try { server.close(); } catch (e) { /* ignore */ } }

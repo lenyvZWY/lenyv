@@ -89,12 +89,80 @@ fs.writeFileSync(path.join(appDir, 'package.json'), JSON.stringify({
 }, null, 2), 'utf8');
 console.log('  ✔ 已写入程序清单');
 
-// ---- 6. 自检 ----
+// ---- 6. 生成「指纹清单」（防破坏用）----
+// 思路：把每个程序文件的 SHA-256 记下来，程序启动时再算一遍，对不上就报警。
+// 清单放两处：程序目录里一份（弱），U 盘根目录再放一份「封印」（强，别人伪造不了）。
+const crypto = require('crypto');
+
+const WATCH = [
+  'index.html',
+  'assets/js/vault.js',
+  'assets/css/tokens.css',
+  'assets/css/main.css',
+  'assets/css/vault.css',
+  'desktop/main.cjs',
+  'desktop/preload.cjs'
+];
+
+const fileHashes = {};
+for (const rel of WATCH) {
+  const p = path.join(appDir, rel);
+  if (!fs.existsSync(p)) { console.warn('  ! 清单里跳过（文件不存在）：' + rel); continue; }
+  fileHashes[rel] = crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+}
+const manifest = { version: 1, createdAt: new Date().toISOString(), files: fileHashes };
+fs.writeFileSync(path.join(appDir, 'integrity.json'), JSON.stringify(manifest, null, 2), 'utf8');
+console.log('  ✔ 已生成指纹清单：' + Object.keys(fileHashes).length + ' 个文件');
+
+// ---- 7. 找到 U 盘：写封印 + （可选）把程序也复制一份过去 ----
+// 怎么认出是「你的 U 盘」：根目录有 vault-key.bin。
+// 这样绝不会误写别的盘 —— 只有你自己放过密钥的那个盘才会被动。
+const TO_USB = process.argv.includes('--to-usb');
+const usbDrives = [];
+for (let i = 67; i <= 90; i++) {                    // C 到 Z
+  const drive = String.fromCharCode(i) + ':';
+  try {
+    if (fs.existsSync(drive + '/vault-key.bin')) usbDrives.push(drive);
+  } catch (e) { /* 没这个盘 */ }
+}
+
+if (!usbDrives.length) {
+  console.log('  · 没找到 U 盘（根目录有 vault-key.bin 的盘）。插上 U 盘再跑一次就能写封印。');
+} else {
+  for (const drive of usbDrives) {
+    // ① 封印：跟程序目录里那份一模一样
+    try {
+      fs.writeFileSync(drive + '/vault-seal.json', JSON.stringify(manifest, null, 2), 'utf8');
+      console.log('  ✔ 封印已写到 ' + drive + '\\vault-seal.json');
+    } catch (e) {
+      console.warn('  ! 写封印失败（' + drive + '）：' + e.message);
+    }
+
+    // ② 整份程序也复制过去（要加 --to-usb）
+    //    这一份是「干净的备份」：万一电脑上那份被人破坏了，从这里复制回来就行。
+    if (TO_USB) {
+      const dest = path.join(drive + '/', APP_NAME);
+      try {
+        if (fs.existsSync(dest)) fs.rmSync(dest, { recursive: true, force: true });
+        copyDir(OUT_APP, dest);
+        console.log('  ✔ 程序已复制到 ' + drive + '\\' + APP_NAME + '\\');
+      } catch (e) {
+        console.warn('  ! 复制到 U 盘失败（' + drive + '）：' + e.message);
+      }
+    }
+  }
+  if (!TO_USB) {
+    console.log('  （想把程序本身也复制到 U 盘，加上 --to-usb 参数）');
+  }
+}
+
+// ---- 8. 自检 ----
 const problems = [];
 if (!fs.existsSync(exeTo)) problems.push('主程序 exe 不存在');
 if (!fs.existsSync(path.join(appDir, 'index.html'))) problems.push('index.html 没进去');
 if (!fs.existsSync(path.join(appDir, 'assets/js/vault.js'))) problems.push('vault.js 没进去');
 if (!fs.existsSync(path.join(appDir, 'desktop/main.cjs'))) problems.push('main.cjs 没进去');
+if (!fs.existsSync(path.join(appDir, 'integrity.json'))) problems.push('指纹清单没生成');
 
 if (problems.length) {
   console.error('\n自检没通过：');
