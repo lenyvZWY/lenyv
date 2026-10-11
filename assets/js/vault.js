@@ -1,69 +1,138 @@
-/* ============================================================
+/* ============================================================================
    lenyv 保险库 · 零知识本地密码本
-   ------------------------------------------------------------
-   设计要点（信封加密）：
-     · 真正加密数据的是一把随机生成的「保险库密钥」(vaultKeyMat)。
-     · 两把「钥匙」各自把保险库密钥再加密一份（wrap），任一钥匙都能取出它：
-         钥匙A：U 盘密钥文件（something you have）+ 可选主密码（something you know）
-         钥匙B：恢复问题答案（something you know，可与重要的人共享）
-     · 明文与密钥绝不离开浏览器；落盘的只有密文。
-     · 解锁后密钥只存在于内存；刷新页面即自动上锁。
-   ============================================================ */
+   ============================================================================
+   【这个文件是干什么的】
+   在浏览器里实现一个「密码本」：你把各个网站的账号密码存进来，
+   它们用你自己的钥匙加密后，只存在你这台电脑的浏览器里。
+   没有任何服务器参与，明文和钥匙都不会离开你的浏览器。
+
+   【核心设计：信封加密（两把钥匙开同一扇门）】
+   1) 建库时，随机生成一把 32 字节的「保险库密钥」（下面代码里叫 vaultKeyMat）。
+      —— 真正加密你所有密码的，是它。
+   2) 然后把这把密钥，分别用两把「钥匙」各加密一份（这一步叫 wrap / 包裹）：
+        钥匙① —— U 盘里的密钥文件（你有的东西）+ 可选的主密码（你知道的东西）
+        钥匙② —— 恢复问题的答案（你和某个人共享的一句话）
+   3) 解锁时，随便哪把钥匙，只要能解开出 vaultKeyMat，就能打开整个保险库。
+   —— 所以：换解锁方式 = 同一扇门；忘主密码 = 用恢复答案开。
+   —— 钥匙口可以先「造好形状」而钥匙暂时不存在（recovery 初始为 null）。
+
+   【安全边界】
+   · 落盘的只有密文（IndexedDB 或 localStorage），里面不含任何明文。
+   · vaultKeyMat 只存在于内存（JS 变量），一刷新页面就没了 = 自动上锁。
+   · 主密码和恢复答案从不被存下来，只用它们推算钥匙。
+
+   【给以后接手的人】
+   改完这个文件，请务必跑一遍：node tests/vault.test.cjs
+   那个测试是直接从本文件切出真实函数来跑的，不是副本。
+   ============================================================================ */
 (function () {
-  'use strict';
+  'use strict';   // 开启严格模式：把一些容易写错的写法直接报错，早发现早修
 
+  /* ==========================================================================
+     0. 最基础的 DOM 小工具
+     （注意：这两个必须放在本文件最前面，测试脚本按位置切片提取代码）
+     ========================================================================== */
+
+  // $ = 找一个元素。用法：$('#id')、$('.class')；第二个参数可指定在哪个范围内找
   var $ = function (s, r) { return (r || document).querySelector(s); };
-  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
-  var DB_NAME = 'lenyv_vault';
-  var STORE = 'vault';
-  var REC_ID = 'main';
-  var ITER = 250000;                       // PBKDF2 迭代次数
-  var VERIFIER_TEXT = 'lenyv-vault-ok-v1'; // 用于校验钥匙是否正确
-  var NO_PASSWORD = 'lenyv::no-master-password::v1';
-  var DEFAULT_QUESTION = '你今天什么心情？';
-  var enc = new TextEncoder();
-  var dec = new TextDecoder();
+  // $$ = 找一堆元素，并转成真正的数组（这样才能用 forEach / filter 等方法）
+  var $$ = function (s, r) {
+    return Array.prototype.slice.call((r || document).querySelectorAll(s));
+  };
 
-  // ---------------- 基础工具 ----------------
+  /* ==========================================================================
+     1. 常量（写死的配置项）
+     ========================================================================== */
+
+  var DB_NAME = 'lenyv_vault';             // IndexedDB 数据库名
+  var STORE = 'vault';                     // 数据库里的表名
+  var REC_ID = 'main';                     // 整库只存一条记录，用这个固定 id
+  var ITER = 250000;                       // PBKDF2 迭代次数：把「猜密码」的速度拖慢 25 万倍
+  var VERIFIER_TEXT = 'lenyv-vault-ok-v1'; // 一句校验暗号，用来判断钥匙对不对
+  var NO_PASSWORD = 'lenyv::no-master-password::v1'; // 用户不设主密码时，用这个固定串占位
+  var DEFAULT_QUESTION = '你今天什么心情？';          // 恢复问题的默认问题
+  var enc = new TextEncoder();             // 文字 → 字节
+  var dec = new TextDecoder();             // 字节 → 文字
+
+  /* ==========================================================================
+     2. 字节 / Base64 互转
+     为什么要转：密文是二进制，而 IndexedDB / JSON 只方便存文本，所以存之前转 Base64
+     ========================================================================== */
+
+  // 字节数组 → Base64 文本
   function u8ToB64(u8) {
-    var s = '', CH = 0x8000;
-    for (var i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
-    return btoa(s);
+    var s = '', CH = 0x8000;  // 一次拼 32768 个字符，避免参数太多导致栈溢出
+    // 分块转成字符串（String.fromCharCode 一次传太多参数会崩，所以分块）
+    for (var i = 0; i < u8.length; i += CH) {
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    }
+    return btoa(s);           // 再整体编码成 Base64
   }
+
+  // Base64 文本 → 字节数组（上面那步的反向操作）
   function b64ToU8(b64) {
-    var s = atob(b64), u = new Uint8Array(s.length);
-    for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    var s = atob(b64),                    // 先解回普通字符串
+        u = new Uint8Array(s.length);     // 开一块等长的字节空间
+    for (var i = 0; i < s.length; i++) {
+      u[i] = s.charCodeAt(i);             // 逐字符取其编码值
+    }
     return u;
   }
-  function randomBytes(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return a; }
+
+  // 生成 n 个「密码学安全」的随机字节（不是 Math.random，那个能被预测）
+  function randomBytes(n) {
+    var a = new Uint8Array(n);
+    crypto.getRandomValues(a);
+    return a;
+  }
+
+  // 生成一个条目的唯一编号
   function uid() {
+    // 新浏览器自带 randomUUID；老浏览器就用「时间戳 + 随机数」兜底
     return (crypto.randomUUID ? crypto.randomUUID()
       : 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
   }
-  function setMsg(el, text, type) {
-    if (!el) return;
-    el.textContent = text || '';
-    el.classList.remove('is-ok', 'is-err');
+
+  // 给某个元素设置「状态色」（绿=成功 / 红=失败），会先清掉旧的状态
+  function markState(el, type) {
+    el.classList.remove('is-ok', 'is-err');   // 先清干净
     if (type === 'ok') el.classList.add('is-ok');
     else if (type === 'err') el.classList.add('is-err');
   }
+
+  // 往提示区写一句话（type 传 'ok' 变绿、'err' 变红、不传就是普通灰）
+  function setMsg(el, text, type) {
+    if (!el) return;                          // 元素不存在就什么也不做
+    el.textContent = text || '';              // 用 textContent 而不是 innerHTML：防止内容被当成代码执行
+    markState(el, type);
+  }
+
+  // 显示元素（把 .hidden 这个 class 摘掉）
   function show(el) { if (el) el.classList.remove('hidden'); }
+
+  // 隐藏元素（把 .hidden 加上）
   function hide(el) { if (el) el.classList.add('hidden'); }
 
-  // ---------------- 报错翻译成人话 ----------------
+  /* ==========================================================================
+     3. 把报错翻译成人话
+     浏览器原本吐的是英文专业术语，用户看不懂，所以统一查表翻译。
+     ========================================================================== */
+
   var ERROR_ZH = {
-    // 本程序自己抛出的
+    // ---- 本程序自己抛出的错误码 ----
     WRONG_KEY: '打不开：密钥文件或主密码不对。先确认 U 盘里的那个文件选对了没有。',
     RECOVERY_WRONG: '打不开：答案不对。再想想那句话是怎么说的。',
     NO_RECOVERY: '这个保险库还没有设置恢复问题，所以这条路暂时走不通。',
     NO_VAULT: '这台设备上还没有保险库。',
     LOCKED: '保险库已经锁上了，请先解锁再操作。',
+    DATA_CORRUPT: '数据解开了，但内容格式不对，可能文件被改动过。建议用备份恢复。',
     BAD_FILE: '这不是有效的 lenyv 保险库备份文件。',
     STORAGE_BLOCKED: '浏览器不让这个页面保存数据。如果你是在「预览小窗口」里打开的，请改用真正的浏览器窗口打开本页；如果是无痕模式，请换成普通窗口。',
     STORAGE_ABORTED: '写入本地存储时被打断了，请再试一次。',
     STORAGE_FULL: '本地存储空间不够了，清理一点浏览器数据再试。',
-    // 浏览器发出的（名称 → 中文）
+
+    // ---- 浏览器抛出的异常（按异常名称翻译）----
     NotAllowedError: '浏览器拒绝了这次操作。如果你正在用「无痕 / 隐私模式」，请换成普通窗口打开本页。',
     SecurityError: '浏览器出于安全策略挡住了本地存储。请用普通窗口（不是无痕模式）打开本页。',
     QuotaExceededError: '本地存储空间不够了，清理一点浏览器数据再试。',
@@ -78,41 +147,50 @@
     NetworkError: '本地存储被占用，请关掉其他打开了本页的标签页再试。'
   };
 
+  // 一句兜底话术，所有翻不出来的错误都用它
+  var FALLBACK_MSG = '没能完成，请再试一次。';
+
+  // 把任意错误对象，转成一句中文
   function friendlyError(err) {
-    if (!err) return '没能完成，请再试一次。';
-    if (typeof err === 'string') return ERROR_ZH[err] || '没能完成，请再试一次。';
-    if (err.message && ERROR_ZH[err.message]) return ERROR_ZH[err.message];
-    if (err.name && ERROR_ZH[err.name]) return ERROR_ZH[err.name];
+    if (!err) return FALLBACK_MSG;                                  // 啥都没有
+    if (typeof err === 'string') return ERROR_ZH[err] || FALLBACK_MSG; // 直接是错误码
+    if (err.message && ERROR_ZH[err.message]) return ERROR_ZH[err.message]; // message 命中表
+    if (err.name && ERROR_ZH[err.name]) return ERROR_ZH[err.name];  // 异常名称命中表
     if (err.name === 'TypeError') {
+      // 最常见的一种：浏览器根本没有加密能力（非 https / 老浏览器）
       return '这个浏览器缺少所需的加密功能。请用较新的 Chrome / Edge / Firefox，并通过 https 或 localhost 打开本页。';
     }
     var m = String(err.message || '');
+    // 兜底的模糊匹配：从英文原文里认出关键词
     if (/indexeddb|database|transaction/i.test(m)) return '本地数据库打不开。如果你在用「无痕 / 隐私模式」，换成普通窗口再试。';
     if (/storage|quota/i.test(m)) return '本地存储不可用，换成普通窗口再试。';
-    return '没能完成，请再试一次。';
+    return FALLBACK_MSG;
   }
 
-  // 中文主提示 + 可折叠的英文技术细节（方便排查，看不懂可忽略）
+  /* 把错误显示到界面上：
+     第一行是中文主提示（用户看这个），
+     折叠块里是英文原文（用户看不懂可以忽略，需要排查时复制给开发者）。 */
   function showError(el, prefix, err) {
     if (!el) return;
-    el.textContent = '';
-    el.classList.remove('is-ok');
-    el.classList.add('is-err');
-    var span = document.createElement('span');
+    el.textContent = '';                       // 清空旧内容
+    markState(el, 'err');                      // 整体标红
+    var span = document.createElement('span'); // 主提示
     span.textContent = (prefix || '') + friendlyError(err);
     el.appendChild(span);
 
+    // 拼出英文技术细节，例如 "OperationError: The operation failed ..."
     var detail = '';
     if (err) {
       detail = (typeof err === 'string') ? err
         : ((err.name ? err.name + ': ' : '') + (err.message || ''));
     }
+    // 只有真的有内容才显示折叠块（去掉冒号和空白后还有东西）
     if (detail && detail.replace(/[:\s]/g, '') !== '') {
-      var box = document.createElement('details');
+      var box = document.createElement('details'); // details = 可折叠区域
       box.className = 'tech';
-      var sum = document.createElement('summary');
+      var sum = document.createElement('summary'); // 折叠时显示的那行字
       sum.textContent = '技术细节（看不懂可忽略；需要我帮忙时复制这段给我）';
-      var code = document.createElement('code');
+      var code = document.createElement('code');   // 用等宽字体展示原文
       code.textContent = detail;
       box.appendChild(sum);
       box.appendChild(code);
@@ -120,175 +198,262 @@
     }
   }
 
-  // ---------------- 加密 ----------------
+  /* ==========================================================================
+     4. 加密核心（全部用浏览器自带的 Web Crypto，不依赖任何第三方库）
+     ========================================================================== */
+
+  /* 从「一句话」推出一把 AES 加密钥匙。
+     passphrase：用户输入的密码 / 恢复答案
+     saltBytes ：盐（混进去的随机字节），让相同的密码也能算出不同的钥匙
+     用 PBKDF2 慢速推导 —— 这是故意慢的，让暴力猜测变得不划算 */
   function deriveAesKey(passphrase, saltBytes) {
-    return crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey'])
+    return crypto.subtle
+      // 第一步：把文字变成 PBKDF2 能吃的「基础钥匙材料」
+      .importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey'])
       .then(function (base) {
+        // 第二步：反复榨 25 万次，得出最终的 AES-GCM 钥匙
         return crypto.subtle.deriveKey(
           { name: 'PBKDF2', salt: saltBytes, iterations: ITER, hash: 'SHA-256' },
-          base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+          base,
+          { name: 'AES-GCM', length: 256 },   // 256 位强度
+          false,                              // 不可导出（导不出来更安全）
+          ['encrypt', 'decrypt']              // 只允许用来加解密
         );
       });
   }
+
+  /* 加密一段字节，返回 {iv, ct} 两个 Base64 字符串。
+     iv（初始向量）：每次加密都随机生成，保证同样的内容每次密文都不同。 */
   function encryptBytes(key, bytes) {
-    var iv = randomBytes(12);
-    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, bytes).then(function (ct) {
-      return { iv: u8ToB64(iv), ct: u8ToB64(new Uint8Array(ct)) };
-    });
+    var iv = randomBytes(12);   // AES-GCM 推荐 12 字节随机 iv
+    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, bytes)
+      .then(function (ct) {
+        return { iv: u8ToB64(iv), ct: u8ToB64(new Uint8Array(ct)) };
+      });
   }
+
+  /* 解密：把 {iv, ct} 还原成字节。
+     如果钥匙不对，AES-GCM 会自动校验失败并抛错 —— 这就是我们判断「钥匙对不对」的依据。 */
   function decryptBytes(key, blob) {
-    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToU8(blob.iv) }, key, b64ToU8(blob.ct))
+    return crypto.subtle
+      .decrypt({ name: 'AES-GCM', iv: b64ToU8(blob.iv) }, key, b64ToU8(blob.ct))
       .then(function (pt) { return new Uint8Array(pt); });
   }
+
+  /* 把 32 字节的「保险库密钥」直接变成一把 AES 钥匙（用来加解密条目本身）。
+     注意：这个函数返回的是 Promise，用之前必须先 .then 取到真正的钥匙！ */
   function importDataKey(mat) {
     return crypto.subtle.importKey('raw', mat, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   }
 
-  // ---------------- 存储层 ----------------
-  // 首选 IndexedDB；若浏览器禁用、无痕模式、或预览面板里不可用，自动降级到 localStorage。
-  var LS_KEY = 'lenyv_vault_record_v1';
-  var idbUsable = null; // null = 还没探测过
+  /* ==========================================================================
+     5. 存储层
+     首选 IndexedDB；如果浏览器禁用 / 无痕模式 / 预览小窗口里用不了，
+     自动降级到 localStorage，保证「创建保险库」不会因为存储被挡而失败。
+     ========================================================================== */
 
+  var LS_KEY = 'lenyv_vault_record_v1'; // 降级时用的 key 名
+  var storageProbe = null;              // 缓存探测结果（缓存的是 Promise，避免重复探测）
+
+  // 探测 IndexedDB 到底能不能用；结果会缓存，只探一次
   function probeStorage() {
-    if (idbUsable !== null) return Promise.resolve(idbUsable);
-    return new Promise(function (resolve) {
+    if (storageProbe) return storageProbe;        // 已经探过就直接返回
+    storageProbe = new Promise(function (resolve) {
       var done = false;
-      function finish(v) { if (done) return; done = true; idbUsable = v; resolve(v); }
-      if (!window.indexedDB) return finish(false);
+      // 无论成功失败，都只回调一次
+      function finish(v) { if (done) return; done = true; resolve(v); }
+      if (!window.indexedDB) return finish(false); // 浏览器压根没这东西
+      // 加个超时：有些环境下 indexedDB.open 会永远不回调，不能让页面卡死
       var t = setTimeout(function () { finish(false); }, 2500);
       try {
         var rq = indexedDB.open(DB_NAME, 1);
-        rq.onupgradeneeded = function () {
-          var db = rq.result;
-          if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+        rq.onupgradeneeded = function () { ensureStore(rq.result); }; // 首次创建时建表
+        rq.onsuccess = function () {
+          clearTimeout(t);
+          try { rq.result.close(); } catch (e) { /* 关不掉也不影响，忽略 */ }
+          finish(true);                            // 能打开 = 可用
         };
-        rq.onsuccess = function () { clearTimeout(t); try { rq.result.close(); } catch (e) { /* ignore */ } finish(true); };
         rq.onerror = function () { clearTimeout(t); finish(false); };
         rq.onblocked = function () { clearTimeout(t); finish(false); };
-      } catch (e) { clearTimeout(t); finish(false); }
+      } catch (e) { clearTimeout(t); finish(false); }  // 直接抛异常（如沙箱禁止）
     });
+    return storageProbe;
   }
 
+  // 确保数据库里有我们那张表（建库和打开时都要用，抽出来避免写两遍）
+  function ensureStore(db) {
+    if (!db.objectStoreNames.contains(STORE)) {
+      db.createObjectStore(STORE, { keyPath: 'id' }); // 用 id 字段当主键
+    }
+  }
+
+  // 打开 IndexedDB
   function openDB() {
     return new Promise(function (res, rej) {
       var rq = indexedDB.open(DB_NAME, 1);
-      rq.onupgradeneeded = function () {
-        var db = rq.result;
-        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
-      };
+      rq.onupgradeneeded = function () { ensureStore(rq.result); };
       rq.onsuccess = function () { res(rq.result); };
       rq.onerror = function () { rej(rq.error || new Error('STORAGE_BLOCKED')); };
       rq.onblocked = function () { rej(new Error('STORAGE_BLOCKED')); };
     });
   }
+
+  // 从 IndexedDB 读一条记录
   function idbGet(id) {
     return openDB().then(function (db) {
       return new Promise(function (res, rej) {
         var rq = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
-        rq.onsuccess = function () { res(rq.result || null); };
+        rq.onsuccess = function () { res(rq.result || null); }; // 没有就是 null
         rq.onerror = function () { rej(rq.error); };
       });
     });
   }
+
+  // 往 IndexedDB 写一条记录（有则覆盖）
   function idbPut(rec) {
     return openDB().then(function (db) {
       return new Promise(function (res, rej) {
         var tx = db.transaction(STORE, 'readwrite');
         tx.objectStore(STORE).put(rec);
-        tx.oncomplete = function () { res(); };
+        tx.oncomplete = function () { res(); };                              // 事务提交成功
         tx.onerror = function () { rej(tx.error || new Error('STORAGE_ABORTED')); };
         tx.onabort = function () { rej(tx.error || new Error('STORAGE_ABORTED')); };
       });
     });
   }
+
+  // 从 localStorage 读（降级方案）
   function lsGet() {
     try {
       var raw = localStorage.getItem(LS_KEY);
       if (!raw) return null;
       var obj = JSON.parse(raw);
-      return (obj && obj.id) ? obj : null;
-    } catch (e) { return null; }
+      return (obj && obj.id) ? obj : null;   // 结构不对就当没有
+    } catch (e) {
+      return null;                           // 数据坏了也不崩，当没有就行
+    }
   }
+
+  // 往 localStorage 写（降级方案）；写不进去就抛出可翻译的错误码
   function lsPut(rec) {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(rec)); }
-    catch (e) {
-      if (e && (e.name === 'SecurityError' || e.name === 'NotAllowedError')) throw new Error('STORAGE_BLOCKED');
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(rec));
+    } catch (e) {
+      // 被安全策略挡住 和 空间满了，是两回事，要分开告诉用户
+      if (e && (e.name === 'SecurityError' || e.name === 'NotAllowedError')) {
+        throw new Error('STORAGE_BLOCKED');
+      }
       throw new Error('STORAGE_FULL');
     }
   }
-  function lsClear() { try { localStorage.removeItem(LS_KEY); } catch (e) { /* ignore */ } }
 
+  // 清掉 localStorage 里的副本（IndexedDB 写成功后调用，保证只有一份数据）
+  function lsClear() {
+    try { localStorage.removeItem(LS_KEY); } catch (e) { /* 清不掉不影响使用 */ }
+  }
+
+  // 统一读取入口：优先 IndexedDB，读不到再看 localStorage
   function storeGet(id) {
     return probeStorage().then(function (useIdb) {
-      if (!useIdb) return lsGet();
+      if (!useIdb) return lsGet();                        // 用不了 IDB 就直接读 LS
       return idbGet(id).then(function (rec) {
-        return rec || lsGet();
-      }, function () { return lsGet(); });
+        return rec || lsGet();                            // IDB 没数据时，兜一下 LS
+      }, function () { return lsGet(); });                // IDB 读失败也兜一下 LS
     });
   }
+
+  // 统一写入入口：优先 IndexedDB，失败自动落回 localStorage
   function storePut(rec) {
     return probeStorage().then(function (useIdb) {
-      if (!useIdb) { lsPut(rec); return; }
-      return idbPut(rec).then(function () { lsClear(); }, function () { lsPut(rec); });
+      if (!useIdb) { lsPut(rec); return; }                // 用不了 IDB，直接写 LS
+      return idbPut(rec).then(function () {
+        lsClear();                                        // 写成功：清掉 LS 里的旧副本
+      }, function () {
+        lsPut(rec);                                       // 写失败：落回 LS
+      });
     });
   }
+
+  // 告诉用户「数据实际存在哪」，显示在页面底部
   function storageLabel() {
     return probeStorage().then(function (useIdb) {
       return useIdb ? '浏览器本地数据库（IndexedDB）' : '浏览器本地存储（localStorage · 降级模式）';
     });
   }
 
-  // ---------------- 文件 / 下载 ----------------
+  /* ==========================================================================
+     6. 文件读写、下载、复制、提示
+     ========================================================================== */
+
+  // 把用户选中的文件读成字节数组（U 盘密钥文件就是这么读进来的）
   function readFileBytes(file) {
     return new Promise(function (res, rej) {
       var fr = new FileReader();
       fr.onload = function () { res(new Uint8Array(fr.result)); };
       fr.onerror = function () { rej(fr.error); };
-      fr.readAsArrayBuffer(file);
+      fr.readAsArrayBuffer(file);          // 按二进制读
     });
   }
+
+  // 触发浏览器下载一个文件（比如生成的密钥文件、导出的备份）
   function download(bytes, name, mime) {
     var blob = new Blob([bytes], mime ? { type: mime } : undefined);
-    var url = URL.createObjectURL(blob);
+    var url = URL.createObjectURL(blob);   // 造一个临时地址
     var a = document.createElement('a');
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    a.href = url;
+    a.download = name;                     // 指定文件名
+    document.body.appendChild(a);
+    a.click();                             // 模拟点击 = 开始下载
+    a.remove();                            // 用完删掉这个临时元素
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000); // 2 秒后释放临时地址
   }
+
+  /* 复制文本到剪贴板。
+     第二个参数既可以是回调函数，也可以是按钮元素（是按钮就顺便改文字提示一下）。 */
   function copyText(text, btnOrCb) {
     var done = function () {
-      if (typeof btnOrCb === 'function') { btnOrCb(); return; }
+      if (typeof btnOrCb === 'function') { btnOrCb(); return; }  // 回调模式
       if (!btnOrCb) return;
-      var old = btnOrCb.textContent;
+      var old = btnOrCb.textContent;                 // 按钮模式：临时改成「已复制」
       btnOrCb.textContent = '已复制';
       setTimeout(function () { btnOrCb.textContent = old; }, 1200);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
+      // 现代方式（需要 https 或 localhost）
       navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
-    } else fallbackCopy(text, done);
+    } else {
+      fallbackCopy(text, done);                      // 老方式兜底
+    }
   }
+
+  // 老式复制方案：造一个看不见的输入框，选中，执行复制命令
   function fallbackCopy(text, done) {
     var ta = document.createElement('textarea');
-    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); done(); } catch (e) { /* ignore */ }
+    ta.value = text;
+    ta.style.position = 'fixed';   // 固定定位，避免页面滚动
+    ta.style.opacity = '0';        // 透明，用户看不见
+    document.body.appendChild(ta);
+    ta.select();                   // 全选
+    try { document.execCommand('copy'); done(); } catch (e) { /* 复制不了就算了 */ }
     ta.remove();
   }
 
-  // ---------------- 底部轻提示 ----------------
+  // 底部那条轻提示（2.8 秒后自动消失）
   var toastTimer = null;
   function toast(msg) {
     var el = $('#toast');
     if (!el) return;
     el.textContent = msg;
     el.classList.remove('hidden');
-    if (toastTimer) clearTimeout(toastTimer);
+    if (toastTimer) clearTimeout(toastTimer);                     // 连续调用时重置计时
     toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2800);
   }
 
-  // ---------------- 复制密码：一段时间后自动清空剪贴板 ----------------
-  var CLEAR_AFTER = 30000;
-  var clipTimer = null, clipMine = '';
+  /* 复制「密码」专用：复制成功后再起一个 30 秒的定时器，自动把剪贴板清空。
+     这样即使你忘了清，密码也不会长期躺在剪贴板里被别的程序读走。 */
+  var CLEAR_AFTER = 30000;                 // 30 秒
+  var clipTimer = null;
+  var clipMine = '';                       // 记下「这次是我放进去的内容」
   function copySecret(text, label) {
     copyText(text, function () {
       clipMine = text;
@@ -297,226 +462,287 @@
       toast(label + '已复制 · ' + (CLEAR_AFTER / 1000) + ' 秒后自动清空剪贴板');
     });
   }
+
+  // 定时器到点后：确认剪贴板里还是我们放的东西，才清空
   function clearClipboard() {
-    if (!navigator.clipboard || !navigator.clipboard.readText) return; // 读不了就不动，免得误删你自己复制的东西
+    if (!navigator.clipboard || !navigator.clipboard.readText) return; // 读不了就不动，免得误删你自己复制的内容
     navigator.clipboard.readText().then(function (cur) {
-      if (cur !== clipMine) return;
+      if (cur !== clipMine) return;        // 用户已经复制了别的东西，那就别动
       navigator.clipboard.writeText('').then(function () {
         clipMine = '';
         toast('剪贴板里的密码已自动清空');
-      }).catch(function () { /* ignore */ });
-    }).catch(function () { /* ignore */ });
+      }).catch(function () { /* 清不掉就算了 */ });
+    }).catch(function () { /* 没权限读就算了 */ });
   }
 
-  // ---------------- 网站 → 可点链接 ----------------
+  // 把「网站」一栏的内容变成可点击地址：填了域名就自动补 https://
   function siteUrl(site) {
     if (!site) return null;
     var s = String(site).trim();
-    if (/^https?:\/\//i.test(s)) return s;
-    if (/^[\w-]+(\.[\w-]+)+([\/?#]\S*)?$/.test(s)) return 'https://' + s;
-    return null;
+    if (/^https?:\/\//i.test(s)) return s;                       // 已经带协议头，直接用
+    if (/^[\w-]+(\.[\w-]+)+([\/?#]\S*)?$/.test(s)) return 'https://' + s; // 看起来像域名，补协议头
+    return null;                                                 // 只是文字备注，不做链接
   }
 
-  // ---------------- 会话状态 ----------------
-  var vaultKeyMat = null;   // 保险库密钥（内存）
-  var record = null;        // 磁盘上的密文记录
-  var entries = [];         // 解密后的条目
-  var setupKeyBytes = null; // 「首次创建」时暂存的密钥文件字节
-  var newKeyBytes = null;   // 「更换钥匙」时暂存的密钥文件字节
-  var editingId = null;     // 正在编辑的条目 id
+  /* ==========================================================================
+     7. 会话状态（这些变量只在内存里，刷新页面就全没了 = 自动上锁）
+     ========================================================================== */
 
-  // ---------------- 首次创建 ----------------
+  var vaultKeyMat = null;   // 保险库密钥（32 字节）—— 解锁后才有值，锁定后清空
+  var record = null;        // 磁盘上的那条密文记录（含两个钥匙口 + 密文数据）
+  var entries = [];         // 解密后的条目数组（明文，只在内存）
+  var setupKeyBytes = null; // 首次创建时，暂存的密钥文件字节
+  var newKeyBytes = null;   // 更换钥匙时，暂存的新密钥文件字节
+  var editingId = null;     // 当前正在编辑哪条（null = 正在新建）
+
+  /* ==========================================================================
+     8. 保险库操作
+     ========================================================================== */
+
+  // 用户没填主密码时，统一用固定串占位（这样「没密码」也能走同一套流程）
+  function passOrDefault(password) {
+    return (password && password.length) ? password : NO_PASSWORD;
+  }
+
+  // ---- 首次创建 ----
   function createVault(usbBytes, password) {
-    var mat = randomBytes(32);
-    var pass = (password && password.length) ? password : NO_PASSWORD;
-    return deriveAesKey(pass, usbBytes).then(function (primaryKey) {
-      return encryptBytes(primaryKey, mat);
+    var mat = randomBytes(32);                       // ① 生成保险库密钥（纯随机 32 字节）
+
+    // ② 用「U 盘文件 + 主密码」推出一把钥匙，把保险库密钥加密一份
+    return deriveAesKey(passOrDefault(password), usbBytes).then(function (primaryKey) {
+      return encryptBytes(primaryKey, mat);          // 这一步的结果叫 wrap（包裹）
     }).then(function (wrap) {
-      // 注意：importDataKey 返回的是 Promise，必须先取到真正的 CryptoKey 才能用来加密
+      // ③ 再用保险库密钥本身，加密一句校验暗号
+      //    注意：importDataKey 返回的是 Promise，必须先 .then 拿到真正的 CryptoKey 才能用！
       return importDataKey(mat).then(function (dk) {
         return encryptBytes(dk, enc.encode(VERIFIER_TEXT)).then(function (verifier) {
           return { wrap: wrap, verifier: verifier, mat: mat };
         });
       });
     }).then(function (r) {
+      // ④ 组装要落盘的记录（注意：这里没有任何明文）
       var rec = {
         id: REC_ID,
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        kdf: { iterations: ITER },
-        primary: { wrap: r.wrap },
-        verifier: r.verifier,
-        data: null,
-        recovery: null
+        kdf: { iterations: ITER },        // 记下加密参数，将来升级还能兼容旧库
+        primary: { wrap: r.wrap },        // 钥匙口①：U 盘 + 主密码
+        verifier: r.verifier,             // 校验暗号（用来判断钥匙对不对）
+        data: null,                       // 条目密文，新库还没有
+        recovery: null                    // 钥匙口②：先留空 —— 钥匙口造好形状，钥匙暂时不存在
       };
       return storePut(rec).then(function () {
-        record = rec; vaultKeyMat = r.mat; entries = [];
-        enterVault();
+        record = rec;
+        vaultKeyMat = r.mat;              // 密钥只放内存
+        entries = [];
+        enterVault();                     // 直接进保险库
       });
     });
   }
 
-  // ---------------- 解锁 ----------------
+  /* ---- 解锁的最后一步 ----
+     拿到保险库密钥后：验证它对不对 → 读出条目 → 进入保险库 */
   function finishUnlock(mat) {
-    vaultKeyMat = mat;
-    var dk = importDataKey(mat);
-    return dk.then(function (k) {
+    vaultKeyMat = mat;                          // 先假设它是对的
+    return importDataKey(mat).then(function (k) {
+      // 用校验暗号验证：解不开或对不上，说明钥匙错了
       return decryptBytes(k, record.verifier).then(function (v) {
         if (dec.decode(v) !== VERIFIER_TEXT) throw new Error('WRONG_KEY');
-        if (!record.data) { entries = []; return null; }
+        if (!record.data) { entries = []; return null; }   // 空库，没有条目
+        // 解密条目密文，并解析成数组
         return decryptBytes(k, record.data).then(function (pt) {
-          entries = JSON.parse(dec.decode(pt)) || [];
+          var parsed;
+          try {
+            parsed = JSON.parse(dec.decode(pt));
+          } catch (e) {
+            // 解开了但格式不对：说明数据被改坏了，不是钥匙问题，要区分开
+            throw new Error('DATA_CORRUPT');
+          }
+          entries = Array.isArray(parsed) ? parsed : [];   // 保险起见判断一下是不是数组
         });
       });
     }).then(function () {
-      enterVault();
+      enterVault();                             // 全部就绪，进保险库
     }).catch(function (err) {
-      vaultKeyMat = null;
-      if (err && err.message === 'WRONG_KEY') throw err;
+      vaultKeyMat = null;                       // 失败就把内存里的密钥清掉，不留后患
+      // 是我们自己定义的错误码就原样抛出（能翻译成准确的中文），其他一律归为「钥匙不对」
+      if (err && /^(WRONG_KEY|DATA_CORRUPT)$/.test(err.message)) throw err;
       throw new Error('WRONG_KEY');
     });
   }
 
-  function unlockWithPrimary(usbBytes, password) {
-    var pass = (password && password.length) ? password : NO_PASSWORD;
-    return deriveAesKey(pass, usbBytes).then(function (key) {
-      return decryptBytes(key, record.primary.wrap).then(function (mat) {
-        return finishUnlock(mat);
-      }, function () { throw new Error('WRONG_KEY'); });
-    });
-  }
-  function unlockWithRecovery(answer) {
-    if (!record.recovery) throw new Error('NO_RECOVERY');
-    return deriveAesKey(answer, b64ToU8(record.recovery.salt)).then(function (key) {
-      return decryptBytes(key, record.recovery.wrap).then(function (mat) {
+  /* 通用的「用某把钥匙开某个钥匙口」：
+     先用 keyPromise 算出钥匙，再解开 wrapBlob 得到保险库密钥。
+     钥匙不对时，AES-GCM 会自己抛错，我们把它统一成 WRONG_KEY。 */
+  function unwrapWith(keyPromise, wrapBlob) {
+    return keyPromise.then(function (key) {
+      return decryptBytes(key, wrapBlob).then(function (mat) {
         return finishUnlock(mat);
       }, function () { throw new Error('WRONG_KEY'); });
     });
   }
 
-  // ---------------- 保存条目 ----------------
-  // 防御：没解锁就调用加密函数，会给出一句看不懂的 WebCrypto 报错，这里提前拦住
+  // ---- 用钥匙口①解锁：U 盘文件 +（可选）主密码 ----
+  function unlockWithPrimary(usbBytes, password) {
+    // U 盘文件字节本身就是「盐」，所以同一句话配不同 U 盘会得出完全不同的钥匙
+    return unwrapWith(deriveAesKey(passOrDefault(password), usbBytes), record.primary.wrap);
+  }
+
+  // ---- 用钥匙口②解锁：恢复问题的答案（不需要 U 盘）----
+  function unlockWithRecovery(answer) {
+    if (!record.recovery) throw new Error('NO_RECOVERY'); // 还没配钥匙，直说
+    // 盐是当初设置恢复问题时随机生成并存下来的
+    return unwrapWith(deriveAesKey(answer, b64ToU8(record.recovery.salt)), record.recovery.wrap);
+  }
+
+  /* ---- 防御：没解锁就调用加密函数 ----
+     否则会抛出「2nd argument is not of type CryptoKey」这种看不懂的英文，这里提前拦住。 */
   function requireUnlocked() {
     if (!vaultKeyMat) throw new Error('LOCKED');
   }
 
+  // ---- 把内存里的条目重新加密后存盘 ----
   function persistEntries() {
     requireUnlocked();
-    var dk = importDataKey(vaultKeyMat);
-    return dk.then(function (k) {
+    return importDataKey(vaultKeyMat).then(function (k) {
       return encryptBytes(k, enc.encode(JSON.stringify(entries))).then(function (blob) {
-        record.data = blob;
+        record.data = blob;                 // 替换掉旧的密文
         record.updatedAt = Date.now();
         return storePut(record);
       });
     });
   }
 
-  // ---------------- 恢复问题 ----------------
+  // ---- 设置 / 修改恢复问题（钥匙口②）----
   function saveRecovery(question, answer) {
     requireUnlocked();
-    var salt = randomBytes(16);
+    var salt = randomBytes(16);             // 新盐，每次设置都换
     return deriveAesKey(answer, salt).then(function (key) {
-      return encryptBytes(key, vaultKeyMat);
+      return encryptBytes(key, vaultKeyMat); // 用答案推出的钥匙，包裹保险库密钥
     }).then(function (wrap) {
       record.recovery = { question: question, salt: u8ToB64(salt), wrap: wrap };
       record.updatedAt = Date.now();
-      return storePut(record);
+      return storePut(record);              // 存盘：旧答案自动失效
     });
   }
 
-  // ---------------- 更换钥匙 ----------------
+  // ---- 更换钥匙口①（换 U 盘 / 换主密码）----
   function changePrimaryKey(usbBytes, password) {
     requireUnlocked();
-    var pass = (password && password.length) ? password : NO_PASSWORD;
-    return deriveAesKey(pass, usbBytes).then(function (key) {
-      return encryptBytes(key, vaultKeyMat);
+    return deriveAesKey(passOrDefault(password), usbBytes).then(function (key) {
+      return encryptBytes(key, vaultKeyMat); // 只是重新包一次，保险库密钥本身不变
     }).then(function (wrap) {
       record.primary = { wrap: wrap };
       record.updatedAt = Date.now();
-      return storePut(record);
+      return storePut(record);               // 存盘：旧钥匙自动失效
     });
   }
 
-  // ---------------- 视图切换 ----------------
+  /* ==========================================================================
+     9. 视图切换
+     ========================================================================== */
+
+  // 进入保险库界面
   function enterVault() {
-    hide($('#lock-view'));
-    show($('#vault-view'));
-    renderEntries();
-    updateRecoveryStatus();
-    // 桌面端进来就直接把光标放到搜索框，敲字即可找条目（触屏不抢焦点）
+    hide($('#lock-view'));                  // 收起解锁界面
+    show($('#vault-view'));                 // 展开展示保险库
+    renderEntries();                        // 画出所有条目
+    updateRecoveryStatus();                 // 更新恢复钥匙口的提示
+    // 电脑上直接把光标放进搜索框，打开就能打字找条目（触屏设备不抢焦点，免得弹键盘）
     if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) {
       var s = $('#search');
       if (s) s.focus();
     }
   }
+
+  // 上锁：清空内存里的一切敏感数据
   function lock() {
-    vaultKeyMat = null; entries = []; editingId = null;
-    record = record || null;
+    vaultKeyMat = null;                     // 密钥没了 —— 这是上锁的关键
+    entries = [];                           // 明文条目也没了
+    editingId = null;
     hide($('#vault-view'));
     show($('#lock-view'));
-    $('#entries').innerHTML = '';
-    // 清空输入
+    $('#entries').innerHTML = '';           // 把界面上的条目也抹掉
+    // 清空所有输入框，防止密码残留在页面上
     ['#unlock-password', '#recovery-answer', '#setup-password', '#setup-password2'].forEach(function (s) {
-      var el = $(s); if (el) el.value = '';
+      var el = $(s);
+      if (el) el.value = '';
     });
     // 把所有「显示」按钮复位成隐藏状态
     $$('.pw-toggle').forEach(function (b) { b.textContent = '显示'; });
     $$('.pw-row input').forEach(function (i) { i.type = 'password'; });
+    // 复位创建界面的提示文字
     var hint = $('#setup-pw-hint');
-    if (hint) { hint.textContent = '看不清就先点「显示」，确认没打错再创建。'; hint.classList.remove('is-ok', 'is-err'); }
+    if (hint) {
+      hint.textContent = '看不清就先点「显示」，确认没打错再创建。';
+      markState(hint, null);
+    }
     refreshLockUI();
   }
 
+  // 根据「有没有建过库」，决定显示「创建界面」还是「解锁界面」
   function refreshLockUI() {
     var hasVault = !!record;
-    $('#setup-panel').classList.toggle('hidden', hasVault);
-    $('#unlock-panel').classList.toggle('hidden', !hasVault);
+    $('#setup-panel').classList.toggle('hidden', hasVault);   // 建过了就不显示创建界面
+    $('#unlock-panel').classList.toggle('hidden', !hasVault); // 没建过就不显示解锁界面
     if (hasVault) {
-      // 恢复问题标签
-      var hasRec = !!record.recovery;
+      var hasRec = !!record.recovery;                         // 恢复钥匙口配了没有
       $('#recovery-not-set').classList.toggle('hidden', hasRec);
       $('#recovery-form').classList.toggle('hidden', !hasRec);
       if (hasRec) $('#recovery-question').textContent = record.recovery.question || DEFAULT_QUESTION;
     }
   }
+
+  // 更新「恢复问题」的状态显示，以及那条提醒横幅
   function updateRecoveryStatus() {
-    var el = $('#r-status');
     var has = !!(record && record.recovery);
+    var el = $('#r-status');
     if (el) {
       el.textContent = has
         ? '已设置（' + (record.recovery.question || DEFAULT_QUESTION) + '）'
         : '未设置';
     }
-    var nudge = $('#recovery-nudge');
+    var nudge = $('#recovery-nudge');         // 没设置时顶部的提醒条
     if (nudge) nudge.classList.toggle('hidden', has);
   }
 
-  // ---------------- 渲染条目 ----------------
+  /* ==========================================================================
+     10. 渲染条目列表
+     ========================================================================== */
+
   function renderEntries() {
     var box = $('#entries');
-    var q = ($('#search').value || '').trim().toLowerCase();
-    box.innerHTML = '';
-    // 最近用过的排前面
+    var q = ($('#search').value || '').trim().toLowerCase();   // 搜索关键词
+    box.innerHTML = '';                                        // 先清空（这里用 innerHTML 只是因为清空，不涉及用户数据）
+
+    // 排序：最近用过的排最上面；没用过的按修改时间
     var list = entries.slice().sort(function (a, b) {
       return (b.lastUsedAt || b.updatedAt || 0) - (a.lastUsedAt || a.updatedAt || 0);
     });
+
+    // 有搜索词就过滤：标题 / 网站 / 账号 / 备注 里任意一处命中都算
     if (q) {
       list = list.filter(function (e) {
         return [e.title, e.site, e.username, e.note].join(' ').toLowerCase().indexOf(q) !== -1;
       });
     }
+
+    // 列表空了才显示「还没有条目」的提示
     $('#empty-hint').classList.toggle('hidden', list.length > 0);
 
+    // 逐个生成 DOM 节点（用 createElement + textContent，而不是拼 HTML 字符串，
+    // 这样即使你的备注里写了 <script>，也只会被当普通文字显示，不会被执行）
     list.forEach(function (e) {
       box.appendChild(entryNode(e));
     });
   }
 
+  // 画一条条目卡片
   function entryNode(e) {
     var el = document.createElement('article');
     el.className = 'entry';
 
+    // ---- 标题行：左边标题，右边网站 ----
     var top = document.createElement('div');
     top.className = 'entry-top';
     var t = document.createElement('div');
@@ -527,21 +753,24 @@
 
     var url = siteUrl(e.site);
     if (url) {
+      // 网站栏能识别成地址 → 做成可以点的链接，新标签页打开
       var a = document.createElement('a');
       a.className = 'entry-link';
       a.href = url;
       a.target = '_blank';
-      a.rel = 'noopener noreferrer';
+      a.rel = 'noopener noreferrer';      // 安全：别让新页面反过来操作本页
       a.textContent = e.site;
       a.title = '在新标签页打开 ' + url;
       s.appendChild(a);
     } else {
       s.textContent = e.site || '';
     }
-    top.appendChild(t); top.appendChild(s);
+    top.appendChild(t);
+    top.appendChild(s);
     el.appendChild(top);
 
-    if (e.username) el.appendChild(line('账号', e.username, true, e));
+    // ---- 账号行 / 密码行 / 备注 ----
+    if (e.username) el.appendChild(line('账号', e.username, true, e));  // true = 带复制按钮
     if (e.password) el.appendChild(passwordLine(e.password, e));
     if (e.note) {
       var n = document.createElement('div');
@@ -550,86 +779,112 @@
       el.appendChild(n);
     }
 
+    // ---- 底部操作区 ----
     var tools = document.createElement('div');
     tools.className = 'entry-tools';
-    if (e.username || e.password) tools.appendChild(copyFlowButton(e));
+    if (e.username || e.password) tools.appendChild(copyFlowButton(e)); // 主按钮：两连击复制
     tools.appendChild(mini('编辑', function () { openEdit(e.id); }));
     tools.appendChild(mini('删除', function () { removeEntry(e.id); }, true));
     el.appendChild(tools);
+
     return el;
   }
 
-  // 记一笔「刚用过」，让这条下次浮到最上面（不立刻重排，免得打字/点按位置跳动）
+  /* 记一笔「刚用过」，让这条下次自动浮到最上面。
+     故意不立刻重新排序 —— 否则你刚点完，卡片就跳走了，反而不好操作。 */
   function touchEntry(e) {
     if (!e) return;
     e.lastUsedAt = Date.now();
-    persistEntries().catch(function () { /* ignore */ });
+    persistEntries().catch(function () { /* 记录使用时间失败不影响主功能，忽略 */ });
   }
 
-  // 「① 复制账号 → ② 复制密码」两连击：粘完账号回来点第二下，密码才进剪贴板
+  /* 主按钮「① 复制账号 → ② 复制密码」两连击：
+     点第一下复制账号；粘贴完回来点第二下，才复制密码。
+     这样一个按钮走完整个登录流程，又不会把密码过早放进剪贴板。 */
   function copyFlowButton(e) {
-    var step = 'account';
+    var step = 'account';                              // 当前走到第几步
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mini primary';
 
+    // 根据当前步骤刷新按钮文字
     function paint() {
       if (step === 'password') { btn.textContent = '② 复制密码'; return; }
-      btn.textContent = e.username ? '① 复制账号' : '复制密码';
+      btn.textContent = e.username ? '① 复制账号' : '复制密码';  // 没存账号就直接复制密码
     }
+
     btn.addEventListener('click', function () {
+      // 第一步：还有账号没复制，且这条确实存了账号
       if (step === 'account' && e.username) {
         copyText(e.username, function () {
           toast('账号已复制，粘贴后回来再点一次 —— 换密码');
-          step = 'password';
+          step = 'password';                           // 进入第二步
           paint();
         });
         touchEntry(e);
         return;
       }
+      // 第二步：复制密码（走自动清空剪贴板那套）
       if (!e.password) { toast('这条没有存密码'); return; }
       copySecret(e.password, '密码');
       touchEntry(e);
-      step = 'account';
+      step = 'account';                                // 复位，下次又从头开始
       paint();
     });
-    paint();
+
+    paint();                                           // 初始化按钮文字
     return btn;
   }
 
-  function line(key, value, copyable, entry) {
+  /* 画一行「标签 + 内容」的骨架。
+     账号行和密码行都要这东西，抽出来只写一遍（密码行运行时还会改它显示的文字）。 */
+  function kvRow(key, valueText) {
     var row = document.createElement('div');
     row.className = 'entry-line';
-    var k = document.createElement('span'); k.className = 'k'; k.textContent = key;
-    var v = document.createElement('span'); v.className = 'v'; v.textContent = value;
-    row.appendChild(k); row.appendChild(v);
+    var k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = key;
+    var v = document.createElement('span');
+    v.className = 'v';
+    v.textContent = valueText;
+    row.appendChild(k);
+    row.appendChild(v);
+    // 把 row 和 v 都交出去：row 用来继续挂按钮，v 用来以后改文字
+    return { row: row, v: v };
+  }
+
+  // 画一行「标签 + 内容（+ 可选复制按钮）」
+  function line(key, value, copyable, entry) {
+    var built = kvRow(key, value);
     if (copyable) {
-      row.appendChild(mini('复制', function () {
+      built.row.appendChild(mini('复制', function () {
         copyText(value, function () { toast(key + '已复制'); touchEntry(entry); });
       }));
     }
-    return row;
+    return built.row;
   }
 
+  // 画「密码」那一行：默认打码，可以点「显示」看明文，也可以复制
   function passwordLine(pw, entry) {
-    var row = document.createElement('div');
-    row.className = 'entry-line';
-    var k = document.createElement('span'); k.className = 'k'; k.textContent = '密码';
-    var v = document.createElement('span'); v.className = 'v'; v.textContent = '••••••••';
-    var shown = false;
-    row.appendChild(k); row.appendChild(v);
-    row.appendChild(mini('显示', function (btn) {
+    var built = kvRow('密码', '••••••••');   // 默认圆点，不暴露在屏幕上
+    var v = built.v;
+    var shown = false;                       // 当前是否已显示明文
+
+    // 「显示 / 隐藏」切换
+    built.row.appendChild(mini('显示', function (btn) {
       shown = !shown;
       v.textContent = shown ? pw : '••••••••';
       btn.textContent = shown ? '隐藏' : '显示';
     }));
-    row.appendChild(mini('复制', function () {
+    // 复制（带 30 秒自动清空）
+    built.row.appendChild(mini('复制', function () {
       copySecret(pw, '密码');
       touchEntry(entry);
     }));
-    return row;
+    return built.row;
   }
 
+  // 生成一个小按钮（danger = 危险操作，鼠标移上去会变红）
   function mini(text, fn, danger) {
     var b = document.createElement('button');
     b.type = 'button';
@@ -639,65 +894,108 @@
     return b;
   }
 
+  // 删除一条（先弹确认框，防止手滑）
   function removeEntry(id) {
     var e = entries.filter(function (x) { return x.id === id; })[0];
     if (!e) return;
     if (!window.confirm('删除「' + (e.title || '未命名') + '」？此操作不可撤销。')) return;
-    entries = entries.filter(function (x) { return x.id !== id; });
-    persistEntries().then(renderEntries);
+    entries = entries.filter(function (x) { return x.id !== id; });   // 从数组里摘掉
+    persistEntries().then(renderEntries).catch(function (err) {
+      toast(friendlyError(err));            // 存盘失败要说一声，不能默默吞掉
+    });
   }
 
-  // ---------------- 条目弹层 ----------------
-  function openAdd() {
-    editingId = null;
-    $('#modal-title').textContent = '新条目';
-    $('#f-title').value = ''; $('#f-site').value = '';
-    $('#f-user').value = ''; $('#f-pass').value = ''; $('#f-note').value = '';
-    show($('#modal'));
-    $('#f-title').focus();
+  /* ==========================================================================
+     11. 弹层（新增/编辑、恢复问题、更换钥匙）
+     ========================================================================== */
+
+  // 把表单填成指定内容（新增和编辑共用，避免写两遍）
+  function fillForm(data) {
+    data = data || {};
+    $('#f-title').value = data.title || '';
+    $('#f-site').value = data.site || '';
+    $('#f-user').value = data.username || '';
+    $('#f-pass').value = data.password || '';
+    $('#f-note').value = data.note || '';
   }
+
+  // 打开「新增条目」
+  function openAdd() {
+    editingId = null;                       // null 表示新增
+    $('#modal-title').textContent = '新条目';
+    fillForm(null);                         // 表单清空
+    show($('#modal'));
+    $('#f-title').focus();                  // 光标直接落在标题上，打开就能打字
+  }
+
+  // 打开「编辑条目」
   function openEdit(id) {
     var e = entries.filter(function (x) { return x.id === id; })[0];
     if (!e) return;
-    editingId = id;
+    editingId = id;                         // 记下正在编辑哪条
     $('#modal-title').textContent = '编辑条目';
-    $('#f-title').value = e.title || '';
-    $('#f-site').value = e.site || '';
-    $('#f-user').value = e.username || '';
-    $('#f-pass').value = e.password || '';
-    $('#f-note').value = e.note || '';
+    fillForm(e);                            // 把原内容填回去
     show($('#modal'));
   }
+
+  // 保存条目（新增或更新，取决于 editingId）
   function saveEntry() {
+    // 读表单
     var title = $('#f-title').value.trim();
     var site = $('#f-site').value.trim();
     var username = $('#f-user').value.trim();
-    var password = $('#f-pass').value;
+    var password = $('#f-pass').value;      // 密码不 trim：首尾空格也可能是密码的一部分
     var note = $('#f-note').value.trim();
+
+    // 至少要有一样东西，不然存了个空白条目没意义
     if (!title && !username && !password) {
-      alert('至少填一个标题或账号吧。');
+      toast('至少填一个标题或账号');
       return;
     }
+
     if (editingId) {
+      // 编辑已有条目：更新字段（lastUsedAt 保持不动）
       var e = entries.filter(function (x) { return x.id === editingId; })[0];
       if (e) {
-        e.title = title; e.site = site; e.username = username;
-        e.password = password; e.note = note; e.updatedAt = Date.now();
+        e.title = title;
+        e.site = site;
+        e.username = username;
+        e.password = password;
+        e.note = note;
+        e.updatedAt = Date.now();
       }
     } else {
+      // 新增条目
       entries.push({
-        id: uid(), title: title, site: site, username: username,
-        password: password, note: note, createdAt: Date.now(), updatedAt: Date.now()
+        id: uid(),
+        title: title,
+        site: site,
+        username: username,
+        password: password,
+        note: note,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
       });
     }
+
+    // 存盘成功才关弹层；失败要把原因显示出来（不能默默失败）
     persistEntries().then(function () {
       hide($('#modal'));
       renderEntries();
+    }).catch(function (err) {
+      showError($('#edit-msg'), '保存失败：', err);
     });
   }
+
+  // 生成一个随机强密码，填进密码框
   function genPassword() {
+    // 去掉了容易看混的字符：l / I / 1 / O / 0
     var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*-_=+';
-    var len = 20, out = '', limit = 256 - (256 % chars.length);
+    var len = 20;
+    var out = '';
+    // limit 用于「拒绝采样」：只接受落在整除范围内的随机数，
+    // 避免用 % 取余时某些字符出现概率偏高（那会削弱密码强度）
+    var limit = 256 - (256 % chars.length);
     while (out.length < len) {
       var a = randomBytes(len * 2);
       for (var i = 0; i < a.length && out.length < len; i++) {
@@ -707,80 +1005,115 @@
     $('#f-pass').value = out;
   }
 
-  // ---------------- 导入 / 导出 ----------------
+  /* ==========================================================================
+     12. 导出 / 导入备份
+     ========================================================================== */
+
+  // 导出一个 JSON 文件。注意：里面**全是密文**，没有钥匙打不开。
   function exportBackup() {
     var payload = JSON.stringify({ app: 'lenyv-vault', version: 1, record: record }, null, 2);
+    // 文件名带上日期，方便区分多个备份
     var d = new Date();
     var name = 'lenyv-vault-backup-' + d.getFullYear() + '-' +
       String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.json';
     download(payload, name, 'application/json');
   }
+
+  // 导入备份：把备份里的密文记录写回本地存储
   function importBackup(file) {
     readFileBytes(file).then(function (bytes) {
       var obj = JSON.parse(dec.decode(bytes));
-      var rec = obj && obj.record ? obj.record : obj;
-      if (!rec || !rec.primary || !rec.verifier) throw new Error('BAD_FILE');
+      var rec = obj && obj.record ? obj.record : obj;   // 兼容「包了一层」和「直接就是记录」两种格式
+      if (!rec || !rec.primary || !rec.verifier) throw new Error('BAD_FILE'); // 结构不对
       return storePut(rec).then(function () {
         record = rec;
-        alert('导入成功。请用这份备份对应的钥匙解锁。');
-        lock();
+        lock();                                        // 导入后回到锁定状态，用对应的钥匙重新开
+        toast('导入成功。请用这份备份对应的钥匙解锁。');
       });
-    }).catch(function () {
-      alert('导入失败：这不是有效的 lenyv 保险库备份文件。');
+    }).catch(function (err) {
+      // 交给统一的翻译：文件结构不对会说「不是有效的备份文件」，存储失败会说存储的问题
+      toast('导入失败：' + friendlyError(err));
     });
   }
 
-  // ---------------- 事件绑定 ----------------
+  /* ==========================================================================
+     13. 事件绑定（把所有按钮接到对应的函数上）
+     ========================================================================== */
+
+  /* 通用「执行一个异步动作」的包装：
+     统一处理「显示进行中 → 成功做什么 → 失败显示中文错误」，
+     避免每个按钮都写一遍重复代码。 */
+  function runAction(opts) {
+    var msgEl = opts.msg;
+    if (opts.before) opts.before();
+    setMsg(msgEl, '正在' + opts.doing + '……');
+    return Promise.resolve()
+      .then(function () { return opts.action(); })
+      .then(function (r) {
+        setMsg(msgEl, '');
+        if (opts.onSuccess) opts.onSuccess(r);
+      })
+      .catch(function (err) {
+        // transformError：允许调用方把错误换成更贴切的说法
+        // （例如恢复答案那条路，「钥匙不对」要改说成「答案不对」）
+        var e = opts.transformError ? opts.transformError(err) : err;
+        showError(msgEl, opts.failPrefix || '', e);
+      });
+  }
+
   function bind() {
-    // 标签页
+    // ---- 解锁方式标签页（U 盘 / 恢复问题）----
     $$('.tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
         $$('.tab').forEach(function (t) { t.classList.remove('is-active'); });
         tab.classList.add('is-active');
-        var name = tab.getAttribute('data-tab');
+        var name = tab.getAttribute('data-tab');       // 拿到要显示哪个面板
         $('#tab-usb').classList.toggle('hidden', name !== 'usb');
         $('#tab-recovery').classList.toggle('hidden', name !== 'recovery');
       });
     });
 
-    // 密码「显示 / 隐藏」：全站通用，点一下就能看清自己输了什么
+    // ---- 密码框的「显示 / 隐藏」按钮（全站所有密码框通用）----
     document.addEventListener('click', function (ev) {
       var btn = (ev.target && ev.target.closest) ? ev.target.closest('.pw-toggle') : null;
-      if (!btn) return;
-      var row = btn.closest('.pw-row');
+      if (!btn) return;                                  // 点的不是这个按钮，忽略
+      var row = btn.closest('.pw-row');                  // 找到它所在的那一行
       var input = row ? row.querySelector('input') : null;
       if (!input) return;
-      var willShow = input.type === 'password';
+      var willShow = input.type === 'password';           // 现在是隐藏的，就改成明文
       input.type = willShow ? 'text' : 'password';
       btn.textContent = willShow ? '隐藏' : '显示';
-      input.focus();
+      input.focus();                                     // 改完把光标放回去，方便接着输入
     });
 
-    // 创建时的实时提示：输了几个字符 / 两次是否一致
+    // ---- 创建时的实时提示：输了几个字 / 两次是否一致 ----
     function updatePwHint() {
       var el = $('#setup-pw-hint');
       if (!el) return;
-      var p1 = $('#setup-password').value, p2 = $('#setup-password2').value;
-      el.classList.remove('is-ok', 'is-err');
+      var p1 = $('#setup-password').value;
+      var p2 = $('#setup-password2').value;
+      markState(el, null);                               // 先清掉旧颜色
       if (!p1 && !p2) { el.textContent = '看不清就先点「显示」，确认没打错再创建。'; return; }
       if (!p1) { el.textContent = '下面那栏已输入 ' + p2.length + ' 个字符；上面那栏还没填。'; return; }
-      if (p1 !== p2) {
+      if (p1 !== p2) {                                   // 两次不一样，标红提醒
         el.textContent = '两次输入不一致（上面 ' + p1.length + ' 个字符，下面 ' + p2.length + ' 个字符）。';
-        el.classList.add('is-err');
+        markState(el, 'err');
         return;
       }
       el.textContent = '两次一致，共 ' + p1.length + ' 个字符，可以创建了。';
-      el.classList.add('is-ok');
+      markState(el, 'ok');
     }
     $('#setup-password').addEventListener('input', updatePwHint);
     $('#setup-password2').addEventListener('input', updatePwHint);
 
-    // 生成密钥文件（首次创建）
+    // ---- 生成密钥文件（首次创建）----
     $('#btn-generate-key').addEventListener('click', function () {
-      setupKeyBytes = randomBytes(32);
-      download(setupKeyBytes, 'lenyv-vault-key.bin');
+      setupKeyBytes = randomBytes(32);                   // 随机 32 字节 = 密钥文件内容
+      download(setupKeyBytes, 'lenyv-vault-key.bin');    // 让用户下载到 U 盘
       setMsg($('#setup-key-status'), '已生成并下载。请把它存进 U 盘，然后回来点「创建保险库」。', 'ok');
     });
+
+    // ---- 选择已有的密钥文件（首次创建）----
     $('#input-key-file-setup').addEventListener('change', function (ev) {
       var f = ev.target.files && ev.target.files[0];
       if (!f) return;
@@ -790,22 +1123,25 @@
       });
     });
 
-    // 创建
+    // ---- 创建保险库 ----
     $('#btn-create').addEventListener('click', function () {
+      // 先做两个前置检查
       if (!setupKeyBytes) { setMsg($('#setup-msg'), '还没有密钥文件：先生成或选择一个。', 'err'); return; }
-      var p1 = $('#setup-password').value, p2 = $('#setup-password2').value;
+      var p1 = $('#setup-password').value;
+      var p2 = $('#setup-password2').value;
       if (p1 !== p2) { setMsg($('#setup-msg'), '两次输入的主密码不一致。', 'err'); return; }
-      setMsg($('#setup-msg'), '正在创建……');
-      createVault(setupKeyBytes, p1).then(function () {
-        setupKeyBytes = null;
-        setMsg($('#setup-msg'), '');
-      }).catch(function (e) {
-        showError($('#setup-msg'), '创建失败：', e);
+
+      runAction({
+        msg: $('#setup-msg'),
+        doing: '创建',
+        failPrefix: '创建失败：',
+        action: function () { return createVault(setupKeyBytes, p1); },
+        onSuccess: function () { setupKeyBytes = null; }   // 创建成功就把暂存的密钥字节清掉
       });
     });
 
-    // 解锁（U 盘）
-    var unlockBytes = null;
+    // ---- 选 U 盘密钥文件（解锁）----
+    var unlockBytes = null;                                // 暂存选中的密钥文件字节
     $('#input-key-file').addEventListener('change', function (ev) {
       var f = ev.target.files && ev.target.files[0];
       if (!f) return;
@@ -814,83 +1150,105 @@
         setMsg($('#unlock-key-status'), '已选择：「' + f.name + '」', 'ok');
       });
     });
+
+    // ---- 用 U 盘解锁 ----
     $('#btn-unlock').addEventListener('click', function () {
       if (!unlockBytes) { setMsg($('#unlock-msg'), '先选择 U 盘里的密钥文件。', 'err'); return; }
-      setMsg($('#unlock-msg'), '正在解锁……');
-      unlockWithPrimary(unlockBytes, $('#unlock-password').value).then(function () {
-        unlockBytes = null;
-        setMsg($('#unlock-msg'), '');
-      }).catch(function (e) {
-        showError($('#unlock-msg'), '', e);
+      runAction({
+        msg: $('#unlock-msg'),
+        doing: '解锁',
+        action: function () { return unlockWithPrimary(unlockBytes, $('#unlock-password').value); },
+        onSuccess: function () {
+          unlockBytes = null;
+          $('#unlock-password').value = '';                // 开完就把密码框清掉
+        }
       });
     });
 
-    // 解锁（恢复问题）
+    // ---- 用恢复问题答案解锁 ----
     $('#btn-unlock-recovery').addEventListener('click', function () {
       var ans = $('#recovery-answer').value;
       if (!ans) { setMsg($('#unlock-msg'), '请输入答案。', 'err'); return; }
-      setMsg($('#unlock-msg'), '正在解锁……');
-      Promise.resolve().then(function () { return unlockWithRecovery(ans); }).then(function () {
-        $('#recovery-answer').value = '';
-        setMsg($('#unlock-msg'), '');
-      }).catch(function (e) {
-        if (e && e.message === 'NO_RECOVERY') { showError($('#unlock-msg'), '', e); return; }
-        showError($('#unlock-msg'), '', new Error('RECOVERY_WRONG'));
+      runAction({
+        msg: $('#unlock-msg'),
+        doing: '解锁',
+        action: function () {
+          // 包一层 Promise.resolve：因为 unlockWithRecovery 可能同步抛错
+          return Promise.resolve().then(function () { return unlockWithRecovery(ans); });
+        },
+        onSuccess: function () { $('#recovery-answer').value = ''; },
+        // 没配钥匙 就照实说；否则一律告诉用户「答案不对」
+        transformError: function (err) {
+          return (err && err.message === 'NO_RECOVERY') ? err : new Error('RECOVERY_WRONG');
+        }
       });
     });
 
-    // 解锁后的工具
-    $('#btn-lock').addEventListener('click', lock);
-    $('#btn-add').addEventListener('click', openAdd);
-    $('#search').addEventListener('input', renderEntries);
+    // ---- 解锁之后的工具按钮 ----
+    $('#btn-lock').addEventListener('click', lock);         // 手动上锁
+    $('#btn-add').addEventListener('click', openAdd);       // 新条目
+    $('#search').addEventListener('input', renderEntries);  // 边打字边过滤
     $('#btn-export').addEventListener('click', exportBackup);
+
+    // 导入备份：选完文件立刻处理，并清空 input（这样下次选同一个文件也会触发）
     $('#input-import').addEventListener('change', function (ev) {
       var f = ev.target.files && ev.target.files[0];
       if (f) importBackup(f);
       ev.target.value = '';
     });
 
-    // 条目弹层
+    // ---- 条目弹层 ----
     $('#btn-cancel').addEventListener('click', function () { hide($('#modal')); });
     $('#btn-save').addEventListener('click', saveEntry);
     $('#btn-gen').addEventListener('click', genPassword);
 
-    // 恢复问题弹层
+    // ---- 恢复问题弹层 ----
     function openRecoveryModal() {
       $('#r-question').value = (record.recovery && record.recovery.question) || DEFAULT_QUESTION;
-      $('#r-answer').value = '';
+      $('#r-answer').value = '';                            // 答案不回填，避免显示在屏幕上
       updateRecoveryStatus();
       show($('#recovery-modal'));
       $('#r-answer').focus();
     }
     $('#btn-recovery-settings').addEventListener('click', openRecoveryModal);
-    $('#btn-nudge-set').addEventListener('click', openRecoveryModal);
+    $('#btn-nudge-set').addEventListener('click', openRecoveryModal);   // 顶部提醒条上的按钮
     $('#btn-r-cancel').addEventListener('click', function () { hide($('#recovery-modal')); });
     $('#btn-r-save').addEventListener('click', function () {
       var q = $('#r-question').value.trim() || DEFAULT_QUESTION;
       var a = $('#r-answer').value;
-      if (!a) { alert('答案不能为空。'); return; }
-      saveRecovery(q, a).then(function () {
-        updateRecoveryStatus();
-        hide($('#recovery-modal'));
-        alert('恢复问题已保存。以后 U 盘不在，就用这句话开门。');
+      if (!a) { toast('答案不能为空'); return; }
+      runAction({
+        msg: $('#r-msg'),
+        doing: '保存',
+        failPrefix: '保存失败：',
+        action: function () { return saveRecovery(q, a); },
+        onSuccess: function () {
+          updateRecoveryStatus();                            // 顶部提醒条会自动消失
+          hide($('#recovery-modal'));
+          toast('恢复问题已保存。以后 U 盘不在，就用这句话开门。');
+        }
       });
     });
 
-    // 更换钥匙弹层
+    // ---- 更换钥匙弹层 ----
     $('#btn-change-key').addEventListener('click', function () {
-      newKeyBytes = null;
+      newKeyBytes = null;                                    // 清掉上次暂存的文件
       setMsg($('#k-status'), '尚未选择');
-      $('#k-pass').value = ''; $('#k-pass2').value = '';
+      $('#k-pass').value = '';
+      $('#k-pass2').value = '';
       setMsg($('#k-msg'), '');
       show($('#key-modal'));
     });
     $('#btn-k-cancel').addEventListener('click', function () { hide($('#key-modal')); });
+
+    // 生成一把新钥匙（新 U 盘文件）
     $('#btn-k-gen').addEventListener('click', function () {
       newKeyBytes = randomBytes(32);
       download(newKeyBytes, 'lenyv-vault-key-new.bin');
       setMsg($('#k-status'), '已生成并下载。存进 U 盘后点「保存」。', 'ok');
     });
+
+    // 或者选一个已有的密钥文件当新钥匙
     $('#input-k-file').addEventListener('change', function (ev) {
       var f = ev.target.files && ev.target.files[0];
       if (!f) return;
@@ -899,67 +1257,92 @@
         setMsg($('#k-status'), '已选择：「' + f.name + '」', 'ok');
       });
     });
+
+    // 保存新钥匙
     $('#btn-k-save').addEventListener('click', function () {
       if (!newKeyBytes) { setMsg($('#k-msg'), '先生成或选择一个新密钥文件。', 'err'); return; }
       if ($('#k-pass').value !== $('#k-pass2').value) { setMsg($('#k-msg'), '两次主密码不一致。', 'err'); return; }
-      setMsg($('#k-msg'), '正在保存……');
-      changePrimaryKey(newKeyBytes, $('#k-pass').value).then(function () {
-        newKeyBytes = null;
-        hide($('#key-modal'));
-        alert('钥匙已更换。旧钥匙从此刻起失效。');
-      }).catch(function (e) {
-        showError($('#k-msg'), '保存失败：', e);
+      runAction({
+        msg: $('#k-msg'),
+        doing: '保存',
+        failPrefix: '保存失败：',
+        action: function () { return changePrimaryKey(newKeyBytes, $('#k-pass').value); },
+        onSuccess: function () {
+          newKeyBytes = null;
+          hide($('#key-modal'));
+          toast('钥匙已更换。旧钥匙从此刻起失效。');
+        }
       });
     });
 
-    // 点遮罩关闭弹层
+    // ---- 点弹层外面的遮罩就关掉它 ----
     [$('#modal'), $('#recovery-modal'), $('#key-modal')].forEach(function (m) {
       m.addEventListener('click', function (ev) { if (ev.target === m) hide(m); });
     });
+
+    // ---- 键盘快捷键 ----
     document.addEventListener('keydown', function (ev) {
+      // Esc：关掉所有弹层
       if (ev.key === 'Escape') {
-        hide($('#modal')); hide($('#recovery-modal')); hide($('#key-modal'));
+        hide($('#modal'));
+        hide($('#recovery-modal'));
+        hide($('#key-modal'));
         return;
       }
       var t = ev.target || {};
+      // 判断用户是不是正在打字（正在输入框里敲字时，快捷键要让位）
       var typing = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
-      var unlocked = !$('#vault-view').classList.contains('hidden');
-      // 按 / 直接跳到搜索框
+      var unlocked = !$('#vault-view').classList.contains('hidden');   // 只有解锁状态下才响应
+      // 按 / ：跳到搜索框
       if (ev.key === '/' && !typing && unlocked) {
         ev.preventDefault();
         $('#search').focus();
         return;
       }
-      // 按 n 新建条目
-      if ((ev.key === 'n' || ev.key === 'N') && !typing && unlocked && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      // 按 n ：新建条目
+      if ((ev.key === 'n' || ev.key === 'N') && !typing && unlocked &&
+          !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
         ev.preventDefault();
         openAdd();
       }
     });
   }
 
-  // ---------------- 启动 ----------------
+  /* ==========================================================================
+     14. 启动
+     ========================================================================== */
+
   function init() {
+    // 第一道关：浏览器得支持加密。不支持就整页换成一句说明，别让用户面对一堆报错。
     if (!window.crypto || !window.crypto.subtle) {
       document.body.innerHTML = '<div class="container" style="padding:80px 0">' +
         '<h1>这个浏览器不支持加密功能</h1>' +
         '<p>请用较新的 Chrome / Edge / Firefox，并通过 https 或 localhost 打开本页。</p></div>';
       return;
     }
-    bind();
+
+    bind();                                   // 把所有事件挂上
+
+    // 把「数据存在哪」显示到页面底部
     storageLabel().then(function (label) {
       var el = $('#storage-note');
       if (el) el.textContent = label;
     });
+
+    // 读取本机是否已有保险库，决定显示「创建」还是「解锁」界面
     storeGet(REC_ID).then(function (rec) {
       record = rec || null;
       refreshLockUI();
     }, function () {
-      record = null;
+      record = null;                          // 读取失败也当没有，至少让用户能创建新的
       refreshLockUI();
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  // 页面还在加载就等 DOM 就绪，否则立刻执行
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();

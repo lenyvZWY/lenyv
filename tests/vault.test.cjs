@@ -20,9 +20,15 @@ function slice(a, b) {
   return src.slice(s, e);
 }
 
-// A = 常量 + 工具 + 报错翻译 + 加密函数；B = 会话状态 + 建库 + 解锁 + 保存 + 钥匙
-const A = slice("  var DB_NAME = 'lenyv_vault';", '  // ---------------- 存储层 ----------------');
-const B = slice('  // ---------------- 会话状态 ----------------', '  // ---------------- 视图切换 ----------------');
+// 切片标记：用的是「真实的代码行」，不是注释 —— 避免切进块注释里造成语法错误。
+// A = 常量 + 工具 + 报错翻译 + 加密函数（不含任何 DOM / 存储调用）
+// B = 会话状态 + 建库 + 解锁 + 保存 + 恢复问题 + 更换钥匙
+// S = 存储层
+// 之所以按位置切，是为了拿到真实函数来测；测副本会漏掉真代码里的 bug。
+// 如果以后重排 vault.js 的章节顺序，记得同步改下面三行。
+const A = slice("  var DB_NAME = 'lenyv_vault';", "  var LS_KEY = 'lenyv_vault_record_v1';");
+const STORAGE = slice("  var LS_KEY = 'lenyv_vault_record_v1';", '  function readFileBytes(file) {');
+const B = slice('  var vaultKeyMat = null;', '  function enterVault() {');
 
 function makeVault() {
   const disk = {};                                   // 模拟浏览器里存下来的密文
@@ -210,6 +216,52 @@ const section = s => console.log('\n' + s);
     t(dump.indexOf('秘密标题') === -1, '标题明文没出现在落盘数据里');
     t(dump.indexOf(ANSWER) === -1, '恢复答案明文没出现在落盘数据里');
     t(dump.indexOf('你今天什么心情？') !== -1, '问题文本是明文（本来就要显示给用户）');
+  }
+
+  section('[8] 存储降级（IndexedDB 用不了时自动落回 localStorage）');
+  {
+    // 造一个假的浏览器环境：window 里默认没有 indexedDB，localStorage 可控
+    function makeStore(opts) {
+      opts = opts || {};
+      const win = {};
+      const lsData = {};
+      const ls = {
+        getItem: k => (k in lsData ? lsData[k] : null),
+        setItem: (k, v) => {
+          if (opts.lsThrows) { const e = new Error('denied'); e.name = opts.lsThrows; throw e; }
+          lsData[k] = String(v);
+        },
+        removeItem: k => { delete lsData[k]; }
+      };
+      const code = STORAGE + '\nreturn { storeGet: storeGet, storePut: storePut, storageLabel: storageLabel };';
+      return {
+        api: new Function('window', 'localStorage', 'DB_NAME', 'STORE', code)(win, ls, 'lenyv_vault', 'vault'),
+        lsData
+      };
+    }
+
+    const s1 = makeStore();
+    const label = await s1.api.storageLabel();
+    t(/降级/.test(label), '探测不到 IndexedDB → 提示降级模式');
+
+    await s1.api.storePut({ id: 'main', verifier: { iv: 'a', ct: 'b' } });
+    t(!!s1.lsData['lenyv_vault_record_v1'], '记录写进了 localStorage');
+    const back = await s1.api.storeGet('main');
+    t(back && back.id === 'main', '能读回来');
+
+    const s2 = makeStore({ lsThrows: 'SecurityError' });
+    let c2 = '(没抛错)';
+    try { await s2.api.storePut({ id: 'main' }); } catch (e) { c2 = e.message; }
+    t(c2 === 'STORAGE_BLOCKED', 'localStorage 被拒 → 抛 STORAGE_BLOCKED');
+
+    const s3 = makeStore({ lsThrows: 'QuotaExceededError' });
+    let c3 = '(没抛错)';
+    try { await s3.api.storePut({ id: 'main' }); } catch (e) { c3 = e.message; }
+    t(c3 === 'STORAGE_FULL', 'localStorage 满了 → 抛 STORAGE_FULL');
+
+    const s4 = makeStore();
+    s4.lsData['lenyv_vault_record_v1'] = '{坏掉的JSON';
+    t((await s4.api.storeGet('main')) === null, '存储里是坏数据 → 安全忽略，不崩溃');
   }
 
   console.log('\n============================');
