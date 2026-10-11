@@ -2,10 +2,12 @@
   "name": "vault",
   "version": "1.0.0",
   "private": true,
-  "description": "零知识密码本：前端静态站 + Netlify Functions 自建同步后端",
+  "description": "零知识保险库：静态站点 + 自建同步后端 + 桌面启动器",
   "type": "module",
   "scripts": {
-    "test": "node tests/vault.test.cjs && node tests/sync.test.mjs"
+    "start": "node desktop/launcher.cjs",
+    "test": "node tests/vault.test.cjs && node tests/sync.test.mjs",
+    "build:standalone": "node tools/build-standalone.cjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.4"

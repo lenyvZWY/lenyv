@@ -44,6 +44,7 @@
               <label class="btn btn-ghost file-btn">选择已有密钥文件
                 <input id="input-key-file-setup" type="file" accept=".bin,.key,.txt,application/octet-stream">
               </label>
+              <button id="btn-rescan-setup" class="btn btn-ghost desktop-only" type="button">重新扫描 U 盘</button>
             </div>
             <p id="setup-key-status" class="hint muted">尚未选择密钥文件</p>
           </div>
@@ -79,6 +80,7 @@
               <label class="btn btn-ghost file-btn">选择 U 盘里的密钥文件
                 <input id="input-key-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
               </label>
+              <button id="btn-rescan" class="btn btn-ghost desktop-only" type="button">重新扫描 U 盘</button>
               <p id="unlock-key-status" class="hint muted">尚未选择密钥文件</p>
               <div class="pw-row">
                 <input id="unlock-password" type="password" autocomplete="current-password" placeholder="主密码（如果设过）">
@@ -293,18 +295,20 @@
       </p>
 
       <div class="verify-block">
-        <h4>① 同步码（你的通行证）</h4>
+        <h4>① 身份（来自你的 U 盘）</h4>
         <p class="sync-code" id="sync-code">——</p>
-        <div class="row">
-          <button id="btn-sync-copy" class="btn btn-ghost" type="button">复制同步码</button>
-          <button id="btn-sync-regen" class="btn btn-ghost" type="button">换一串</button>
-        </div>
         <p class="hint">
-          换设备时，把这串码填到新设备上，就能拉到同一份数据。<br>
-          <strong>谁拿到这串码，谁就能覆盖你的云端数据</strong>（但看不到内容，因为全是密文）。
+          这串东西<strong>不是你记的，是 U 盘算出来的</strong> ——
+          同一把 U 盘在任何设备上算出来都一模一样，所以换设备只要插上 U 盘，身份自动就对上。<br>
+          <strong>谁拿到这串，谁就能覆盖你的云端数据</strong>（但看不到内容，因为全是密文）。
         </p>
         <div class="row">
-          <input id="sync-code-input" type="text" placeholder="粘贴另一台设备的同步码" autocomplete="off">
+          <button id="btn-sync-copy" class="btn btn-ghost" type="button">复制身份码</button>
+          <button id="btn-sync-rescan" class="btn btn-ghost desktop-only" type="button">重新扫描 U 盘</button>
+        </div>
+        <p class="hint">U 盘不在手边？把身份码抄下来填到下面，一样能同步。</p>
+        <div class="row">
+          <input id="sync-code-input" type="text" placeholder="手填一串身份码（应急用）" autocomplete="off">
           <button id="btn-sync-set" class="btn btn-ghost" type="button">用这串</button>
         </div>
       </div>

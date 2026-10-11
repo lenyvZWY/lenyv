@@ -147,6 +147,11 @@ img{max-width:100%;display:block}
 .footer-copy{width:100%;color:var(--text-soft);font-size:.83rem;margin:var(--sp-5) 0 0;
   border-top:1px solid var(--border);padding-top:var(--sp-4)}
 
+/* ---------- 桌面应用专属 ---------- */
+/* 只在桌面版里显示的东西（网页版没有 U 盘扫描能力，所以藏起来） */
+.desktop-only{display:none}
+.desktop .desktop-only{display:inline-flex}
+
 /* ---------- 工具 ---------- */
 .hidden{display:none !important}
 .muted{color:var(--text-soft)}

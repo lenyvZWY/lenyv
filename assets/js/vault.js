@@ -57,6 +57,14 @@
   var SYNC_API = '/api/vault';             // 同步接口地址（同站点，相对路径）
   var SYNC_CODE_KEY = 'vault-sync-code';   // 同步码在这台设备上的存档位置
 
+  /* 当前是不是在桌面应用里跑？
+     桌面版由预加载脚本注入 window.desktop，网页版没有。
+     同一份代码两边通用，靠这个开关区分行为：
+       · 桌面版：能自动扫描 U 盘找密钥文件；没有服务器，所以不显示同步
+       · 网页版：手动选文件；有同步 */
+  var IS_DESKTOP = !!(window.desktop && window.desktop.isDesktop);
+  if (IS_DESKTOP) document.documentElement.classList.add('desktop');
+
   /* --------------------------------------------------------------------------
      ⚠️ 下面 DB_NAME / VERIFIER_TEXT / NO_PASSWORD / LS_KEY 里带着一串旧前缀。
      它们是【内部标识】，页面上、界面上、文件名里都看不见，只有读源码才会看到。
@@ -160,6 +168,7 @@
     STORAGE_ABORTED: '写入本地存储时被打断了，请再试一次。',
     STORAGE_FULL: '本地存储空间不够了，清理一点浏览器数据再试。',
     // ---- 同步相关 ----
+    SYNC_NO_IDENTITY: '还没插过 U 盘，所以认不出你的身份。插上 U 盘就会自动认出来（也可以在同步面板里手动填一串）。',
     SYNC_OFFLINE: '连不上同步服务。检查一下网络；如果刚改过代码，可能部署还没跑完，等一会儿再试。',
     SYNC_BAD_RESPONSE: '同步服务返回了看不懂的内容。多半是部署还没完成，等一两分钟再试。',
     SYNC_WRITE_FAIL: '上传失败，请稍后重试。',
@@ -528,6 +537,7 @@
   var record = null;        // 磁盘上的那条密文记录（含两个钥匙口 + 密文数据）
   var entries = [];         // 解密后的条目数组（明文，只在内存）
   var setupKeyBytes = null; // 首次创建时，暂存的密钥文件字节
+  var unlockKeyBytes = null; // 解锁时用的密钥文件字节（桌面版会自动扫描填进来）
   var newKeyBytes = null;   // 更换钥匙时，暂存的新密钥文件字节
   var editingId = null;     // 当前正在编辑哪条（null = 正在新建）
 
@@ -1159,6 +1169,68 @@
     });
   }
 
+
+  /* ==========================================================================
+     桌面版专用：自动扫描 U 盘
+     --------------------------------------------------------------------------
+     这是桌面版比网页版省事的地方 —— 不用每次手动去「选文件」。
+     扫到之后：密钥字节直接填好，顺便**把同步身份也算出来** ——
+     所以「U 盘」既是开门的钥匙，也是认出「哪份云端密文是你的」的身份，
+     不用再另外记一串码。
+     ========================================================================== */
+  /* ---- 桌面版：自动扫描 U 盘找密钥文件 ----
+     这是桌面版比网页版省事的地方 —— 不用每次手动去「选文件」。
+     扫到之后只把字节读进内存；如果设过主密码，仍然要输主密码才能开。 */
+  function autoScanKey() {
+    if (!IS_DESKTOP || !window.desktop || !window.desktop.findKeyFiles) return;
+    setMsg($('#setup-key-status'), '正在扫描 U 盘……');
+    setMsg($('#unlock-key-status'), '正在扫描 U 盘……');
+
+    window.desktop.findKeyFiles().then(function (list) {
+      if (!list || !list.length) {
+        // 没插 U 盘 —— 这正是需要恢复问题的时候
+        var miss = '没找到 U 盘里的密钥文件。插上 U 盘后点「重新扫描」；没有 U 盘就改用恢复问题。';
+        setMsg($('#setup-key-status'), miss);
+        setMsg($('#unlock-key-status'), miss);
+        return null;
+      }
+      var hit = list[0];                       // 32 字节的那个排在前面
+      return window.desktop.readFile(hit.path).then(function (f) {
+        var bytes = new Uint8Array(f.bytes);
+        setupKeyBytes = bytes;                 // 创建界面也能直接用
+        unlockKeyBytes = bytes;                // 解锁界面也能直接用
+        setMsg($('#setup-key-status'), '已找到 U 盘密钥：' + hit.path, 'ok');
+        setMsg($('#unlock-key-status'), '已找到 U 盘密钥：' + hit.path, 'ok');
+        // 插上 U 盘 = 顺便认出了「同步身份」，同步那边就不用再输任何东西
+        return rememberSyncId(bytes).then(function () { return bytes; });
+      });
+    }).then(function (bytes) {
+      if (bytes) tryAutoUnlock();              // 桌面版：插着就直接开
+    }).catch(function () {
+      setMsg($('#unlock-key-status'), '扫描 U 盘时出错了。可以手动选文件，或改用恢复问题。');
+    });
+  }
+
+  /* 桌面版：插上 U 盘就自动开门。
+     条件：已经建过库、还没解锁、手上刚好有密钥文件、而且**没设过主密码**。
+     设过主密码就必须要你亲手输一次 —— 那是「你知道的东西」，机器替不了。
+     判断方式就是拿空密码去开一次；开不开就静静地把光标放到密码框，不打扰你。 */
+  function tryAutoUnlock() {
+    if (!IS_DESKTOP) return;
+    if (!record || vaultKeyMat) return;                        // 没建过库 / 已经开着
+    if (!unlockKeyBytes) return;                               // 手上没有密钥
+    var lockView = $('#lock-view');
+    if (!lockView || lockView.classList.contains('hidden')) return;
+
+    unlockWithPrimary(unlockKeyBytes, '').then(function () {
+      toast('已用 U 盘直接打开');
+    }).catch(function () {
+      // 开不开 = 设过主密码。不报错，提示一下就好
+      var pw = $('#unlock-password');
+      if (pw) { setMsg($('#unlock-msg'), 'U 盘已认到。请输入主密码。', 'ok'); pw.focus(); }
+    });
+  }
+    
   /* ==========================================================================
      13. 同步（可选功能）· 跑在你自己的 Netlify 上
      --------------------------------------------------------------------------
@@ -1178,32 +1250,49 @@
 
   var syncInfo = null;   // 最近一次查到的云端信息 { payload, updatedAt }
 
-  // ---- 同步码：生成 / 读取 / 保存 ----
+  // ---- 同步身份：由 U 盘密钥文件推导 ----
+  //
+  // 这就是「一把钥匙，既是密码也是身份」的落地：
+  // 同一把 U 盘，在任何设备上算出来的身份都一模一样，
+  // 所以不用手抄、不用记、也不用再输一层身份码。
 
-  // 字母表刻意去掉了容易看混的 I O 0 1，方便手抄
+  // 字母表刻意去掉了容易看混的 I O 0 1
   var SYNC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-  // 生成一串新的同步码：24 个字符，分成三段方便核对
-  function genSyncCode() {
-    var a = randomBytes(24), out = '';
-    // 256 能被 32 整除，所以取模不会有偏 —— 每个字符出现的概率一样
-    for (var i = 0; i < 24; i++) out += SYNC_ALPHABET.charAt(a[i] % 32);
-    return out.slice(0, 8) + '-' + out.slice(8, 16) + '-' + out.slice(16, 24);
+  /* 从密钥文件的字节算出「同步身份」：
+     固定前缀 + 文件字节 → SHA-256 → 取前 24 位转成短串。
+     同一个文件永远算出同一个身份；后端只存「对它再做一次哈希」的结果，
+     所以拿到哈希也反推不出你的密钥文件。 */
+  function syncIdFromKeyBytes(bytes) {
+    var prefix = new TextEncoder().encode('vault-sync-id::');
+    var data = new Uint8Array(prefix.length + bytes.length);
+    data.set(prefix, 0);
+    data.set(bytes, prefix.length);
+    return crypto.subtle.digest('SHA-256', data).then(function (d) {
+      var u = new Uint8Array(d), out = '';
+      // 256 能被 32 整除，取模不会有偏
+      for (var i = 0; i < 24; i++) out += SYNC_ALPHABET.charAt(u[i] % 32);
+      return out.slice(0, 8) + '-' + out.slice(8, 16) + '-' + out.slice(16, 24);
+    });
   }
 
-  function readSyncCode() {
+  // 拿到密钥文件字节时调用：把身份算出来记在本机
+  function rememberSyncId(bytes) {
+    if (!bytes || !bytes.length) return Promise.resolve('');
+    return syncIdFromKeyBytes(bytes).then(function (id) {
+      try { localStorage.setItem(SYNC_CODE_KEY, id); } catch (e) { /* 存不下也不影响本次 */ }
+      return id;
+    }).catch(function () { return ''; });
+  }
+
+  // 当前这台设备认到的同步身份（还没插过 U 盘就是空的）
+  function syncId() {
     try { return localStorage.getItem(SYNC_CODE_KEY) || ''; } catch (e) { return ''; }
   }
 
-  function saveSyncCode(code) {
-    try { localStorage.setItem(SYNC_CODE_KEY, code); } catch (e) { /* 存不下也不影响本次使用 */ }
-  }
-
-  // 确保本机有一串同步码；没有就现生成一个
-  function ensureSyncCode() {
-    var c = readSyncCode();
-    if (!c) { c = genSyncCode(); saveSyncCode(c); }
-    return c;
+  // 手动指定一个身份（U 盘不在手边时的应急口子）
+  function setSyncId(id) {
+    try { localStorage.setItem(SYNC_CODE_KEY, id); } catch (e) { /* ignore */ }
   }
 
   // ---- 时间显示 ----
@@ -1230,16 +1319,21 @@
 
   function syncRequest(method, opts) {
     opts = opts || {};
+
+    // 身份来自 U 盘密钥文件 —— 还没插过 U 盘就没有身份，直接说清楚，别发无用的请求
+    var id = syncId();
+    if (!id) return Promise.reject(new Error('SYNC_NO_IDENTITY'));
+
     var url = SYNC_API;
-    // 取和删都要带上同步码
+    // 取和删都要带上身份
     if (method === 'GET' || method === 'DELETE') {
-      url += '?code=' + encodeURIComponent(ensureSyncCode());
+      url += '?code=' + encodeURIComponent(id);
     }
     var init = { method: method, cache: 'no-store' };
     if (method === 'POST') {
       init.headers = { 'content-type': 'application/json' };
       init.body = JSON.stringify({
-        code: ensureSyncCode(),
+        code: id,
         payload: opts.payload,
         updatedAt: opts.updatedAt
       });
@@ -1308,7 +1402,17 @@
   function updateCloudBar() {
     var el = $('#cloud-status');
     if (!el) return;
-    ensureSyncCode();
+
+    /* 桌面版不显示这条 —— 同步接口在网站上，桌面应用里根本没有这个服务器。
+       数据本来就在本机，也没必要同步。整条隐藏掉，免得用户点进去一头雾水。 */
+    if (IS_DESKTOP) { hide($('#cloud-bar')); return; }
+
+    // 身份来自 U 盘。还没认到身份就说清楚，别显示成「出错了」
+    if (!syncId()) {
+      el.textContent = '同步：插上 U 盘后自动启用（或点右边手动填身份）';
+      return;
+    }
+
     el.textContent = '同步：正在检查……';
 
     syncFetch().then(function (row) {
@@ -1331,7 +1435,7 @@
   // 刷新同步弹层：显示同步码 + 两边的时间
   function refreshCloudModal() {
     var codeEl = $('#sync-code');
-    if (codeEl) codeEl.textContent = ensureSyncCode();
+    if (codeEl) codeEl.textContent = syncId() || '（还没认到身份 —— 插上 U 盘，或手动填一串）';
 
     syncFetch().then(function (row) {
       syncInfo = row;
@@ -1420,6 +1524,7 @@
     // ---- 生成密钥文件（首次创建）----
     $('#btn-generate-key').addEventListener('click', function () {
       setupKeyBytes = randomBytes(32);                   // 随机 32 字节 = 密钥文件内容
+      rememberSyncId(setupKeyBytes);                     // 顺带把「同步身份」算出来
       download(setupKeyBytes, 'vault-key.bin');    // 让用户下载到 U 盘
       setMsg($('#setup-key-status'), '已生成并下载。请把它存进 U 盘，然后回来点「创建保险库」。', 'ok');
     });
@@ -1430,6 +1535,7 @@
       if (!f) return;
       readFileBytes(f).then(function (b) {
         setupKeyBytes = b;
+        rememberSyncId(b);                               // 选到密钥文件 = 顺便认出了身份
         setMsg($('#setup-key-status'), '已选择：「' + f.name + '」', 'ok');
       });
     });
@@ -1452,25 +1558,30 @@
     });
 
     // ---- 选 U 盘密钥文件（解锁）----
-    var unlockBytes = null;                                // 暂存选中的密钥文件字节
     $('#input-key-file').addEventListener('change', function (ev) {
       var f = ev.target.files && ev.target.files[0];
       if (!f) return;
       readFileBytes(f).then(function (b) {
-        unlockBytes = b;
+        unlockKeyBytes = b;
+        rememberSyncId(b);                               // 选到密钥文件 = 顺便认出了身份
         setMsg($('#unlock-key-status'), '已选择：「' + f.name + '」', 'ok');
       });
     });
 
+
+    // 桌面版那两个「重新扫描 U 盘」按钮
+    $('#btn-rescan-setup').addEventListener('click', autoScanKey);
+    $('#btn-rescan').addEventListener('click', autoScanKey);
+
     // ---- 用 U 盘解锁 ----
     $('#btn-unlock').addEventListener('click', function () {
-      if (!unlockBytes) { setMsg($('#unlock-msg'), '先选择 U 盘里的密钥文件。', 'err'); return; }
+      if (!unlockKeyBytes) { setMsg($('#unlock-msg'), '先选择 U 盘里的密钥文件。', 'err'); return; }
       runAction({
         msg: $('#unlock-msg'),
         doing: '解锁',
-        action: function () { return unlockWithPrimary(unlockBytes, $('#unlock-password').value); },
+        action: function () { return unlockWithPrimary(unlockKeyBytes, $('#unlock-password').value); },
         onSuccess: function () {
-          unlockBytes = null;
+          unlockKeyBytes = null;
           $('#unlock-password').value = '';                // 开完就把密码框清掉
         }
       });
@@ -1688,29 +1799,25 @@
     });
     $('#btn-cloud-close').addEventListener('click', function () { hide($('#cloud-modal')); });
 
-    // 复制同步码
+    // 复制身份码（U 盘不在手边时，可以抄到另一台设备上应急）
     $('#btn-sync-copy').addEventListener('click', function () {
-      copyText(ensureSyncCode(), function () { toast('同步码已复制，粘到另一台设备就能同步'); });
+      var id = syncId();
+      if (!id) { setMsg($('#sync-msg'), '还没认到身份 —— 插上 U 盘就会自动认出来。', 'err'); return; }
+      copyText(id, function () { toast('身份码已复制'); });
     });
 
-    // 换一串新同步码：等于换一个空柜子，别的设备要重新填这串新码
-    $('#btn-sync-regen').addEventListener('click', function () {
-      if (!window.confirm('换一串新的同步码？\n\n换了之后云端会指向一个全新的空柜子，\n你在别的设备上要重新填这串新码。\n本地数据不受影响。')) return;
-      saveSyncCode(genSyncCode());
-      refreshCloudModal();
-      updateCloudBar();
-      toast('已生成新的同步码');
-    });
+    // 重新扫描 U 盘，重新认一次身份
+    $('#btn-sync-rescan').addEventListener('click', function () { autoScanKey(); });
 
-    // 填入另一台设备的同步码（换设备时用）
+    // 手动填身份（U 盘不在手边时的应急口子）
     $('#btn-sync-set').addEventListener('click', function () {
       var v = ($('#sync-code-input').value || '').trim().toUpperCase();
-      if (v.length < 16) { setMsg($('#sync-msg'), '同步码至少 16 位，检查一下有没有抄漏。', 'err'); return; }
-      saveSyncCode(v);
+      if (v.length < 16) { setMsg($('#sync-msg'), '身份码至少 16 位，检查一下有没有抄漏。', 'err'); return; }
+      setSyncId(v);
       $('#sync-code-input').value = '';
       refreshCloudModal();
       updateCloudBar();
-      toast('已切换到这串同步码');
+      toast('已用上这串身份码');
     });
 
     // 上传到云端
@@ -1783,6 +1890,7 @@
         openAdd();
       }
     });
+
   }
 
   /* ==========================================================================
@@ -1810,9 +1918,11 @@
     storeGet(REC_ID).then(function (rec) {
       record = rec || null;
       refreshLockUI();
+      autoScanKey();          // 桌面版：读完本地数据后再扫 U 盘（插着就直接开）
     }, function () {
       record = null;                          // 读取失败也当没有，至少让用户能创建新的
       refreshLockUI();
+      autoScanKey();
     });
   }
 
