@@ -11,8 +11,19 @@
   <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/main.css">
   <link rel="stylesheet" href="/assets/css/vault.css">
+  <!-- 兜底：万一 Netlify 的角标容器还是被渲染出来，也不让它显示 -->
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
 </head>
 <body data-page="vault">
+  <!-- 关掉 Netlify 强加的「技术支持来自 Netlify」角标。
+       那段脚本是 Netlify 在边缘服务器注入的，不在本项目的源码里，改代码删不掉。
+       但它开头有一句自我保护：页面里若已存在 id 为 nl-badge-frame 的元素，它就不再渲染。
+       所以在页面最前面放一个同 id 的隐藏占位，角标就不会出现。
+       正规开关也在 Netlify 后台：Project configuration → General → Powered by Netlify badge。 -->
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
   <!-- 极简页头：不带任何身份标识，也不依赖任何外部组件 -->
   <header class="site-header">
     <div class="container header-inner">
