@@ -105,8 +105,39 @@ img{max-width:100%;display:block}
 .contact-form input:focus,.contact-form textarea:focus{outline:none;border-color:var(--brand)}
 .form-note{font-size:.84rem;color:var(--text-soft)}
 
+/* ---------- 空状态 ---------- */
+.empty{text-align:center;padding:var(--sp-8) var(--sp-5);
+  border:1px dashed var(--border);border-radius:var(--r-md);color:var(--text-soft)}
+.empty .empty-mark{width:46px;height:46px;border-radius:var(--r-md);border:1px solid var(--border);
+  display:grid;place-items:center;margin:0 auto var(--sp-4);color:var(--text-soft)}
+.empty h3{font-family:var(--font-display);font-size:1.05rem;margin:0 0 var(--sp-2);color:var(--text)}
+.empty p{margin:0 auto;font-size:.9rem;max-width:380px}
+
+/* ---------- 两栏对照（在线版 / 下载版） ---------- */
+.duo{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.duo .card{display:grid;gap:var(--sp-3);align-content:start}
+.duo .tag{display:inline-block;font-size:.75rem;font-weight:600;letter-spacing:.08em;
+  color:var(--brand);background:var(--brand-soft);padding:3px 10px;border-radius:var(--r-full);
+  justify-self:start}
+.duo h3{margin:0}
+.duo ul{margin:0;padding-left:1.1em;color:var(--text-soft);font-size:.9rem;display:grid;gap:5px}
+.duo .btn{justify-self:start;margin-top:2px}
+
+/* 离线单文件版的说明条 */
+.standalone-note{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-subtle);
+  padding:var(--sp-4) var(--sp-5);color:var(--text-soft);font-size:.88rem;line-height:1.7;
+  margin:0 0 var(--sp-6)}
+.standalone-note strong{color:var(--text)}
+
 /* ---------- 页脚 ---------- */
 .site-footer{margin-top:var(--sp-9);border-top:1px solid var(--border);padding:var(--sp-7) 0}
+
+/* 页脚里的下载提示条 */
+.footer-download{display:flex;gap:var(--sp-5);align-items:center;justify-content:space-between;
+  flex-wrap:wrap;border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:var(--sp-5) var(--sp-6);background:var(--bg-subtle);margin-bottom:var(--sp-6)}
+.footer-download strong{display:block;font-family:var(--font-display);font-size:1.02rem;margin-bottom:4px}
+.footer-download p{margin:0;color:var(--text-soft);font-size:.88rem;max-width:520px;line-height:1.6}
 .footer-inner{display:flex;flex-wrap:wrap;gap:var(--sp-6);justify-content:space-between;align-items:flex-start}
 .footer-brand .brand-name{font-weight:700}
 .footer-note{color:var(--text-soft);max-width:300px;margin:var(--sp-2) 0 0;font-size:.9rem}

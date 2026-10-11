@@ -164,7 +164,7 @@ function assetsOf(html) {
     for (const p of PAGES) urls.push('/' + p);
     for (const p of PARTIALS) urls.push('/' + p);
     for (const p of CSS_FILES) urls.push('/' + p);
-    for (const f of ['assets/js/main.js', 'assets/js/vault.js']) urls.push('/' + f);
+    for (const f of ['assets/js/main.js', 'assets/js/vault.js', 'download/lenyv-vault.html']) urls.push('/' + f);
 
     let reachable = false;
     try {
@@ -183,6 +183,42 @@ function assetsOf(html) {
         } catch (e) { bad(u + ' → 连不上（' + e.message + '）'); httpFail++; }
       }
       if (!httpFail) ok(urls.length + ' 个地址全部返回 200');
+    }
+  }
+
+  section('[8] 可下载的单文件版（整个保险库打包成一个 HTML）');
+  {
+    const STANDALONE = 'download/lenyv-vault.html';
+    if (!exists(STANDALONE)) {
+      bad('单文件版不存在，请先跑：node tools/build-standalone.cjs');
+    } else {
+      const f = read(STANDALONE);
+      ok('文件存在（' + (Buffer.byteLength(f, 'utf8') / 1024).toFixed(0) + ' KB）');
+
+      // 自包含：不能有任何外部依赖，否则离线打开就废了
+      const leaks = [];
+      if (/<link[^>]+stylesheet/.test(f)) leaks.push('还有外链样式表');
+      if (/<link[^>]+fonts\.googleapis/.test(f)) leaks.push('还在引用 Google 字体');
+      if (/<script[^>]+src=/.test(f)) leaks.push('还有外链脚本');
+      if (/<div id="site-header">/.test(f)) leaks.push('页头没被内联（离线版会取不到组件）');
+      if (leaks.length) leaks.forEach(l => bad('单文件版不自包含：' + l));
+      else ok('完全自包含：无外链样式、无外链脚本、无 Google 字体');
+
+      // 关键内容确实在里面
+      const must = [
+        ['vault 逻辑', 'lenyv 保险库'],
+        ['加密核心', 'deriveAesKey'],
+        ['存储降级', 'probeStorage'],
+        ['离线说明', 'standalone-note']
+      ];
+      const missing = must.filter(([, k]) => !f.includes(k)).map(([n]) => n);
+      if (missing.length) missing.forEach(m => bad('单文件版缺少：' + m));
+      else ok('加密与存储逻辑都在里面');
+
+      // 入口页要能点到它
+      const linked = ['index.html', 'partials/footer.html'].every(p => read(p).includes('/download/lenyv-vault.html'));
+      if (linked) ok('首页和页脚都有下载入口');
+      else bad('首页或页脚缺少下载入口');
     }
   }
 

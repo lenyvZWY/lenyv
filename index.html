@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>lenyv</title>
-  <meta name="description" content="lenyv — 一个正在慢慢搭建的网站。">
+  <meta name="description" content="lenyv —— 一个只属于你的密码本，以及一些慢慢补上的东西。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -18,11 +18,14 @@
     <section class="hero">
       <div class="container">
         <span class="hero-eyebrow">lenyv</span>
-        <h1 class="hero-title">慢慢搭起来的小站</h1>
-        <p class="hero-sub">地基已经打好。之后会放上关于、作品、笔记，还有一个只属于我的私密小工具。</p>
+        <h1 class="hero-title">一个只属于你的密码本</h1>
+        <p class="hero-sub">
+          密码在你自己电脑上加密，钥匙就是你手里的 U 盘。
+          没有服务器能读到你的密码 —— 因为上传的东西它根本看不懂。
+        </p>
         <div class="hero-actions">
           <a class="btn btn-primary" href="/vault.html">打开保险库</a>
-          <a class="btn btn-ghost" href="/about.html">关于我</a>
+          <a class="btn btn-ghost" href="/download/lenyv-vault.html" download>下载单文件版</a>
         </div>
       </div>
     </section>
@@ -30,8 +33,39 @@
     <section class="section">
       <div class="container">
         <div class="section-head reveal">
-          <h2 class="section-title">入口</h2>
-          <p class="section-sub">想往哪个方向填，挑一个。</p>
+          <h2 class="section-title">两种用法，同一套加密</h2>
+          <p class="section-sub">数据放哪儿你自己选，加密方式一模一样，钥匙也通用。</p>
+        </div>
+        <div class="duo">
+          <div class="card reveal">
+            <span class="tag">在线版</span>
+            <h3>打开就能用</h3>
+            <ul>
+              <li>手机、公司电脑都能打开</li>
+              <li>登录同一个手机号，就能在设备之间同步</li>
+              <li>传上去的只有密文，服务器解不开</li>
+            </ul>
+            <a class="btn btn-primary" href="/vault.html">打开在线版</a>
+          </div>
+          <div class="card reveal">
+            <span class="tag">下载版</span>
+            <h3>一个文件，完全离线</h3>
+            <ul>
+              <li>整个保险库就是这一个 HTML 文件</li>
+              <li>双击即用，不联网、不上传任何东西</li>
+              <li>可以放进 U 盘随身带着走</li>
+            </ul>
+            <a class="btn btn-ghost" href="/download/lenyv-vault.html" download>下载这一个文件</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2 class="section-title">还有这些地方</h2>
+          <p class="section-sub">慢慢填，不急。</p>
         </div>
         <div class="grid grid-2">
           <a class="card reveal" href="/about.html">
@@ -46,20 +80,10 @@
             <h3>笔记</h3>
             <p>想法、教程、随手记。</p>
           </a>
-          <a class="card reveal" href="/vault.html">
-            <h3>保险库</h3>
-            <p>本地加密的密码本，钥匙在 U 盘里。</p>
+          <a class="card reveal" href="/contact.html">
+            <h3>联系</h3>
+            <p>留个方式，方便别人找到你。</p>
           </a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <div class="container">
-        <div class="stats reveal">
-          <div class="stat"><div class="num">极简</div><div class="label">只留必要的东西</div></div>
-          <div class="stat"><div class="num">本地</div><div class="label">数据不出你的浏览器</div></div>
-          <div class="stat"><div class="num">可改</div><div class="label">随时都能改</div></div>
         </div>
       </div>
     </section>

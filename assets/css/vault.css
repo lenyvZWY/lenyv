@@ -55,8 +55,14 @@
 .toolbar input:focus{outline:none;border-color:var(--brand)}
 
 .entries{display:grid;gap:var(--sp-3)}
-.entry{border:1px solid var(--border);border-radius:var(--r-md);padding:var(--sp-4) var(--sp-5);
-  background:var(--bg-elev);display:grid;gap:10px}
+.entry{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--r-md);
+  padding:var(--sp-4) var(--sp-5);background:var(--bg-elev);display:grid;gap:10px;
+  transition:border-color .2s ease}
+/* 鼠标移上去时左侧亮一条细线，暗示"这条是活的" */
+.entry::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--brand);opacity:0;transition:opacity .2s ease}
+.entry:hover::before{opacity:1}
+.entry:hover{border-color:color-mix(in srgb,var(--brand) 45%,var(--border))}
 .entry-top{display:flex;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;align-items:baseline}
 .entry-title{font-weight:700;font-size:1.02rem;word-break:break-all}
 .entry-site{color:var(--text-soft);font-size:.85rem;word-break:break-all}

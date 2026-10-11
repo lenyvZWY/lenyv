@@ -1,0 +1,2576 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lenyv 保险库 · 离线单文件版</title>
+  <meta name="description" content="lenyv 保险库 —— 本地加密的密码本，钥匙在你手里。">
+
+
+
+<style>
+:root{
+  /* 单一强调色（极简：一处点睛，其余中性） */
+  --brand:#4f6bff;
+  --brand-soft:color-mix(in srgb,var(--brand) 14%,transparent);
+
+  /* 浅色主题 */
+  --bg:#ffffff;
+  --bg-elev:#ffffff;
+  --bg-subtle:#f6f7f9;
+  --text:#17181c;
+  --text-soft:#676b76;
+  --border:#e7e8ec;
+  --line:color-mix(in srgb,var(--text) 10%,transparent);
+
+  /* 间距 */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px;
+  --sp-6:32px; --sp-7:48px; --sp-8:64px; --sp-9:96px;
+
+  /* 圆角 */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-full:999px;
+
+  /* 字体 */
+  --font-sans:"Inter","Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --font-display:"Space Grotesk",var(--font-sans);
+
+  /* 布局 */
+  --container:1080px;
+  --header-h:64px;
+}
+
+[data-theme="dark"]{
+  --bg:#0c0d10;
+  --bg-elev:#0c0d10;
+  --bg-subtle:#14161b;
+  --text:#eceef3;
+  --text-soft:#9a9fad;
+  --border:#23262e;
+}
+
+
+/* ===== lenyv · 极简基础样式 =====
+   原则：留白、细分隔线、单一强调色、几乎不用阴影 / 渐变 / 模糊。 */
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;font-family:var(--font-sans);background:var(--bg);color:var(--text);
+  line-height:1.75;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+  transition:background .2s ease,color .2s ease;
+}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+.container{width:100%;max-width:var(--container);margin:0 auto;padding:0 var(--sp-5)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+
+/* ---------- 页头 ---------- */
+.site-header{position:sticky;top:0;z-index:50;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid transparent;transition:border-color .2s}
+.site-header.scrolled{border-bottom-color:var(--border)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;height:var(--header-h)}
+.brand{display:flex;align-items:center;gap:var(--sp-2);font-weight:700}
+.brand-mark{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;
+  background:var(--brand);color:#fff;font-weight:800;font-size:.85rem}
+.brand-name{font-size:1.05rem;letter-spacing:.2px}
+.site-nav{display:flex;align-items:center;gap:var(--sp-5)}
+.site-nav a{color:var(--text-soft);font-size:.95rem;transition:color .2s}
+.site-nav a:hover,.site-nav a.is-active{color:var(--text)}
+.theme-toggle{border:1px solid var(--border);background:transparent;color:var(--text-soft);
+  width:34px;height:34px;border-radius:var(--r-full);cursor:pointer;font-size:.95rem;transition:.2s}
+.theme-toggle:hover{border-color:var(--text-soft);color:var(--text)}
+.nav-toggle{display:none;flex-direction:column;gap:5px;background:none;border:0;cursor:pointer;padding:8px}
+.nav-toggle span{width:22px;height:1.5px;background:var(--text);border-radius:2px}
+
+/* ---------- Hero ---------- */
+.hero{padding:var(--sp-9) 0 var(--sp-8)}
+.hero-eyebrow{display:inline-block;font-size:.85rem;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--brand);margin-bottom:var(--sp-4)}
+.hero-title{font-family:var(--font-display);font-size:clamp(2.6rem,7vw,4.6rem);line-height:1.04;
+  letter-spacing:-1.5px;margin:0 0 var(--sp-4);font-weight:700}
+.hero-sub{font-size:clamp(1.05rem,2.2vw,1.25rem);color:var(--text-soft);margin:0 0 var(--sp-6);max-width:600px}
+.hero-actions{display:flex;gap:var(--sp-3);flex-wrap:wrap}
+
+/* ---------- 按钮 ---------- */
+.btn{display:inline-flex;align-items:center;gap:var(--sp-2);padding:11px 20px;border-radius:var(--r-sm);
+  font-weight:600;font-size:.95rem;cursor:pointer;transition:background .18s,border-color .18s,color .18s;border:1px solid transparent}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{background:color-mix(in srgb,var(--brand) 86%,#000)}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--text)}
+.btn-ghost:hover{border-color:var(--text-soft)}
+.btn-quiet{background:transparent;border-color:transparent;color:var(--text-soft);padding:8px 10px}
+.btn-quiet:hover{color:var(--text)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- 区块 ---------- */
+.section{padding:var(--sp-8) 0}
+.section-head{max-width:620px;margin:0 0 var(--sp-6)}
+.section-title{font-family:var(--font-display);font-size:clamp(1.6rem,4vw,2.2rem);margin:0 0 var(--sp-2);
+  letter-spacing:-.5px;font-weight:700}
+.section-sub{color:var(--text-soft);margin:0}
+.grid{display:grid;gap:var(--sp-4)}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+
+/* 卡片：只靠细边框，不要阴影 */
+.card{display:block;padding:var(--sp-5);border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--bg-elev);transition:border-color .2s,transform .2s}
+.card:hover{border-color:var(--brand);transform:translateY(-3px)}
+.card h3{margin:0 0 var(--sp-1);font-size:1.05rem;font-family:var(--font-display)}
+.card p{margin:0;color:var(--text-soft);font-size:.92rem}
+
+/* 简单预览框（保留一个干净版本） */
+.browser{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--bg-elev)}
+.browser .bar{display:flex;align-items:center;gap:6px;padding:11px 14px;border-bottom:1px solid var(--border)}
+.browser .dot{width:9px;height:9px;border-radius:50%;background:var(--border)}
+.browser .url{margin-left:10px;flex:1;font-size:.78rem;color:var(--text-soft)}
+.browser .screen{padding:var(--sp-7) var(--sp-5);text-align:center;background:var(--bg-subtle)}
+.browser .screen h4{font-family:var(--font-display);font-size:1.4rem;margin:0 0 4px}
+.browser .screen p{color:var(--text-soft);margin:0;font-size:.92rem}
+
+/* 数据条：用分隔线，不用渐变 */
+.stats{display:flex;flex-wrap:wrap;gap:var(--sp-6);padding:var(--sp-6) 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.stat{flex:1;min-width:120px}
+.stat .num{font-family:var(--font-display);font-size:clamp(1.5rem,4vw,2.1rem);font-weight:700;line-height:1.1}
+.stat .label{color:var(--text-soft);font-size:.88rem;margin-top:4px}
+
+/* CTA */
+.cta-panel{border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-7) var(--sp-6);
+  text-align:center;background:var(--bg-subtle)}
+.cta-panel h2{font-family:var(--font-display);font-size:clamp(1.4rem,3.5vw,1.9rem);margin:0 0 var(--sp-2);letter-spacing:-.5px}
+.cta-panel p{color:var(--text-soft);margin:0 auto var(--sp-5);max-width:460px}
+
+/* ---------- 内页 ---------- */
+.page-head{padding:var(--sp-8) 0 var(--sp-4);border-bottom:1px solid var(--border)}
+.page-head h1{font-family:var(--font-display);font-size:clamp(1.9rem,5vw,2.6rem);margin:0 0 var(--sp-2);letter-spacing:-.8px}
+.page-head p{color:var(--text-soft);max-width:640px;margin:0}
+.prose{max-width:680px}
+.prose p{color:var(--text-soft);margin:0 0 var(--sp-4)}
+.placeholder{border:1px dashed var(--border);border-radius:var(--r-md);padding:var(--sp-5);
+  color:var(--text-soft);background:transparent;font-size:.94rem}
+.contact-form{display:grid;gap:var(--sp-4);max-width:480px}
+.contact-form label{display:grid;gap:6px;font-weight:600;font-size:.88rem}
+.contact-form input,.contact-form textarea{padding:11px 13px;border-radius:var(--r-sm);border:1px solid var(--border);
+  background:var(--bg);color:var(--text);font:inherit}
+.contact-form input:focus,.contact-form textarea:focus{outline:none;border-color:var(--brand)}
+.form-note{font-size:.84rem;color:var(--text-soft)}
+
+/* ---------- 空状态 ---------- */
+.empty{text-align:center;padding:var(--sp-8) var(--sp-5);
+  border:1px dashed var(--border);border-radius:var(--r-md);color:var(--text-soft)}
+.empty .empty-mark{width:46px;height:46px;border-radius:var(--r-md);border:1px solid var(--border);
+  display:grid;place-items:center;margin:0 auto var(--sp-4);color:var(--text-soft)}
+.empty h3{font-family:var(--font-display);font-size:1.05rem;margin:0 0 var(--sp-2);color:var(--text)}
+.empty p{margin:0 auto;font-size:.9rem;max-width:380px}
+
+/* ---------- 两栏对照（在线版 / 下载版） ---------- */
+.duo{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.duo .card{display:grid;gap:var(--sp-3);align-content:start}
+.duo .tag{display:inline-block;font-size:.75rem;font-weight:600;letter-spacing:.08em;
+  color:var(--brand);background:var(--brand-soft);padding:3px 10px;border-radius:var(--r-full);
+  justify-self:start}
+.duo h3{margin:0}
+.duo ul{margin:0;padding-left:1.1em;color:var(--text-soft);font-size:.9rem;display:grid;gap:5px}
+.duo .btn{justify-self:start;margin-top:2px}
+
+/* 离线单文件版的说明条 */
+.standalone-note{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-subtle);
+  padding:var(--sp-4) var(--sp-5);color:var(--text-soft);font-size:.88rem;line-height:1.7;
+  margin:0 0 var(--sp-6)}
+.standalone-note strong{color:var(--text)}
+
+/* ---------- 页脚 ---------- */
+.site-footer{margin-top:var(--sp-9);border-top:1px solid var(--border);padding:var(--sp-7) 0}
+
+/* 页脚里的下载提示条 */
+.footer-download{display:flex;gap:var(--sp-5);align-items:center;justify-content:space-between;
+  flex-wrap:wrap;border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:var(--sp-5) var(--sp-6);background:var(--bg-subtle);margin-bottom:var(--sp-6)}
+.footer-download strong{display:block;font-family:var(--font-display);font-size:1.02rem;margin-bottom:4px}
+.footer-download p{margin:0;color:var(--text-soft);font-size:.88rem;max-width:520px;line-height:1.6}
+.footer-inner{display:flex;flex-wrap:wrap;gap:var(--sp-6);justify-content:space-between;align-items:flex-start}
+.footer-brand .brand-name{font-weight:700}
+.footer-note{color:var(--text-soft);max-width:300px;margin:var(--sp-2) 0 0;font-size:.9rem}
+.footer-links{display:flex;flex-wrap:wrap;gap:var(--sp-4)}
+.footer-links a{color:var(--text-soft);font-size:.92rem}
+.footer-links a:hover{color:var(--text)}
+.footer-copy{width:100%;color:var(--text-soft);font-size:.83rem;margin:var(--sp-5) 0 0;
+  border-top:1px solid var(--border);padding-top:var(--sp-4)}
+
+/* ---------- 工具 ---------- */
+.hidden{display:none !important}
+.muted{color:var(--text-soft)}
+
+/* ---------- 滚动渐显（很轻） ---------- */
+.reveal{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- 响应式 ---------- */
+@media (max-width:760px){
+  .nav-toggle{display:flex}
+  .site-nav{position:fixed;inset:var(--header-h) 0 auto 0;flex-direction:column;align-items:stretch;gap:0;
+    background:var(--bg);border-bottom:1px solid var(--border);padding:var(--sp-2) var(--sp-5);
+    transform:translateY(-130%);transition:transform .25s ease}
+  .site-nav.open{transform:translateY(0)}
+  .site-nav a{padding:14px 0;border-bottom:1px solid var(--border)}
+  .site-nav .theme-toggle{align-self:flex-start;margin:var(--sp-3) 0}
+}
+@media (prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+  html{scroll-behavior:auto}
+}
+
+
+/* ===== 保险库 · 极简样式 ===== */
+
+.vault-main{padding:var(--sp-8) 0 var(--sp-9)}
+.vault-head h1{font-family:var(--font-display);font-size:clamp(1.8rem,4.5vw,2.4rem);
+  margin:6px 0 var(--sp-2);letter-spacing:-.8px}
+.vault-head p{margin:0 0 var(--sp-6);max-width:560px}
+
+.panel{border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-6);max-width:560px;background:var(--bg-elev)}
+.panel-title{font-family:var(--font-display);font-size:1.15rem;margin:0 0 var(--sp-5);font-weight:700}
+.field{display:grid;gap:8px;margin-bottom:var(--sp-5)}
+.field > label{font-weight:600;font-size:.9rem}
+.field input,.field textarea{width:100%;padding:11px 13px;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--brand)}
+.field textarea{min-height:80px;resize:vertical}
+.hint{font-size:.84rem;color:var(--text-soft);margin:0;line-height:1.6}
+.row{display:flex;gap:var(--sp-3);flex-wrap:wrap;align-items:center}
+.msg{margin:var(--sp-4) 0 0;font-size:.9rem;min-height:1.2em}
+.msg.err{color:#ff6b6b}
+.msg.ok{color:#3ecf8e}
+
+.file-btn{cursor:pointer}
+.file-btn input{display:none}
+
+/* 密码行 + 「显示」按钮 */
+.pw-row{display:flex;gap:8px;align-items:center}
+.pw-row input{flex:1;min-width:0}
+.pw-row .pw-toggle{flex:0 0 auto;white-space:nowrap}
+
+/* 报错里的「技术细节」折叠块 */
+.tech{margin-top:10px;font-size:.8rem;line-height:1.6}
+.tech summary{cursor:pointer;color:var(--text-soft)}
+.tech summary:hover{color:var(--text)}
+.tech code{display:block;margin-top:6px;padding:8px 10px;border:1px solid var(--border);
+  border-radius:var(--r-sm);background:var(--bg-subtle);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;
+  word-break:break-all;white-space:pre-wrap;color:var(--text-soft);user-select:all}
+
+/* 标签页 */
+.tabs{display:flex;gap:var(--sp-5);border-bottom:1px solid var(--border);margin-bottom:var(--sp-5)}
+.tab{background:none;border:0;padding:0 0 12px;font:inherit;font-weight:600;font-size:.95rem;
+  color:var(--text-soft);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--text)}
+.tab.is-active{color:var(--text);border-bottom-color:var(--brand)}
+
+/* ---------- 已解锁 ---------- */
+.vault-bar{display:flex;justify-content:space-between;align-items:flex-end;gap:var(--sp-4);
+  flex-wrap:wrap;margin-bottom:var(--sp-5)}
+.vault-bar h1{font-family:var(--font-display);font-size:clamp(1.6rem,4vw,2.1rem);
+  margin:6px 0 0;letter-spacing:-.6px}
+.vault-actions{display:flex;gap:var(--sp-2)}
+.toolbar{display:flex;gap:var(--sp-3);margin-bottom:var(--sp-5);flex-wrap:wrap}
+.toolbar input{flex:1;min-width:200px;padding:11px 13px;border-radius:var(--r-sm);
+  border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit}
+.toolbar input:focus{outline:none;border-color:var(--brand)}
+
+.entries{display:grid;gap:var(--sp-3)}
+.entry{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:var(--r-md);
+  padding:var(--sp-4) var(--sp-5);background:var(--bg-elev);display:grid;gap:10px;
+  transition:border-color .2s ease}
+/* 鼠标移上去时左侧亮一条细线，暗示"这条是活的" */
+.entry::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--brand);opacity:0;transition:opacity .2s ease}
+.entry:hover::before{opacity:1}
+.entry:hover{border-color:color-mix(in srgb,var(--brand) 45%,var(--border))}
+.entry-top{display:flex;justify-content:space-between;gap:var(--sp-4);flex-wrap:wrap;align-items:baseline}
+.entry-title{font-weight:700;font-size:1.02rem;word-break:break-all}
+.entry-site{color:var(--text-soft);font-size:.85rem;word-break:break-all}
+.entry-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.92rem}
+.entry-line .k{color:var(--text-soft);min-width:44px;font-size:.85rem}
+.entry-line .v{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all}
+.entry-note{color:var(--text-soft);font-size:.88rem;white-space:pre-wrap;word-break:break-word}
+.entry-tools{display:flex;gap:var(--sp-2);flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--border)}
+
+.mini{padding:6px 12px;font-size:.85rem;border-radius:var(--r-sm);border:1px solid var(--border);
+  background:transparent;color:var(--text-soft);cursor:pointer;font:inherit;font-size:.85rem;transition:.15s}
+.mini:hover{color:var(--text);border-color:var(--text-soft)}
+.mini.danger:hover{color:#ff6b6b;border-color:#ff6b6b}
+
+.vault-foot{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin-top:var(--sp-6);
+  padding-top:var(--sp-5);border-top:1px solid var(--border)}
+
+/* ---------- 弹层 ---------- */
+.modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:var(--sp-4);
+  background:color-mix(in srgb,var(--bg) 72%,#000 28%);backdrop-filter:blur(3px)}
+.modal-card{width:100%;max-width:520px;max-height:88vh;overflow:auto;background:var(--bg-elev);
+  border:1px solid var(--border);border-radius:var(--r-lg);padding:var(--sp-6)}
+.modal-card h3{font-family:var(--font-display);margin:0 0 var(--sp-4);font-size:1.15rem}
+.modal-actions{display:flex;justify-content:flex-end;gap:var(--sp-3);margin-top:var(--sp-5)}
+
+.note-box{border:1px solid var(--border);border-radius:var(--r-md);padding:var(--sp-4) var(--sp-5);
+  background:var(--bg-subtle);font-size:.88rem;color:var(--text-soft);margin:var(--sp-5) 0 0;line-height:1.7}
+.note-box strong{color:var(--text)}
+
+/* 状态色（放在最后，保证覆盖 .hint / .muted 的颜色） */
+.is-ok{color:#3ecf8e}
+.is-err{color:#ff6b6b}
+
+/* 底部轻提示 */
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:200;
+  background:var(--text);color:var(--bg);padding:10px 20px;border-radius:var(--r-full);
+  font-size:.88rem;font-weight:500;max-width:calc(100vw - 48px);text-align:center;
+  pointer-events:none;transition:opacity .2s ease,transform .2s ease}
+.toast.hidden{opacity:0;transform:translateX(-50%) translateY(8px)}
+
+/* 条目上的主操作按钮（复制账号 → 复制密码） */
+.mini.primary{border-color:var(--brand);color:var(--brand);font-weight:600}
+.mini.primary:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-soft)}
+.mini.primary.done{border-color:var(--border);color:var(--text-soft);background:transparent;font-weight:400}
+
+/* 网站链接 */
+a.entry-link{color:var(--brand);border-bottom:1px solid transparent;transition:border-color .15s}
+a.entry-link:hover{border-bottom-color:var(--brand)}
+
+/* 复制后短暂高亮整个条目 */
+.entry.flash{border-color:var(--brand)}
+
+/* 体检弹层里的分区 */
+.verify-block{border-top:1px solid var(--border);margin-top:var(--sp-5);padding-top:var(--sp-5);
+  display:grid;gap:10px;justify-items:start}
+.verify-block h4{font-family:var(--font-display);font-size:1rem;margin:0;font-weight:700}
+.verify-block .pw-row{width:100%}
+.verify-block .msg{margin:0}
+
+/* 恢复钥匙口的状态提示 */
+.keyhole{display:flex;gap:var(--sp-3);align-items:center;justify-content:space-between;flex-wrap:wrap;
+  border:1px dashed var(--border);border-radius:var(--r-md);padding:var(--sp-3) var(--sp-5);
+  margin:0 0 var(--sp-5);font-size:.88rem;color:var(--text-soft)}
+.keyhole strong{color:var(--text)}
+
+
+
+/* 离线单文件版：云同步不可用（它需要联网 + 固定域名），这里藏起来 */
+#cloud-bar,
+#cloud-modal{display:none !important}
+</style>
+</head>
+<body data-page="vault">
+  <header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="#top" aria-label="lenyv 保险库">
+      <span class="brand-mark">L</span>
+      <span class="brand-name">lenyv 保险库</span>
+    </a>
+    <nav class="site-nav" aria-label="主导航">
+      <span class="hint muted">离线单文件版 · 数据只存在这台设备上</span>
+    </nav>
+  </div>
+</header>
+
+  <main class="vault-main">
+    <div class="container">
+      <p class="standalone-note">
+        <strong>离线单文件版</strong> —— 整个保险库都在这一个文件里，双击就能打开，
+        把文件放进 U 盘随身带也行。<br>
+        数据只存在这个浏览器里，不上传任何服务器。想要多设备同步，请用网站上的在线版。
+      </p>
+    </div>
+    <div class="container">
+
+      <!-- ===================== 未解锁 ===================== -->
+      <section id="lock-view">
+        <header class="vault-head">
+          <span class="hero-eyebrow">保险库</span>
+          <h1>一扇门，两把钥匙</h1>
+          <p class="muted">数据只存在这台设备的浏览器里，加密后才落盘。<strong>密钥永远不离开你的浏览器</strong>，任何服务器都拿不到明文。</p>
+        </header>
+
+        <!-- 首次使用：创建 -->
+        <div id="setup-panel" class="panel hidden">
+          <h2 class="panel-title">首次使用 · 造一把钥匙</h2>
+
+          <div class="field">
+            <label>① U 盘密钥文件</label>
+            <p class="hint">生成一个随机密钥文件，存进你的 U 盘。以后插上 U 盘、选中它，才能开门。</p>
+            <div class="row">
+              <button id="btn-generate-key" class="btn btn-ghost" type="button">生成并下载密钥文件</button>
+              <label class="btn btn-ghost file-btn">选择已有密钥文件
+                <input id="input-key-file-setup" type="file" accept=".bin,.key,.txt,application/octet-stream">
+              </label>
+            </div>
+            <p id="setup-key-status" class="hint muted">尚未选择密钥文件</p>
+          </div>
+
+          <div class="field">
+            <label for="setup-password">② 主密码（可选，建议设置）</label>
+            <p class="hint">设了它，就需要「U 盘 + 主密码」两样一起才能开门；不设，则只靠 U 盘。</p>
+            <div class="pw-row">
+              <input id="setup-password" type="password" autocomplete="new-password" placeholder="留空 = 只用 U 盘">
+              <button class="mini pw-toggle" type="button">显示</button>
+            </div>
+            <div class="pw-row">
+              <input id="setup-password2" type="password" autocomplete="new-password" placeholder="再输一次">
+              <button class="mini pw-toggle" type="button">显示</button>
+            </div>
+            <p id="setup-pw-hint" class="hint muted">看不清就先点「显示」，确认没打错再创建。</p>
+          </div>
+
+          <button id="btn-create" class="btn btn-primary" type="button">创建保险库</button>
+          <p class="hint muted" style="margin-top:12px">提示：钥匙文件请留个备份。丢了它、又没设恢复问题，就打不开了。</p>
+          <div id="setup-msg" class="msg"></div>
+        </div>
+
+        <!-- 已有保险库：解锁 -->
+        <div id="unlock-panel" class="panel hidden">
+          <div class="tabs" role="tablist">
+            <button class="tab is-active" data-tab="usb" type="button" role="tab">用 U 盘解锁</button>
+            <button class="tab" data-tab="recovery" type="button" role="tab">用恢复问题解锁</button>
+          </div>
+
+          <div id="tab-usb" class="tab-panel">
+            <div class="field">
+              <label class="btn btn-ghost file-btn">选择 U 盘里的密钥文件
+                <input id="input-key-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
+              </label>
+              <p id="unlock-key-status" class="hint muted">尚未选择密钥文件</p>
+              <div class="pw-row">
+                <input id="unlock-password" type="password" autocomplete="current-password" placeholder="主密码（如果设过）">
+                <button class="mini pw-toggle" type="button">显示</button>
+              </div>
+            </div>
+            <button id="btn-unlock" class="btn btn-primary" type="button">解锁</button>
+          </div>
+
+          <div id="tab-recovery" class="tab-panel hidden">
+            <div id="recovery-not-set" class="placeholder hidden">这个保险库还没有设置恢复问题 —— 钥匙口还在，只是还没有配钥匙。</div>
+            <div id="recovery-form" class="field hidden">
+              <label id="recovery-question" for="recovery-answer">你今天什么心情？</label>
+              <div class="pw-row">
+                <input id="recovery-answer" type="password" autocomplete="off" placeholder="说出那句只有你们知道的话">
+                <button class="mini pw-toggle" type="button">显示</button>
+              </div>
+              <button id="btn-unlock-recovery" class="btn btn-primary" type="button">用答案解锁</button>
+            </div>
+          </div>
+          <div id="unlock-msg" class="msg"></div>
+        </div>
+      </section>
+
+      <!-- ===================== 已解锁 ===================== -->
+      <section id="vault-view" class="hidden">
+        <header class="vault-bar">
+          <div>
+            <span class="hero-eyebrow">保险库</span>
+            <h1>我的密码本</h1>
+          </div>
+          <div class="vault-actions">
+            <button id="btn-lock" class="btn btn-ghost" type="button">锁定</button>
+          </div>
+        </header>
+
+        <div id="cloud-bar" class="keyhole">
+          <span id="cloud-status">云端同步：检查中……</span>
+          <button id="btn-cloud-open" class="mini" type="button">设置</button>
+        </div>
+
+        <div id="recovery-nudge" class="keyhole hidden">
+          <span>恢复钥匙口：<strong>还没有配钥匙</strong>。U 盘要是坏了就打不开，建议现在设置一个恢复问题。</span>
+          <button id="btn-nudge-set" class="mini" type="button">去设置</button>
+        </div>
+
+        <div id="verify-nudge" class="keyhole hidden">
+          <span id="verify-nudge-text">该做体检了。</span>
+          <button id="btn-verify" class="mini" type="button">去体检</button>
+        </div>
+
+        <div class="toolbar">
+          <input id="search" type="search" placeholder="搜索标题 / 账号 / 网站">
+          <button id="btn-add" class="btn btn-primary" type="button">＋ 新条目</button>
+        </div>
+
+        <div id="entries" class="entries"></div>
+        <div id="empty-hint" class="empty hidden">
+          <div class="empty-mark">＋</div>
+          <h3>还没有条目</h3>
+          <p>点右上角的「＋ 新条目」放进去第一个。电脑上也可以直接按 <strong>n</strong> 键。</p>
+        </div>
+
+        <div class="vault-foot">
+          <button id="btn-verify-foot" class="btn btn-ghost" type="button">钥匙体检</button>
+          <button id="btn-change-key" class="btn btn-ghost" type="button">更换钥匙（U 盘）</button>
+          <button id="btn-recovery-settings" class="btn btn-ghost" type="button">恢复问题</button>
+          <button id="btn-export" class="btn btn-ghost" type="button">导出加密备份</button>
+          <label class="btn btn-ghost file-btn">导入加密备份
+            <input id="input-import" type="file" accept=".json,application/json">
+          </label>
+        </div>
+
+        <div class="note-box">
+          <strong>关于安全，说人话：</strong><br>
+          · 你的密码用 <strong>AES-GCM</strong> 加密后才写进这台设备的浏览器数据库（IndexedDB）。<br>
+          · 开门的钥匙由「U 盘密钥文件 + 主密码」推出来，<strong>只在你解锁时短暂存在于内存</strong>，刷新页面即消失。<br>
+          · 所以：关掉网页 = 门自动锁上；别人拿到你的电脑，没有 U 盘也打不开。<br>
+          · U 盘密钥文件请备份一份。真丢了，就用「恢复问题」那把钥匙开门，然后换一把新钥匙。<br>
+          · <strong>用法</strong>：点「① 复制账号」贴上去，回来点「② 复制密码」再贴 —— 密码 30 秒后自动从剪贴板清空。<br>
+          · 电脑上按 <strong>/</strong> 跳到搜索框，按 <strong>n</strong> 新建条目。网站一栏填了域名就能直接点开。<br>
+          · 数据存放位置：<strong id="storage-note">检测中……</strong>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- 条目编辑弹层 -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="modal-title">新条目</h3>
+      <div class="field"><label for="f-title">标题</label><input id="f-title" type="text" placeholder="例如：某网站账号"></div>
+      <div class="field"><label for="f-site">网站 / 应用</label><input id="f-site" type="text" placeholder="example.com"></div>
+      <div class="field"><label for="f-user">账号</label><input id="f-user" type="text" placeholder="用户名 / 手机号 / 邮箱"></div>
+      <div class="field">
+        <label for="f-pass">密码</label>
+        <div class="row" style="flex-wrap:nowrap">
+          <input id="f-pass" type="text" placeholder="密码">
+          <button id="btn-gen" class="btn btn-ghost" type="button" style="white-space:nowrap">生成</button>
+        </div>
+      </div>
+      <div class="field"><label for="f-note">备注</label><textarea id="f-note" placeholder="可选"></textarea></div>
+      <div class="modal-actions">
+        <button id="btn-cancel" class="btn btn-ghost" type="button">取消</button>
+        <button id="btn-save" class="btn btn-primary" type="button">保存</button>
+      </div>
+      <div id="edit-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 恢复问题弹层 -->
+  <div id="recovery-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>恢复问题</h3>
+      <p class="hint">如果 U 盘坏了或丢了，就用这个问题的答案开门。答案应该是<strong>只有你和被问的人知道</strong>的一句话。</p>
+      <div class="field" style="margin-top:20px"><label for="r-question">问题</label><input id="r-question" type="text" placeholder="你今天什么心情？"></div>
+      <div class="field"><label for="r-answer">答案</label>
+        <div class="pw-row">
+          <input id="r-answer" type="password" autocomplete="off" placeholder="例如：冷羽什么心情我就什么心情">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+      </div>
+      <p class="hint muted" style="margin-top:-8px">当前状态：<span id="r-status">未设置</span></p>
+      <div class="modal-actions">
+        <button id="btn-r-cancel" class="btn btn-ghost" type="button">取消</button>
+        <button id="btn-r-save" class="btn btn-primary" type="button">保存恢复问题</button>
+      </div>
+      <div id="r-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 更换钥匙弹层 -->
+  <div id="key-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>更换钥匙（U 盘）</h3>
+      <p class="hint">重新选一个新密钥文件、设一个新主密码。保存后，旧钥匙立刻失效。适合换 U 盘、或怀疑密钥外泄时用。</p>
+      <div class="field" style="margin-top:20px">
+        <div class="row">
+          <button id="btn-k-gen" class="btn btn-ghost" type="button">生成并下载新密钥文件</button>
+          <label class="btn btn-ghost file-btn">选择密钥文件
+            <input id="input-k-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
+          </label>
+        </div>
+        <p id="k-status" class="hint muted">尚未选择</p>
+      </div>
+      <div class="field">
+        <div class="pw-row">
+          <input id="k-pass" type="password" autocomplete="new-password" placeholder="新的主密码（可留空）">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <div class="pw-row">
+          <input id="k-pass2" type="password" autocomplete="new-password" placeholder="再输一次">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-k-cancel" class="btn btn-ghost" type="button">取消</button>
+        <button id="btn-k-save" class="btn btn-primary" type="button">保存</button>
+      </div>
+      <div id="k-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 钥匙体检弹层 -->
+  <div id="verify-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>钥匙体检</h3>
+      <p class="hint">趁现在不着急，先确认你的钥匙都还能打开这个保险库。<strong>只读检查，不会改动任何密码条目。</strong></p>
+
+      <div class="verify-block">
+        <h4>① U 盘密钥文件 + 主密码</h4>
+        <p class="hint">这两样是配对使用的：选中 U 盘里的密钥文件、再输一次主密码，一起验一遍。</p>
+        <label class="btn btn-ghost file-btn">选择密钥文件
+          <input id="v-key-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
+        </label>
+        <p id="v-key-status" class="hint muted">尚未选择</p>
+        <div class="pw-row">
+          <input id="v-password" type="password" autocomplete="off" placeholder="主密码（没设过就留空）">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <button id="btn-v-check-key" class="btn btn-primary" type="button">检查密钥 + 主密码</button>
+        <div id="v-key-result" class="msg"></div>
+      </div>
+
+      <div class="verify-block">
+        <h4>② 恢复问题的答案</h4>
+        <p class="hint">U 盘坏掉时的唯一后路。输入那句答案，确认它还能开门。</p>
+        <div class="pw-row">
+          <input id="v-answer" type="password" autocomplete="off" placeholder="恢复问题的答案">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <button id="btn-v-check-rec" class="btn btn-primary" type="button">检查这个答案</button>
+        <div id="v-rec-result" class="msg"></div>
+      </div>
+
+      <div class="verify-block">
+        <h4>③ 备份</h4>
+        <p class="hint" id="v-backup-info">还没有导出过备份。</p>
+        <button id="btn-v-backup" class="btn btn-ghost" type="button">现在导出一份加密备份</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-v-close" class="btn btn-ghost" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 云同步弹层 -->
+  <div id="cloud-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>云端同步</h3>
+      <p class="hint">云上<strong>只存密文</strong>。你的密码在上传之前就已经在本机加密好了，服务器看不到任何内容 —— 这叫「零知识」。换台电脑登录同一个账号，下载下来用钥匙一解就全回来了。</p>
+
+      <div id="cloud-login" class="verify-block">
+        <h4>① 用手机号登录</h4>
+        <p class="hint">手机号只是用来认出「哪一份密文是你的」，跟你的密码无关。验证码发到你手机上。</p>
+        <input id="cloud-phone" type="tel" inputmode="numeric" placeholder="11 位手机号">
+        <button id="btn-cloud-send" class="btn btn-ghost" type="button">获取验证码</button>
+        <div class="row">
+          <input id="cloud-code" type="text" inputmode="numeric" placeholder="收到的验证码">
+          <button id="btn-cloud-login" class="btn btn-primary" type="button">登录 / 注册</button>
+        </div>
+        <div id="cloud-login-msg" class="msg"></div>
+      </div>
+
+      <div id="cloud-panel" class="verify-block hidden">
+        <h4>② 同步</h4>
+        <p class="hint" id="cloud-who">已登录</p>
+        <p class="hint" id="cloud-times"></p>
+        <div class="row">
+          <button id="btn-cloud-push" class="btn btn-primary" type="button">上传到云端</button>
+          <button id="btn-cloud-pull" class="btn btn-ghost" type="button">从云端下载</button>
+        </div>
+        <div id="cloud-msg" class="msg"></div>
+        <button id="btn-cloud-signout" class="mini" type="button">退出登录</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-cloud-close" class="btn btn-ghost" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <span class="brand-name">lenyv</span>
+      <p class="footer-note">这是保险库的离线单文件版：双击打开就能用，不需要联网，也不需要服务器。</p>
+    </div>
+    <p class="footer-copy">© <span id="year"></span> lenyv · 想联网同步，请用网站上的在线版</p>
+  </div>
+</footer>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script>
+/* ============================================================================
+   lenyv 保险库 · 零知识本地密码本
+   ============================================================================
+   【这个文件是干什么的】
+   在浏览器里实现一个「密码本」：你把各个网站的账号密码存进来，
+   它们用你自己的钥匙加密后，只存在你这台电脑的浏览器里。
+   没有任何服务器参与，明文和钥匙都不会离开你的浏览器。
+
+   【核心设计：信封加密（两把钥匙开同一扇门）】
+   1) 建库时，随机生成一把 32 字节的「保险库密钥」（下面代码里叫 vaultKeyMat）。
+      —— 真正加密你所有密码的，是它。
+   2) 然后把这把密钥，分别用两把「钥匙」各加密一份（这一步叫 wrap / 包裹）：
+        钥匙① —— U 盘里的密钥文件（你有的东西）+ 可选的主密码（你知道的东西）
+        钥匙② —— 恢复问题的答案（你和某个人共享的一句话）
+   3) 解锁时，随便哪把钥匙，只要能解开出 vaultKeyMat，就能打开整个保险库。
+   —— 所以：换解锁方式 = 同一扇门；忘主密码 = 用恢复答案开。
+   —— 钥匙口可以先「造好形状」而钥匙暂时不存在（recovery 初始为 null）。
+
+   【安全边界】
+   · 落盘的只有密文（IndexedDB 或 localStorage），里面不含任何明文。
+   · vaultKeyMat 只存在于内存（JS 变量），一刷新页面就没了 = 自动上锁。
+   · 主密码和恢复答案从不被存下来，只用它们推算钥匙。
+
+   【给以后接手的人】
+   改完这个文件，请务必跑一遍：node tests/vault.test.cjs
+   那个测试是直接从本文件切出真实函数来跑的，不是副本。
+   ============================================================================ */
+(function () {
+  'use strict';   // 开启严格模式：把一些容易写错的写法直接报错，早发现早修
+
+  /* ==========================================================================
+     0. 最基础的 DOM 小工具
+     （注意：这两个必须放在本文件最前面，测试脚本按位置切片提取代码）
+     ========================================================================== */
+
+  // $ = 找一个元素。用法：$('#id')、$('.class')；第二个参数可指定在哪个范围内找
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+
+  // $ = 找一堆元素，并转成真正的数组（这样才能用 forEach / filter 等方法）
+  var $ = function (s, r) {
+    return Array.prototype.slice.call((r || document).querySelectorAll(s));
+  };
+
+  /* ==========================================================================
+     1. 常量（写死的配置项）
+     ========================================================================== */
+
+  /* ==========================================================================
+     云服务配置（来自「开通云服务」时平台返回的 publicConfig）
+     --------------------------------------------------------------------------
+     这三个值不是密钥，可以放在前端代码里 —— 浏览器里本来就看得见。
+     · endpoint        本应用的后端地址，由平台分配
+     · publishableKey  只用来标识「是哪个应用」，本身不含任何权限；
+                       真正的安全由服务器端的域名校验 + 数据库的 RLS 策略负责
+     · oauthRelayBaseUrl  微信扫码登录用的中转地址（本项目暂时用手机号登录，先留着）
+     ⚠️ endpoint 不要手改，也不要从 location 里推 —— 写错会直接导致登录失败。
+     ========================================================================== */
+  var CLOUD_CONFIG = {
+    endpoint: 'https://lenyv-vault.app.workbuddy.host',
+    oauthRelayBaseUrl: 'https://www.workbuddy.cn/v2/as/genie-baas/oauth',
+    publishableKey: 'wbpk_Si7P7nvqJ2Kw8v6Tyk2uag_UQiCGuDBVwox3YDfGeGXLB2a3UOF4TNJ'
+  };
+
+  var DB_NAME = 'lenyv_vault';             // IndexedDB 数据库名
+  var STORE = 'vault';                     // 数据库里的表名
+  var REC_ID = 'main';                     // 整库只存一条记录，用这个固定 id
+  var ITER = 250000;                       // PBKDF2 迭代次数：把「猜密码」的速度拖慢 25 万倍
+  var VERIFIER_TEXT = 'lenyv-vault-ok-v1'; // 一句校验暗号，用来判断钥匙对不对
+  var NO_PASSWORD = 'lenyv::no-master-password::v1'; // 用户不设主密码时，用这个固定串占位
+  var DEFAULT_QUESTION = '你今天什么心情？';          // 恢复问题的默认问题
+  var enc = new TextEncoder();             // 文字 → 字节
+  var dec = new TextDecoder();             // 字节 → 文字
+
+  /* ==========================================================================
+     2. 字节 / Base64 互转
+     为什么要转：密文是二进制，而 IndexedDB / JSON 只方便存文本，所以存之前转 Base64
+     ========================================================================== */
+
+  // 字节数组 → Base64 文本
+  function u8ToB64(u8) {
+    var s = '', CH = 0x8000;  // 一次拼 32768 个字符，避免参数太多导致栈溢出
+    // 分块转成字符串（String.fromCharCode 一次传太多参数会崩，所以分块）
+    for (var i = 0; i < u8.length; i += CH) {
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    }
+    return btoa(s);           // 再整体编码成 Base64
+  }
+
+  // Base64 文本 → 字节数组（上面那步的反向操作）
+  function b64ToU8(b64) {
+    var s = atob(b64),                    // 先解回普通字符串
+        u = new Uint8Array(s.length);     // 开一块等长的字节空间
+    for (var i = 0; i < s.length; i++) {
+      u[i] = s.charCodeAt(i);             // 逐字符取其编码值
+    }
+    return u;
+  }
+
+  // 比较两串字节是不是完全一样（体检时用来判断「解出来的密钥对不对」）
+  // 用「逐位异或再累加」的写法，而不是提前 return，避免比较耗时泄露信息
+  function sameBytes(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+    return diff === 0;
+  }
+
+  // 生成 n 个「密码学安全」的随机字节（不是 Math.random，那个能被预测）
+  function randomBytes(n) {
+    var a = new Uint8Array(n);
+    crypto.getRandomValues(a);
+    return a;
+  }
+
+  // 生成一个条目的唯一编号
+  function uid() {
+    // 新浏览器自带 randomUUID；老浏览器就用「时间戳 + 随机数」兜底
+    return (crypto.randomUUID ? crypto.randomUUID()
+      : 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+  }
+
+  // 给某个元素设置「状态色」（绿=成功 / 红=失败），会先清掉旧的状态
+  function markState(el, type) {
+    el.classList.remove('is-ok', 'is-err');   // 先清干净
+    if (type === 'ok') el.classList.add('is-ok');
+    else if (type === 'err') el.classList.add('is-err');
+  }
+
+  // 往提示区写一句话（type 传 'ok' 变绿、'err' 变红、不传就是普通灰）
+  function setMsg(el, text, type) {
+    if (!el) return;                          // 元素不存在就什么也不做
+    el.textContent = text || '';              // 用 textContent 而不是 innerHTML：防止内容被当成代码执行
+    markState(el, type);
+  }
+
+  // 显示元素（把 .hidden 这个 class 摘掉）
+  function show(el) { if (el) el.classList.remove('hidden'); }
+
+  // 隐藏元素（把 .hidden 加上）
+  function hide(el) { if (el) el.classList.add('hidden'); }
+
+  /* ==========================================================================
+     3. 把报错翻译成人话
+     浏览器原本吐的是英文专业术语，用户看不懂，所以统一查表翻译。
+     ========================================================================== */
+
+  var ERROR_ZH = {
+    // ---- 本程序自己抛出的错误码 ----
+    WRONG_KEY: '打不开：密钥文件或主密码不对。先确认 U 盘里的那个文件选对了没有。',
+    RECOVERY_WRONG: '打不开：答案不对。再想想那句话是怎么说的。',
+    NO_RECOVERY: '这个保险库还没有设置恢复问题，所以这条路暂时走不通。',
+    NO_VAULT: '这台设备上还没有保险库。',
+    LOCKED: '保险库已经锁上了，请先解锁再操作。',
+    DATA_CORRUPT: '数据解开了，但内容格式不对，可能文件被改动过。建议用备份恢复。',
+    BAD_FILE: '这不是有效的 lenyv 保险库备份文件。',
+    STORAGE_BLOCKED: '浏览器不让这个页面保存数据。如果你是在「预览小窗口」里打开的，请改用真正的浏览器窗口打开本页；如果是无痕模式，请换成普通窗口。',
+    STORAGE_ABORTED: '写入本地存储时被打断了，请再试一次。',
+    STORAGE_FULL: '本地存储空间不够了，清理一点浏览器数据再试。',
+    // ---- 云同步相关 ----
+    CLOUD_SDK_MISSING: '云服务组件没加载出来（通常是网络问题）。刷新页面再试一次。',
+    CLOUD_READ_FAIL: '读取云端数据失败，请稍后重试。',
+    CLOUD_WRITE_FAIL: '上传到云端失败，请稍后重试。',
+    CLOUD_WRITE_DENIED: '上传被服务器拒绝了：这条数据不属于当前账号。请先登录你自己的账号。',
+    CLOUD_EMPTY: '云端还没有数据。先在存着最新密码的那台设备上点一次「上传到云端」。',
+    CLOUD_NOT_LOGGED_IN: '还没有登录云账号，请先登录。',
+
+    // ---- 浏览器抛出的异常（按异常名称翻译）----
+    NotAllowedError: '浏览器拒绝了这次操作。如果你正在用「无痕 / 隐私模式」，请换成普通窗口打开本页。',
+    SecurityError: '浏览器出于安全策略挡住了本地存储。请用普通窗口（不是无痕模式）打开本页。',
+    QuotaExceededError: '本地存储空间不够了，清理一点浏览器数据再试。',
+    InvalidStateError: '本地数据库状态异常，写不进去。刷新页面重来一次通常就好了。',
+    VersionError: '本地数据库版本对不上，无法打开。',
+    ConstraintError: '本地数据库写入冲突，请重试。',
+    TransactionInactiveError: '本地数据库事务已结束，请重试。',
+    AbortError: '操作被中断了，请重试一次。',
+    DataError: '数据格式有问题，处理不了。',
+    OperationError: '加密操作没能完成。请确认密钥文件是完好的、没被别人改过。',
+    UnknownError: '浏览器报了一个未知错误，请重试。',
+    NetworkError: '本地存储被占用，请关掉其他打开了本页的标签页再试。'
+  };
+
+  // 一句兜底话术，所有翻不出来的错误都用它
+  var FALLBACK_MSG = '没能完成，请再试一次。';
+
+  // 把任意错误对象，转成一句中文
+  function friendlyError(err) {
+    if (!err) return FALLBACK_MSG;                                  // 啥都没有
+    if (typeof err === 'string') return ERROR_ZH[err] || FALLBACK_MSG; // 直接是错误码
+    if (err.message && ERROR_ZH[err.message]) return ERROR_ZH[err.message]; // message 命中表
+    if (err.name && ERROR_ZH[err.name]) return ERROR_ZH[err.name];  // 异常名称命中表
+    if (err.name === 'TypeError') {
+      // 最常见的一种：浏览器根本没有加密能力（非 https / 老浏览器）
+      return '这个浏览器缺少所需的加密功能。请用较新的 Chrome / Edge / Firefox，并通过 https 或 localhost 打开本页。';
+    }
+    var m = String(err.message || '');
+    // 兜底的模糊匹配：从英文原文里认出关键词
+    if (/indexeddb|database|transaction/i.test(m)) return '本地数据库打不开。如果你在用「无痕 / 隐私模式」，换成普通窗口再试。';
+    if (/storage|quota/i.test(m)) return '本地存储不可用，换成普通窗口再试。';
+    return FALLBACK_MSG;
+  }
+
+  /* 把错误显示到界面上：
+     第一行是中文主提示（用户看这个），
+     折叠块里是英文原文（用户看不懂可以忽略，需要排查时复制给开发者）。 */
+  function showError(el, prefix, err) {
+    if (!el) return;
+    el.textContent = '';                       // 清空旧内容
+    markState(el, 'err');                      // 整体标红
+    var span = document.createElement('span'); // 主提示
+    span.textContent = (prefix || '') + friendlyError(err);
+    el.appendChild(span);
+
+    // 拼出英文技术细节，例如 "OperationError: The operation failed ..."
+    var detail = '';
+    if (err) {
+      detail = (typeof err === 'string') ? err
+        : ((err.name ? err.name + ': ' : '') + (err.message || ''));
+    }
+    // 只有真的有内容才显示折叠块（去掉冒号和空白后还有东西）
+    if (detail && detail.replace(/[:\s]/g, '') !== '') {
+      var box = document.createElement('details'); // details = 可折叠区域
+      box.className = 'tech';
+      var sum = document.createElement('summary'); // 折叠时显示的那行字
+      sum.textContent = '技术细节（看不懂可忽略；需要我帮忙时复制这段给我）';
+      var code = document.createElement('code');   // 用等宽字体展示原文
+      code.textContent = detail;
+      box.appendChild(sum);
+      box.appendChild(code);
+      el.appendChild(box);
+    }
+  }
+
+  /* ==========================================================================
+     4. 加密核心（全部用浏览器自带的 Web Crypto，不依赖任何第三方库）
+     ========================================================================== */
+
+  /* 从「一句话」推出一把 AES 加密钥匙。
+     passphrase：用户输入的密码 / 恢复答案
+     saltBytes ：盐（混进去的随机字节），让相同的密码也能算出不同的钥匙
+     用 PBKDF2 慢速推导 —— 这是故意慢的，让暴力猜测变得不划算 */
+  function deriveAesKey(passphrase, saltBytes) {
+    return crypto.subtle
+      // 第一步：把文字变成 PBKDF2 能吃的「基础钥匙材料」
+      .importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey'])
+      .then(function (base) {
+        // 第二步：反复榨 25 万次，得出最终的 AES-GCM 钥匙
+        return crypto.subtle.deriveKey(
+          { name: 'PBKDF2', salt: saltBytes, iterations: ITER, hash: 'SHA-256' },
+          base,
+          { name: 'AES-GCM', length: 256 },   // 256 位强度
+          false,                              // 不可导出（导不出来更安全）
+          ['encrypt', 'decrypt']              // 只允许用来加解密
+        );
+      });
+  }
+
+  /* 加密一段字节，返回 {iv, ct} 两个 Base64 字符串。
+     iv（初始向量）：每次加密都随机生成，保证同样的内容每次密文都不同。 */
+  function encryptBytes(key, bytes) {
+    var iv = randomBytes(12);   // AES-GCM 推荐 12 字节随机 iv
+    return crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, bytes)
+      .then(function (ct) {
+        return { iv: u8ToB64(iv), ct: u8ToB64(new Uint8Array(ct)) };
+      });
+  }
+
+  /* 解密：把 {iv, ct} 还原成字节。
+     如果钥匙不对，AES-GCM 会自动校验失败并抛错 —— 这就是我们判断「钥匙对不对」的依据。 */
+  function decryptBytes(key, blob) {
+    return crypto.subtle
+      .decrypt({ name: 'AES-GCM', iv: b64ToU8(blob.iv) }, key, b64ToU8(blob.ct))
+      .then(function (pt) { return new Uint8Array(pt); });
+  }
+
+  /* 把 32 字节的「保险库密钥」直接变成一把 AES 钥匙（用来加解密条目本身）。
+     注意：这个函数返回的是 Promise，用之前必须先 .then 取到真正的钥匙！ */
+  function importDataKey(mat) {
+    return crypto.subtle.importKey('raw', mat, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  }
+
+  /* ==========================================================================
+     5. 存储层
+     首选 IndexedDB；如果浏览器禁用 / 无痕模式 / 预览小窗口里用不了，
+     自动降级到 localStorage，保证「创建保险库」不会因为存储被挡而失败。
+     ========================================================================== */
+
+  var LS_KEY = 'lenyv_vault_record_v1'; // 降级时用的 key 名
+  var storageProbe = null;              // 缓存探测结果（缓存的是 Promise，避免重复探测）
+
+  // 探测 IndexedDB 到底能不能用；结果会缓存，只探一次
+  function probeStorage() {
+    if (storageProbe) return storageProbe;        // 已经探过就直接返回
+    storageProbe = new Promise(function (resolve) {
+      var done = false;
+      // 无论成功失败，都只回调一次
+      function finish(v) { if (done) return; done = true; resolve(v); }
+      if (!window.indexedDB) return finish(false); // 浏览器压根没这东西
+      // 加个超时：有些环境下 indexedDB.open 会永远不回调，不能让页面卡死
+      var t = setTimeout(function () { finish(false); }, 2500);
+      try {
+        var rq = indexedDB.open(DB_NAME, 1);
+        rq.onupgradeneeded = function () { ensureStore(rq.result); }; // 首次创建时建表
+        rq.onsuccess = function () {
+          clearTimeout(t);
+          try { rq.result.close(); } catch (e) { /* 关不掉也不影响，忽略 */ }
+          finish(true);                            // 能打开 = 可用
+        };
+        rq.onerror = function () { clearTimeout(t); finish(false); };
+        rq.onblocked = function () { clearTimeout(t); finish(false); };
+      } catch (e) { clearTimeout(t); finish(false); }  // 直接抛异常（如沙箱禁止）
+    });
+    return storageProbe;
+  }
+
+  // 确保数据库里有我们那张表（建库和打开时都要用，抽出来避免写两遍）
+  function ensureStore(db) {
+    if (!db.objectStoreNames.contains(STORE)) {
+      db.createObjectStore(STORE, { keyPath: 'id' }); // 用 id 字段当主键
+    }
+  }
+
+  // 打开 IndexedDB
+  function openDB() {
+    return new Promise(function (res, rej) {
+      var rq = indexedDB.open(DB_NAME, 1);
+      rq.onupgradeneeded = function () { ensureStore(rq.result); };
+      rq.onsuccess = function () { res(rq.result); };
+      rq.onerror = function () { rej(rq.error || new Error('STORAGE_BLOCKED')); };
+      rq.onblocked = function () { rej(new Error('STORAGE_BLOCKED')); };
+    });
+  }
+
+  // 从 IndexedDB 读一条记录
+  function idbGet(id) {
+    return openDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var rq = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
+        rq.onsuccess = function () { res(rq.result || null); }; // 没有就是 null
+        rq.onerror = function () { rej(rq.error); };
+      });
+    });
+  }
+
+  // 往 IndexedDB 写一条记录（有则覆盖）
+  function idbPut(rec) {
+    return openDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).put(rec);
+        tx.oncomplete = function () { res(); };                              // 事务提交成功
+        tx.onerror = function () { rej(tx.error || new Error('STORAGE_ABORTED')); };
+        tx.onabort = function () { rej(tx.error || new Error('STORAGE_ABORTED')); };
+      });
+    });
+  }
+
+  // 从 localStorage 读（降级方案）
+  function lsGet() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      var obj = JSON.parse(raw);
+      return (obj && obj.id) ? obj : null;   // 结构不对就当没有
+    } catch (e) {
+      return null;                           // 数据坏了也不崩，当没有就行
+    }
+  }
+
+  // 往 localStorage 写（降级方案）；写不进去就抛出可翻译的错误码
+  function lsPut(rec) {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(rec));
+    } catch (e) {
+      // 被安全策略挡住 和 空间满了，是两回事，要分开告诉用户
+      if (e && (e.name === 'SecurityError' || e.name === 'NotAllowedError')) {
+        throw new Error('STORAGE_BLOCKED');
+      }
+      throw new Error('STORAGE_FULL');
+    }
+  }
+
+  // 清掉 localStorage 里的副本（IndexedDB 写成功后调用，保证只有一份数据）
+  function lsClear() {
+    try { localStorage.removeItem(LS_KEY); } catch (e) { /* 清不掉不影响使用 */ }
+  }
+
+  // 统一读取入口：优先 IndexedDB，读不到再看 localStorage
+  function storeGet(id) {
+    return probeStorage().then(function (useIdb) {
+      if (!useIdb) return lsGet();                        // 用不了 IDB 就直接读 LS
+      return idbGet(id).then(function (rec) {
+        return rec || lsGet();                            // IDB 没数据时，兜一下 LS
+      }, function () { return lsGet(); });                // IDB 读失败也兜一下 LS
+    });
+  }
+
+  // 统一写入入口：优先 IndexedDB，失败自动落回 localStorage
+  function storePut(rec) {
+    return probeStorage().then(function (useIdb) {
+      if (!useIdb) { lsPut(rec); return; }                // 用不了 IDB，直接写 LS
+      return idbPut(rec).then(function () {
+        lsClear();                                        // 写成功：清掉 LS 里的旧副本
+      }, function () {
+        lsPut(rec);                                       // 写失败：落回 LS
+      });
+    });
+  }
+
+  // 告诉用户「数据实际存在哪」，显示在页面底部
+  function storageLabel() {
+    return probeStorage().then(function (useIdb) {
+      return useIdb ? '浏览器本地数据库（IndexedDB）' : '浏览器本地存储（localStorage · 降级模式）';
+    });
+  }
+
+  /* ==========================================================================
+     6. 文件读写、下载、复制、提示
+     ========================================================================== */
+
+  // 把用户选中的文件读成字节数组（U 盘密钥文件就是这么读进来的）
+  function readFileBytes(file) {
+    return new Promise(function (res, rej) {
+      var fr = new FileReader();
+      fr.onload = function () { res(new Uint8Array(fr.result)); };
+      fr.onerror = function () { rej(fr.error); };
+      fr.readAsArrayBuffer(file);          // 按二进制读
+    });
+  }
+
+  // 触发浏览器下载一个文件（比如生成的密钥文件、导出的备份）
+  function download(bytes, name, mime) {
+    var blob = new Blob([bytes], mime ? { type: mime } : undefined);
+    var url = URL.createObjectURL(blob);   // 造一个临时地址
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name;                     // 指定文件名
+    document.body.appendChild(a);
+    a.click();                             // 模拟点击 = 开始下载
+    a.remove();                            // 用完删掉这个临时元素
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000); // 2 秒后释放临时地址
+  }
+
+  /* 复制文本到剪贴板。
+     第二个参数既可以是回调函数，也可以是按钮元素（是按钮就顺便改文字提示一下）。 */
+  function copyText(text, btnOrCb) {
+    var done = function () {
+      if (typeof btnOrCb === 'function') { btnOrCb(); return; }  // 回调模式
+      if (!btnOrCb) return;
+      var old = btnOrCb.textContent;                 // 按钮模式：临时改成「已复制」
+      btnOrCb.textContent = '已复制';
+      setTimeout(function () { btnOrCb.textContent = old; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      // 现代方式（需要 https 或 localhost）
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+    } else {
+      fallbackCopy(text, done);                      // 老方式兜底
+    }
+  }
+
+  // 老式复制方案：造一个看不见的输入框，选中，执行复制命令
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';   // 固定定位，避免页面滚动
+    ta.style.opacity = '0';        // 透明，用户看不见
+    document.body.appendChild(ta);
+    ta.select();                   // 全选
+    try { document.execCommand('copy'); done(); } catch (e) { /* 复制不了就算了 */ }
+    ta.remove();
+  }
+
+  // 底部那条轻提示（2.8 秒后自动消失）
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $('#toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    if (toastTimer) clearTimeout(toastTimer);                     // 连续调用时重置计时
+    toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 2800);
+  }
+
+  /* 复制「密码」专用：复制成功后再起一个 30 秒的定时器，自动把剪贴板清空。
+     这样即使你忘了清，密码也不会长期躺在剪贴板里被别的程序读走。 */
+  var CLEAR_AFTER = 30000;                 // 30 秒
+  var clipTimer = null;
+  var clipMine = '';                       // 记下「这次是我放进去的内容」
+  function copySecret(text, label) {
+    copyText(text, function () {
+      clipMine = text;
+      if (clipTimer) clearTimeout(clipTimer);
+      clipTimer = setTimeout(clearClipboard, CLEAR_AFTER);
+      toast(label + '已复制 · ' + (CLEAR_AFTER / 1000) + ' 秒后自动清空剪贴板');
+    });
+  }
+
+  // 定时器到点后：确认剪贴板里还是我们放的东西，才清空
+  function clearClipboard() {
+    if (!navigator.clipboard || !navigator.clipboard.readText) return; // 读不了就不动，免得误删你自己复制的内容
+    navigator.clipboard.readText().then(function (cur) {
+      if (cur !== clipMine) return;        // 用户已经复制了别的东西，那就别动
+      navigator.clipboard.writeText('').then(function () {
+        clipMine = '';
+        toast('剪贴板里的密码已自动清空');
+      }).catch(function () { /* 清不掉就算了 */ });
+    }).catch(function () { /* 没权限读就算了 */ });
+  }
+
+  // 把「网站」一栏的内容变成可点击地址：填了域名就自动补 https://
+  function siteUrl(site) {
+    if (!site) return null;
+    var s = String(site).trim();
+    if (/^https?:\/\//i.test(s)) return s;                       // 已经带协议头，直接用
+    if (/^[\w-]+(\.[\w-]+)+([\/?#]\S*)?$/.test(s)) return 'https://' + s; // 看起来像域名，补协议头
+    return null;                                                 // 只是文字备注，不做链接
+  }
+
+  /* ==========================================================================
+     7. 会话状态（这些变量只在内存里，刷新页面就全没了 = 自动上锁）
+     ========================================================================== */
+
+  var vaultKeyMat = null;   // 保险库密钥（32 字节）—— 解锁后才有值，锁定后清空
+  var record = null;        // 磁盘上的那条密文记录（含两个钥匙口 + 密文数据）
+  var entries = [];         // 解密后的条目数组（明文，只在内存）
+  var setupKeyBytes = null; // 首次创建时，暂存的密钥文件字节
+  var newKeyBytes = null;   // 更换钥匙时，暂存的新密钥文件字节
+  var editingId = null;     // 当前正在编辑哪条（null = 正在新建）
+
+  /* ==========================================================================
+     8. 保险库操作
+     ========================================================================== */
+
+  // 用户没填主密码时，统一用固定串占位（这样「没密码」也能走同一套流程）
+  function passOrDefault(password) {
+    return (password && password.length) ? password : NO_PASSWORD;
+  }
+
+  // ---- 首次创建 ----
+  function createVault(usbBytes, password) {
+    var mat = randomBytes(32);                       // ① 生成保险库密钥（纯随机 32 字节）
+
+    // ② 用「U 盘文件 + 主密码」推出一把钥匙，把保险库密钥加密一份
+    return deriveAesKey(passOrDefault(password), usbBytes).then(function (primaryKey) {
+      return encryptBytes(primaryKey, mat);          // 这一步的结果叫 wrap（包裹）
+    }).then(function (wrap) {
+      // ③ 再用保险库密钥本身，加密一句校验暗号
+      //    注意：importDataKey 返回的是 Promise，必须先 .then 拿到真正的 CryptoKey 才能用！
+      return importDataKey(mat).then(function (dk) {
+        return encryptBytes(dk, enc.encode(VERIFIER_TEXT)).then(function (verifier) {
+          return { wrap: wrap, verifier: verifier, mat: mat };
+        });
+      });
+    }).then(function (r) {
+      // ④ 组装要落盘的记录（注意：这里没有任何明文）
+      var rec = {
+        id: REC_ID,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        kdf: { iterations: ITER },        // 记下加密参数，将来升级还能兼容旧库
+        primary: { wrap: r.wrap },        // 钥匙口①：U 盘 + 主密码
+        verifier: r.verifier,             // 校验暗号（用来判断钥匙对不对）
+        data: null,                       // 条目密文，新库还没有
+        recovery: null                    // 钥匙口②：先留空 —— 钥匙口造好形状，钥匙暂时不存在
+      };
+      return storePut(rec).then(function () {
+        record = rec;
+        vaultKeyMat = r.mat;              // 密钥只放内存
+        entries = [];
+        enterVault();                     // 直接进保险库
+      });
+    });
+  }
+
+  /* ---- 解锁的最后一步 ----
+     拿到保险库密钥后：验证它对不对 → 读出条目 → 进入保险库 */
+  function finishUnlock(mat) {
+    vaultKeyMat = mat;                          // 先假设它是对的
+    return importDataKey(mat).then(function (k) {
+      // 用校验暗号验证：解不开或对不上，说明钥匙错了
+      return decryptBytes(k, record.verifier).then(function (v) {
+        if (dec.decode(v) !== VERIFIER_TEXT) throw new Error('WRONG_KEY');
+        if (!record.data) { entries = []; return null; }   // 空库，没有条目
+        // 解密条目密文，并解析成数组
+        return decryptBytes(k, record.data).then(function (pt) {
+          var parsed;
+          try {
+            parsed = JSON.parse(dec.decode(pt));
+          } catch (e) {
+            // 解开了但格式不对：说明数据被改坏了，不是钥匙问题，要区分开
+            throw new Error('DATA_CORRUPT');
+          }
+          entries = Array.isArray(parsed) ? parsed : [];   // 保险起见判断一下是不是数组
+        });
+      });
+    }).then(function () {
+      enterVault();                             // 全部就绪，进保险库
+    }).catch(function (err) {
+      vaultKeyMat = null;                       // 失败就把内存里的密钥清掉，不留后患
+      // 是我们自己定义的错误码就原样抛出（能翻译成准确的中文），其他一律归为「钥匙不对」
+      if (err && /^(WRONG_KEY|DATA_CORRUPT)$/.test(err.message)) throw err;
+      throw new Error('WRONG_KEY');
+    });
+  }
+
+  /* 通用的「用某把钥匙开某个钥匙口」：
+     先用 keyPromise 算出钥匙，再解开 wrapBlob 得到保险库密钥。
+     钥匙不对时，AES-GCM 会自己抛错，我们把它统一成 WRONG_KEY。 */
+  function unwrapWith(keyPromise, wrapBlob) {
+    return keyPromise.then(function (key) {
+      return decryptBytes(key, wrapBlob).then(function (mat) {
+        return finishUnlock(mat);
+      }, function () { throw new Error('WRONG_KEY'); });
+    });
+  }
+
+  // ---- 用钥匙口①解锁：U 盘文件 +（可选）主密码 ----
+  function unlockWithPrimary(usbBytes, password) {
+    // U 盘文件字节本身就是「盐」，所以同一句话配不同 U 盘会得出完全不同的钥匙
+    return unwrapWith(deriveAesKey(passOrDefault(password), usbBytes), record.primary.wrap);
+  }
+
+  // ---- 用钥匙口②解锁：恢复问题的答案（不需要 U 盘）----
+  function unlockWithRecovery(answer) {
+    if (!record.recovery) throw new Error('NO_RECOVERY'); // 还没配钥匙，直说
+    // 盐是当初设置恢复问题时随机生成并存下来的
+    return unwrapWith(deriveAesKey(answer, b64ToU8(record.recovery.salt)), record.recovery.wrap);
+  }
+
+  /* ---- 防御：没解锁就调用加密函数 ----
+     否则会抛出「2nd argument is not of type CryptoKey」这种看不懂的英文，这里提前拦住。 */
+  function requireUnlocked() {
+    if (!vaultKeyMat) throw new Error('LOCKED');
+  }
+
+  // ---- 把内存里的条目重新加密后存盘 ----
+  function persistEntries() {
+    requireUnlocked();
+    return importDataKey(vaultKeyMat).then(function (k) {
+      return encryptBytes(k, enc.encode(JSON.stringify(entries))).then(function (blob) {
+        record.data = blob;                 // 替换掉旧的密文
+        record.updatedAt = Date.now();
+        return storePut(record);
+      });
+    });
+  }
+
+  // ---- 设置 / 修改恢复问题（钥匙口②）----
+  function saveRecovery(question, answer) {
+    requireUnlocked();
+    var salt = randomBytes(16);             // 新盐，每次设置都换
+    return deriveAesKey(answer, salt).then(function (key) {
+      return encryptBytes(key, vaultKeyMat); // 用答案推出的钥匙，包裹保险库密钥
+    }).then(function (wrap) {
+      record.recovery = { question: question, salt: u8ToB64(salt), wrap: wrap };
+      record.updatedAt = Date.now();
+      return storePut(record);              // 存盘：旧答案自动失效
+    });
+  }
+
+  // ---- 更换钥匙口①（换 U 盘 / 换主密码）----
+  function changePrimaryKey(usbBytes, password) {
+    requireUnlocked();
+    return deriveAesKey(passOrDefault(password), usbBytes).then(function (key) {
+      return encryptBytes(key, vaultKeyMat); // 只是重新包一次，保险库密钥本身不变
+    }).then(function (wrap) {
+      record.primary = { wrap: wrap };
+      record.updatedAt = Date.now();
+      return storePut(record);               // 存盘：旧钥匙自动失效
+    });
+  }
+
+  /* ==========================================================================
+     8.5 钥匙体检
+     --------------------------------------------------------------------------
+     为什么需要：很多人是「出事那天」才发现恢复方式早就失灵了 ——
+     比如 U 盘里的密钥文件被别的操作覆盖了、主密码其实记错了、
+     或者当初根本没把恢复问题设上。那时候再发现就来不及了。
+
+     所以建议每个月体检一次：在你还不急着用的时候，先确认钥匙都还能开门。
+     体检是【只读】的 —— 只拿钥匙去解一下已经存好的包裹，和内存里的密钥比一比，
+     不碰任何条目数据。
+     ========================================================================== */
+
+  // 体检①：用「U 盘密钥文件 +（可选）主密码」，看它能不能解开钥匙口①
+  function verifyPrimaryKey(usbBytes, password) {
+    requireUnlocked();
+    return deriveAesKey(passOrDefault(password), usbBytes).then(function (key) {
+      // 解开包裹拿到里面的保险库密钥，和内存里正在用的那把比对
+      return decryptBytes(key, record.primary.wrap).then(function (mat) {
+        return sameBytes(mat, vaultKeyMat);   // 一样 = 这把钥匙真的能开门
+      }, function () {
+        return false;                          // 解不开 = 钥匙不对
+      });
+    });
+  }
+
+  // 体检②：用「恢复问题的答案」，看它能不能解开钥匙口②
+  function verifyRecoveryAnswer(answer) {
+    requireUnlocked();
+    if (!record.recovery) throw new Error('NO_RECOVERY');  // 压根没配这把钥匙
+    return deriveAesKey(answer, b64ToU8(record.recovery.salt)).then(function (key) {
+      return decryptBytes(key, record.recovery.wrap).then(function (mat) {
+        return sameBytes(mat, vaultKeyMat);
+      }, function () {
+        return false;
+      });
+    });
+  }
+
+  // 体检通过后盖个时间戳，页面上就不再提醒了
+  function markVerified() {
+    requireUnlocked();
+    record.lastVerifiedAt = Date.now();
+    return storePut(record);
+  }
+
+  // 记录「刚导出过备份」，备份提醒靠它。
+  // 这一步只是往记录上加个时间，不需要密钥，所以不做 requireUnlocked 检查。
+  function markBackedUp() {
+    if (!record) return Promise.resolve();
+    record.lastBackupAt = Date.now();
+    return storePut(record);
+  }
+
+  // 距离上次体检过了几天（从没体检过就返回 null）
+  function daysSinceVerified() {
+    if (!record || !record.lastVerifiedAt) return null;
+    return Math.floor((Date.now() - record.lastVerifiedAt) / 86400000);
+  }
+
+  // 该不该提醒做体检：超过 30 天没做，或者从没做过
+  var VERIFY_EVERY_DAYS = 30;
+  function needsVerify() {
+    if (!record) return false;
+    var d = daysSinceVerified();
+    return d === null || d >= VERIFY_EVERY_DAYS;
+  }
+
+  /* ==========================================================================
+     9. 视图切换
+     ========================================================================== */
+
+  // 进入保险库界面
+  function enterVault() {
+    hide($('#lock-view'));                  // 收起解锁界面
+    show($('#vault-view'));                 // 展开展示保险库
+    renderEntries();                        // 画出所有条目
+    updateRecoveryStatus();                 // 更新恢复钥匙口的提示
+    updateVerifyNudge();                    // 更新「该体检了」的提醒
+    updateCloudBar();                       // 检查云同步状态（没登录就提示没登录）
+    // 电脑上直接把光标放进搜索框，打开就能打字找条目（触屏设备不抢焦点，免得弹键盘）
+    if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) {
+      var s = $('#search');
+      if (s) s.focus();
+    }
+  }
+
+  // 上锁：清空内存里的一切敏感数据
+  function lock() {
+    vaultKeyMat = null;                     // 密钥没了 —— 这是上锁的关键
+    entries = [];                           // 明文条目也没了
+    editingId = null;
+    hide($('#vault-view'));
+    show($('#lock-view'));
+    $('#entries').innerHTML = '';           // 把界面上的条目也抹掉
+    // 清空所有输入框，防止密码残留在页面上
+    ['#unlock-password', '#recovery-answer', '#setup-password', '#setup-password2'].forEach(function (s) {
+      var el = $(s);
+      if (el) el.value = '';
+    });
+    // 把所有「显示」按钮复位成隐藏状态
+    $('.pw-toggle').forEach(function (b) { b.textContent = '显示'; });
+    $('.pw-row input').forEach(function (i) { i.type = 'password'; });
+    // 复位创建界面的提示文字
+    var hint = $('#setup-pw-hint');
+    if (hint) {
+      hint.textContent = '看不清就先点「显示」，确认没打错再创建。';
+      markState(hint, null);
+    }
+    refreshLockUI();
+  }
+
+  // 根据「有没有建过库」，决定显示「创建界面」还是「解锁界面」
+  function refreshLockUI() {
+    var hasVault = !!record;
+    $('#setup-panel').classList.toggle('hidden', hasVault);   // 建过了就不显示创建界面
+    $('#unlock-panel').classList.toggle('hidden', !hasVault); // 没建过就不显示解锁界面
+    if (hasVault) {
+      var hasRec = !!record.recovery;                         // 恢复钥匙口配了没有
+      $('#recovery-not-set').classList.toggle('hidden', hasRec);
+      $('#recovery-form').classList.toggle('hidden', !hasRec);
+      if (hasRec) $('#recovery-question').textContent = record.recovery.question || DEFAULT_QUESTION;
+    }
+  }
+
+  // 更新「恢复问题」的状态显示，以及那条提醒横幅
+  function updateRecoveryStatus() {
+    var has = !!(record && record.recovery);
+    var el = $('#r-status');
+    if (el) {
+      el.textContent = has
+        ? '已设置（' + (record.recovery.question || DEFAULT_QUESTION) + '）'
+        : '未设置';
+    }
+    var nudge = $('#recovery-nudge');         // 没设置时顶部的提醒条
+    if (nudge) nudge.classList.toggle('hidden', has);
+  }
+
+  /* 体检提醒条：超过 30 天没体检（或从没体检过）就显示出来。
+     体检的意义是「趁现在不着急，先确认钥匙还灵」——
+     真到要用的时候才发现打不开，就来不及了。 */
+  function updateVerifyNudge() {
+    var box = $('#verify-nudge');
+    if (!box) return;
+    if (!needsVerify()) { hide(box); return; }   // 刚体检过，不打扰
+    var text = $('#verify-nudge-text');
+    if (text) {
+      var d = daysSinceVerified();
+      text.textContent = (d === null)
+        ? '还没做过体检。花一分钟验一下：U 盘密钥文件 + 主密码，现在还打得开这个保险库吗？'
+        : '已经 ' + d + ' 天没验过密钥和主密码了。建议每月验一次 —— 别等要用的时候才发现打不开。';
+    }
+    show(box);
+  }
+
+  /* ==========================================================================
+     10. 渲染条目列表
+     ========================================================================== */
+
+  function renderEntries() {
+    var box = $('#entries');
+    var q = ($('#search').value || '').trim().toLowerCase();   // 搜索关键词
+    box.innerHTML = '';                                        // 先清空（这里用 innerHTML 只是因为清空，不涉及用户数据）
+
+    // 排序：最近用过的排最上面；没用过的按修改时间
+    var list = entries.slice().sort(function (a, b) {
+      return (b.lastUsedAt || b.updatedAt || 0) - (a.lastUsedAt || a.updatedAt || 0);
+    });
+
+    // 有搜索词就过滤：标题 / 网站 / 账号 / 备注 里任意一处命中都算
+    if (q) {
+      list = list.filter(function (e) {
+        return [e.title, e.site, e.username, e.note].join(' ').toLowerCase().indexOf(q) !== -1;
+      });
+    }
+
+    // 列表空了才显示「还没有条目」的提示
+    $('#empty-hint').classList.toggle('hidden', list.length > 0);
+
+    // 逐个生成 DOM 节点（用 createElement + textContent，而不是拼 HTML 字符串，
+    // 这样即使你的备注里写了 <script>，也只会被当普通文字显示，不会被执行）
+    list.forEach(function (e) {
+      box.appendChild(entryNode(e));
+    });
+  }
+
+  // 画一条条目卡片
+  function entryNode(e) {
+    var el = document.createElement('article');
+    el.className = 'entry';
+
+    // ---- 标题行：左边标题，右边网站 ----
+    var top = document.createElement('div');
+    top.className = 'entry-top';
+    var t = document.createElement('div');
+    t.className = 'entry-title';
+    t.textContent = e.title || '(未命名)';
+    var s = document.createElement('div');
+    s.className = 'entry-site';
+
+    var url = siteUrl(e.site);
+    if (url) {
+      // 网站栏能识别成地址 → 做成可以点的链接，新标签页打开
+      var a = document.createElement('a');
+      a.className = 'entry-link';
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';      // 安全：别让新页面反过来操作本页
+      a.textContent = e.site;
+      a.title = '在新标签页打开 ' + url;
+      s.appendChild(a);
+    } else {
+      s.textContent = e.site || '';
+    }
+    top.appendChild(t);
+    top.appendChild(s);
+    el.appendChild(top);
+
+    // ---- 账号行 / 密码行 / 备注 ----
+    if (e.username) el.appendChild(line('账号', e.username, true, e));  // true = 带复制按钮
+    if (e.password) el.appendChild(passwordLine(e.password, e));
+    if (e.note) {
+      var n = document.createElement('div');
+      n.className = 'entry-note';
+      n.textContent = e.note;
+      el.appendChild(n);
+    }
+
+    // ---- 底部操作区 ----
+    var tools = document.createElement('div');
+    tools.className = 'entry-tools';
+    if (e.username || e.password) tools.appendChild(copyFlowButton(e)); // 主按钮：两连击复制
+    tools.appendChild(mini('编辑', function () { openEdit(e.id); }));
+    tools.appendChild(mini('删除', function () { removeEntry(e.id); }, true));
+    el.appendChild(tools);
+
+    return el;
+  }
+
+  /* 记一笔「刚用过」，让这条下次自动浮到最上面。
+     故意不立刻重新排序 —— 否则你刚点完，卡片就跳走了，反而不好操作。 */
+  function touchEntry(e) {
+    if (!e) return;
+    e.lastUsedAt = Date.now();
+    persistEntries().catch(function () { /* 记录使用时间失败不影响主功能，忽略 */ });
+  }
+
+  /* 主按钮「① 复制账号 → ② 复制密码」两连击：
+     点第一下复制账号；粘贴完回来点第二下，才复制密码。
+     这样一个按钮走完整个登录流程，又不会把密码过早放进剪贴板。 */
+  function copyFlowButton(e) {
+    var step = 'account';                              // 当前走到第几步
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mini primary';
+
+    // 根据当前步骤刷新按钮文字
+    function paint() {
+      if (step === 'password') { btn.textContent = '② 复制密码'; return; }
+      btn.textContent = e.username ? '① 复制账号' : '复制密码';  // 没存账号就直接复制密码
+    }
+
+    btn.addEventListener('click', function () {
+      // 第一步：还有账号没复制，且这条确实存了账号
+      if (step === 'account' && e.username) {
+        copyText(e.username, function () {
+          toast('账号已复制，粘贴后回来再点一次 —— 换密码');
+          step = 'password';                           // 进入第二步
+          paint();
+        });
+        touchEntry(e);
+        return;
+      }
+      // 第二步：复制密码（走自动清空剪贴板那套）
+      if (!e.password) { toast('这条没有存密码'); return; }
+      copySecret(e.password, '密码');
+      touchEntry(e);
+      step = 'account';                                // 复位，下次又从头开始
+      paint();
+    });
+
+    paint();                                           // 初始化按钮文字
+    return btn;
+  }
+
+  /* 画一行「标签 + 内容」的骨架。
+     账号行和密码行都要这东西，抽出来只写一遍（密码行运行时还会改它显示的文字）。 */
+  function kvRow(key, valueText) {
+    var row = document.createElement('div');
+    row.className = 'entry-line';
+    var k = document.createElement('span');
+    k.className = 'k';
+    k.textContent = key;
+    var v = document.createElement('span');
+    v.className = 'v';
+    v.textContent = valueText;
+    row.appendChild(k);
+    row.appendChild(v);
+    // 把 row 和 v 都交出去：row 用来继续挂按钮，v 用来以后改文字
+    return { row: row, v: v };
+  }
+
+  // 画一行「标签 + 内容（+ 可选复制按钮）」
+  function line(key, value, copyable, entry) {
+    var built = kvRow(key, value);
+    if (copyable) {
+      built.row.appendChild(mini('复制', function () {
+        copyText(value, function () { toast(key + '已复制'); touchEntry(entry); });
+      }));
+    }
+    return built.row;
+  }
+
+  // 画「密码」那一行：默认打码，可以点「显示」看明文，也可以复制
+  function passwordLine(pw, entry) {
+    var built = kvRow('密码', '••••••••');   // 默认圆点，不暴露在屏幕上
+    var v = built.v;
+    var shown = false;                       // 当前是否已显示明文
+
+    // 「显示 / 隐藏」切换
+    built.row.appendChild(mini('显示', function (btn) {
+      shown = !shown;
+      v.textContent = shown ? pw : '••••••••';
+      btn.textContent = shown ? '隐藏' : '显示';
+    }));
+    // 复制（带 30 秒自动清空）
+    built.row.appendChild(mini('复制', function () {
+      copySecret(pw, '密码');
+      touchEntry(entry);
+    }));
+    return built.row;
+  }
+
+  // 生成一个小按钮（danger = 危险操作，鼠标移上去会变红）
+  function mini(text, fn, danger) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mini' + (danger ? ' danger' : '');
+    b.textContent = text;
+    b.addEventListener('click', function () { fn(b); });
+    return b;
+  }
+
+  // 删除一条（先弹确认框，防止手滑）
+  function removeEntry(id) {
+    var e = entries.filter(function (x) { return x.id === id; })[0];
+    if (!e) return;
+    if (!window.confirm('删除「' + (e.title || '未命名') + '」？此操作不可撤销。')) return;
+    entries = entries.filter(function (x) { return x.id !== id; });   // 从数组里摘掉
+    persistEntries().then(renderEntries).catch(function (err) {
+      toast(friendlyError(err));            // 存盘失败要说一声，不能默默吞掉
+    });
+  }
+
+  /* ==========================================================================
+     11. 弹层（新增/编辑、恢复问题、更换钥匙）
+     ========================================================================== */
+
+  // 把表单填成指定内容（新增和编辑共用，避免写两遍）
+  function fillForm(data) {
+    data = data || {};
+    $('#f-title').value = data.title || '';
+    $('#f-site').value = data.site || '';
+    $('#f-user').value = data.username || '';
+    $('#f-pass').value = data.password || '';
+    $('#f-note').value = data.note || '';
+  }
+
+  // 打开「新增条目」
+  function openAdd() {
+    editingId = null;                       // null 表示新增
+    $('#modal-title').textContent = '新条目';
+    fillForm(null);                         // 表单清空
+    show($('#modal'));
+    $('#f-title').focus();                  // 光标直接落在标题上，打开就能打字
+  }
+
+  // 打开「编辑条目」
+  function openEdit(id) {
+    var e = entries.filter(function (x) { return x.id === id; })[0];
+    if (!e) return;
+    editingId = id;                         // 记下正在编辑哪条
+    $('#modal-title').textContent = '编辑条目';
+    fillForm(e);                            // 把原内容填回去
+    show($('#modal'));
+  }
+
+  // 保存条目（新增或更新，取决于 editingId）
+  function saveEntry() {
+    // 读表单
+    var title = $('#f-title').value.trim();
+    var site = $('#f-site').value.trim();
+    var username = $('#f-user').value.trim();
+    var password = $('#f-pass').value;      // 密码不 trim：首尾空格也可能是密码的一部分
+    var note = $('#f-note').value.trim();
+
+    // 至少要有一样东西，不然存了个空白条目没意义
+    if (!title && !username && !password) {
+      toast('至少填一个标题或账号');
+      return;
+    }
+
+    if (editingId) {
+      // 编辑已有条目：更新字段（lastUsedAt 保持不动）
+      var e = entries.filter(function (x) { return x.id === editingId; })[0];
+      if (e) {
+        e.title = title;
+        e.site = site;
+        e.username = username;
+        e.password = password;
+        e.note = note;
+        e.updatedAt = Date.now();
+      }
+    } else {
+      // 新增条目
+      entries.push({
+        id: uid(),
+        title: title,
+        site: site,
+        username: username,
+        password: password,
+        note: note,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+    }
+
+    // 存盘成功才关弹层；失败要把原因显示出来（不能默默失败）
+    persistEntries().then(function () {
+      hide($('#modal'));
+      renderEntries();
+    }).catch(function (err) {
+      showError($('#edit-msg'), '保存失败：', err);
+    });
+  }
+
+  // 生成一个随机强密码，填进密码框
+  function genPassword() {
+    // 去掉了容易看混的字符：l / I / 1 / O / 0
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*-_=+';
+    var len = 20;
+    var out = '';
+    // limit 用于「拒绝采样」：只接受落在整除范围内的随机数，
+    // 避免用 % 取余时某些字符出现概率偏高（那会削弱密码强度）
+    var limit = 256 - (256 % chars.length);
+    while (out.length < len) {
+      var a = randomBytes(len * 2);
+      for (var i = 0; i < a.length && out.length < len; i++) {
+        if (a[i] < limit) out += chars.charAt(a[i] % chars.length);
+      }
+    }
+    $('#f-pass').value = out;
+  }
+
+  /* ==========================================================================
+     12. 导出 / 导入备份
+     ========================================================================== */
+
+  // 导出一个 JSON 文件。注意：里面**全是密文**，没有钥匙打不开。
+  function exportBackup() {
+    var payload = JSON.stringify({ app: 'lenyv-vault', version: 1, record: record }, null, 2);
+    // 文件名带上日期，方便区分多个备份
+    var d = new Date();
+    var name = 'lenyv-vault-backup-' + d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.json';
+    download(payload, name, 'application/json');
+    markBackedUp();     // 记一下备份时间，体检弹层里会显示「上次备份：N 天前」
+  }
+
+  // 导入备份：把备份里的密文记录写回本地存储
+  function importBackup(file) {
+    readFileBytes(file).then(function (bytes) {
+      var obj = JSON.parse(dec.decode(bytes));
+      var rec = obj && obj.record ? obj.record : obj;   // 兼容「包了一层」和「直接就是记录」两种格式
+      if (!rec || !rec.primary || !rec.verifier) throw new Error('BAD_FILE'); // 结构不对
+      return storePut(rec).then(function () {
+        record = rec;
+        lock();                                        // 导入后回到锁定状态，用对应的钥匙重新开
+        toast('导入成功。请用这份备份对应的钥匙解锁。');
+      });
+    }).catch(function (err) {
+      // 交给统一的翻译：文件结构不对会说「不是有效的备份文件」，存储失败会说存储的问题
+      toast('导入失败：' + friendlyError(err));
+    });
+  }
+
+  /* ==========================================================================
+     13. 云同步（可选功能）
+     --------------------------------------------------------------------------
+     设计原则：上传的永远只是「已经加密好的那一坨」——
+     保险库密钥、主密码、明文条目，一步都不出浏览器。云端那张表里，
+     每个用户只有一行，存的就是本地那个 record 的副本（全是密文）。
+
+     为什么不做「自动覆盖」：万一云端是旧的、本地是新的，
+     自动拉下来就把你刚记的密码冲掉了。所以永远是「先告诉你状态，你再决定」。
+
+     换台电脑怎么用：登录同一个手机号 → 从云端下载 → 用你的钥匙解锁。
+     因为下载回来的还是同一把保险库密钥的包裹，所以原来那把钥匙照样能开。
+     ========================================================================== */
+
+  var cloudClient = null;   // SDK 客户端（整个页面只建一次）
+  var pendingOtp = null;    // 发过验证码之后暂存起来，登录时要用（不能重新发一次）
+  var cloudInfo = null;     // 云端那一行的最新信息 { payload, updatedAt }
+
+  // 懒创建客户端。SDK 是 CDN 加载的，万一没加载出来就返回 null，界面给提示。
+  function getCloud() {
+    if (cloudClient) return cloudClient;
+    if (!window.WorkBuddyCloud || !window.WorkBuddyCloud.createWorkBuddyCloud) return null;
+    cloudClient = window.WorkBuddyCloud.createWorkBuddyCloud({
+      endpoint: CLOUD_CONFIG.endpoint,
+      oauthRelayBaseUrl: CLOUD_CONFIG.oauthRelayBaseUrl,
+      publishableKey: CLOUD_CONFIG.publishableKey
+    });
+    return cloudClient;
+  }
+
+  // 当前登录状态：返回 session 或 null（没登录 / SDK 没加载出来）
+  function cloudSession() {
+    var c = getCloud();
+    if (!c) return Promise.resolve(null);
+    return c.auth.getSession().then(function (r) {
+      return (r && r.data) ? r.data : null;
+    }).catch(function () { return null; });
+  }
+
+  // 手机号打码：界面上不要完整显示
+  function maskPhone(p) {
+    var s = String(p || '').replace(/\s/g, '');
+    return s.length >= 7 ? s.slice(0, 3) + '****' + s.slice(-4) : '已登录';
+  }
+
+  // 把「毫秒数」或「ISO 时间字符串」统一成毫秒数
+  function toMs(v) {
+    if (!v) return 0;
+    if (typeof v === 'number') return v;
+    var t = Date.parse(v);
+    return isNaN(t) ? 0 : t;
+  }
+
+  // 把时间说成人话
+  function humanAgo(ms) {
+    if (!ms) return '未知';
+    var s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + ' 分钟前';
+    if (s < 86400) return Math.floor(s / 3600) + ' 小时前';
+    return Math.floor(s / 86400) + ' 天前';
+  }
+
+  // 读取云端那一行（没有就返回 null）。RLS 保证只能读到自己那行。
+  function cloudFetchRow() {
+    var c = getCloud();
+    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
+    return c.database.from('vault_sync').select('payload, updated_at').maybeSingle()
+      .then(function (r) {
+        if (r.error) throw new Error('CLOUD_READ_FAIL');
+        if (!r.data) return null;
+        return { payload: r.data.payload, updatedAt: toMs(r.data.updated_at) };
+      });
+  }
+
+  /* 上传：把本地那份密文推上去。
+     用 owner_id 当冲突键 —— 每个用户永远只有一行，重复上传是覆盖，不是新增。
+     注意：绝不传 owner_id，交给数据库的 DEFAULT auth.uid() 填。 */
+  function cloudPush() {
+    requireUnlocked();
+    var c = getCloud();
+    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
+    return c.database.from('vault_sync')
+      .upsert(
+        { payload: JSON.stringify(record), updated_at: new Date().toISOString() },
+        { onConflict: 'owner_id' }
+      )
+      .select('updated_at')
+      .then(function (r) {
+        if (r.error) throw new Error('CLOUD_WRITE_FAIL');
+        // 返回空数组 ≠ 成功 —— 那是被 RLS 挡下来了，必须当成失败
+        if (!Array.isArray(r.data) || r.data.length === 0) throw new Error('CLOUD_WRITE_DENIED');
+        return toMs(r.data[0].updated_at);
+      });
+  }
+
+  /* 下载：把云端那份密文写回本地。
+     写完之后必须上锁 —— 因为换了一份数据，内存里那把密钥已经和新的包裹对不上了，
+     要继续用就得重新走一次解锁流程。这也是「拉下来之后要重新解锁」的原因。 */
+  function cloudPull() {
+    var c = getCloud();
+    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
+    return cloudFetchRow().then(function (row) {
+      if (!row) throw new Error('CLOUD_EMPTY');
+      var rec;
+      try { rec = JSON.parse(row.payload); } catch (e) { throw new Error('DATA_CORRUPT'); }
+      // 结构不对就直接拒绝，别把一个坏记录写进本地把好数据顶掉
+      if (!rec || !rec.primary || !rec.verifier) throw new Error('DATA_CORRUPT');
+      return storePut(rec).then(function () {
+        record = rec;
+        lock();      // 回到锁定界面，让用户用钥匙重新开
+      });
+    });
+  }
+
+  // 退出登录：只清掉云端的会话，本地保险库和钥匙完全不受影响
+  function cloudSignOut() {
+    var c = getCloud();
+    if (!c) return Promise.resolve();
+    return c.auth.signOut().then(function () {
+      cloudInfo = null;
+      pendingOtp = null;
+    });
+  }
+
+  /* 刷新保险库页面上那条云同步状态。
+     三种说法：没登录 / 云上有更新的 / 本地有改动没上传 / 已是最新。 */
+  function updateCloudBar() {
+    var el = $('#cloud-status');
+    var btn = $('#btn-cloud-open');
+    if (!el) return;
+
+    // SDK 没加载出来（比如断网），先给个能看懂的提示
+    if (!getCloud()) {
+      el.textContent = '云端同步：组件没加载出来（可能没联网）';
+      if (btn) btn.textContent = '重试';
+      return;
+    }
+
+    cloudSession().then(function (s) {
+      if (!s) {
+        el.textContent = '云端同步：没登录（数据只在这台设备上）';
+        if (btn) btn.textContent = '设置';
+        return;
+      }
+      var who = maskPhone(s.user && (s.user.phone || s.user.email));
+      return cloudFetchRow().then(function (row) {
+        cloudInfo = row;
+        if (!row) {
+          el.textContent = '云端同步：已登录（' + who + '），云上还没有数据';
+          return;
+        }
+        var local = record ? (record.updatedAt || 0) : 0;
+        // 留 2 秒容差，避免时钟误差导致的来回抖动
+        if (row.updatedAt > local + 2000) {
+          el.textContent = '云端同步：云端有更新的数据（' + humanAgo(row.updatedAt) + '），建议下载';
+        } else if (local > row.updatedAt + 2000) {
+          el.textContent = '云端同步：本地有改动还没上传（本地 ' + humanAgo(local) + '）';
+        } else {
+          el.textContent = '云端同步：已是最新（' + humanAgo(row.updatedAt) + '）';
+        }
+      });
+    }).catch(function () {
+      el.textContent = '云端同步：检查失败，点右边重试';
+      if (btn) btn.textContent = '重试';
+    });
+  }
+
+  // 刷新云同步弹层：没登录显示登录框，登录了显示同步面板
+  function refreshCloudModal() {
+    var loginBox = $('#cloud-login');
+    var panel = $('#cloud-panel');
+
+    if (!getCloud()) {
+      setMsg($('#cloud-login-msg'), '云服务组件没加载出来，可能是网络问题。刷新页面再试。', 'err');
+      show(loginBox); hide(panel);
+      return;
+    }
+
+    cloudSession().then(function (s) {
+      if (!s) { show(loginBox); hide(panel); return; }
+      hide(loginBox); show(panel);
+
+      var who = $('#cloud-who');
+      if (who) who.textContent = '已登录：' + maskPhone(s.user && (s.user.phone || s.user.email));
+
+      return cloudFetchRow().then(function (row) {
+        cloudInfo = row;
+        var local = record ? (record.updatedAt || 0) : 0;
+        var t = $('#cloud-times');
+        if (t) {
+          t.textContent = '本地数据：' + humanAgo(local) +
+            ' ｜ 云端数据：' + (row ? humanAgo(row.updatedAt) : '还没有');
+        }
+      });
+    }).catch(function () { /* 状态刷新失败不打扰用户，手动点按钮时会再报 */ });
+  }
+
+  /* ==========================================================================
+     14. 事件绑定（把所有按钮接到对应的函数上）
+     ========================================================================== */
+
+  /* 通用「执行一个异步动作」的包装：
+     统一处理「显示进行中 → 成功做什么 → 失败显示中文错误」，
+     避免每个按钮都写一遍重复代码。 */
+  function runAction(opts) {
+    var msgEl = opts.msg;
+    if (opts.before) opts.before();
+    setMsg(msgEl, '正在' + opts.doing + '……');
+    return Promise.resolve()
+      .then(function () { return opts.action(); })
+      .then(function (r) {
+        setMsg(msgEl, '');
+        if (opts.onSuccess) opts.onSuccess(r);
+      })
+      .catch(function (err) {
+        // transformError：允许调用方把错误换成更贴切的说法
+        // （例如恢复答案那条路，「钥匙不对」要改说成「答案不对」）
+        var e = opts.transformError ? opts.transformError(err) : err;
+        showError(msgEl, opts.failPrefix || '', e);
+      });
+  }
+
+  function bind() {
+    // ---- 解锁方式标签页（U 盘 / 恢复问题）----
+    $('.tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        $('.tab').forEach(function (t) { t.classList.remove('is-active'); });
+        tab.classList.add('is-active');
+        var name = tab.getAttribute('data-tab');       // 拿到要显示哪个面板
+        $('#tab-usb').classList.toggle('hidden', name !== 'usb');
+        $('#tab-recovery').classList.toggle('hidden', name !== 'recovery');
+      });
+    });
+
+    // ---- 密码框的「显示 / 隐藏」按钮（全站所有密码框通用）----
+    document.addEventListener('click', function (ev) {
+      var btn = (ev.target && ev.target.closest) ? ev.target.closest('.pw-toggle') : null;
+      if (!btn) return;                                  // 点的不是这个按钮，忽略
+      var row = btn.closest('.pw-row');                  // 找到它所在的那一行
+      var input = row ? row.querySelector('input') : null;
+      if (!input) return;
+      var willShow = input.type === 'password';           // 现在是隐藏的，就改成明文
+      input.type = willShow ? 'text' : 'password';
+      btn.textContent = willShow ? '隐藏' : '显示';
+      input.focus();                                     // 改完把光标放回去，方便接着输入
+    });
+
+    // ---- 创建时的实时提示：输了几个字 / 两次是否一致 ----
+    function updatePwHint() {
+      var el = $('#setup-pw-hint');
+      if (!el) return;
+      var p1 = $('#setup-password').value;
+      var p2 = $('#setup-password2').value;
+      markState(el, null);                               // 先清掉旧颜色
+      if (!p1 && !p2) { el.textContent = '看不清就先点「显示」，确认没打错再创建。'; return; }
+      if (!p1) { el.textContent = '下面那栏已输入 ' + p2.length + ' 个字符；上面那栏还没填。'; return; }
+      if (p1 !== p2) {                                   // 两次不一样，标红提醒
+        el.textContent = '两次输入不一致（上面 ' + p1.length + ' 个字符，下面 ' + p2.length + ' 个字符）。';
+        markState(el, 'err');
+        return;
+      }
+      el.textContent = '两次一致，共 ' + p1.length + ' 个字符，可以创建了。';
+      markState(el, 'ok');
+    }
+    $('#setup-password').addEventListener('input', updatePwHint);
+    $('#setup-password2').addEventListener('input', updatePwHint);
+
+    // ---- 生成密钥文件（首次创建）----
+    $('#btn-generate-key').addEventListener('click', function () {
+      setupKeyBytes = randomBytes(32);                   // 随机 32 字节 = 密钥文件内容
+      download(setupKeyBytes, 'lenyv-vault-key.bin');    // 让用户下载到 U 盘
+      setMsg($('#setup-key-status'), '已生成并下载。请把它存进 U 盘，然后回来点「创建保险库」。', 'ok');
+    });
+
+    // ---- 选择已有的密钥文件（首次创建）----
+    $('#input-key-file-setup').addEventListener('change', function (ev) {
+      var f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      readFileBytes(f).then(function (b) {
+        setupKeyBytes = b;
+        setMsg($('#setup-key-status'), '已选择：「' + f.name + '」', 'ok');
+      });
+    });
+
+    // ---- 创建保险库 ----
+    $('#btn-create').addEventListener('click', function () {
+      // 先做两个前置检查
+      if (!setupKeyBytes) { setMsg($('#setup-msg'), '还没有密钥文件：先生成或选择一个。', 'err'); return; }
+      var p1 = $('#setup-password').value;
+      var p2 = $('#setup-password2').value;
+      if (p1 !== p2) { setMsg($('#setup-msg'), '两次输入的主密码不一致。', 'err'); return; }
+
+      runAction({
+        msg: $('#setup-msg'),
+        doing: '创建',
+        failPrefix: '创建失败：',
+        action: function () { return createVault(setupKeyBytes, p1); },
+        onSuccess: function () { setupKeyBytes = null; }   // 创建成功就把暂存的密钥字节清掉
+      });
+    });
+
+    // ---- 选 U 盘密钥文件（解锁）----
+    var unlockBytes = null;                                // 暂存选中的密钥文件字节
+    $('#input-key-file').addEventListener('change', function (ev) {
+      var f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      readFileBytes(f).then(function (b) {
+        unlockBytes = b;
+        setMsg($('#unlock-key-status'), '已选择：「' + f.name + '」', 'ok');
+      });
+    });
+
+    // ---- 用 U 盘解锁 ----
+    $('#btn-unlock').addEventListener('click', function () {
+      if (!unlockBytes) { setMsg($('#unlock-msg'), '先选择 U 盘里的密钥文件。', 'err'); return; }
+      runAction({
+        msg: $('#unlock-msg'),
+        doing: '解锁',
+        action: function () { return unlockWithPrimary(unlockBytes, $('#unlock-password').value); },
+        onSuccess: function () {
+          unlockBytes = null;
+          $('#unlock-password').value = '';                // 开完就把密码框清掉
+        }
+      });
+    });
+
+    // ---- 用恢复问题答案解锁 ----
+    $('#btn-unlock-recovery').addEventListener('click', function () {
+      var ans = $('#recovery-answer').value;
+      if (!ans) { setMsg($('#unlock-msg'), '请输入答案。', 'err'); return; }
+      runAction({
+        msg: $('#unlock-msg'),
+        doing: '解锁',
+        action: function () {
+          // 包一层 Promise.resolve：因为 unlockWithRecovery 可能同步抛错
+          return Promise.resolve().then(function () { return unlockWithRecovery(ans); });
+        },
+        onSuccess: function () { $('#recovery-answer').value = ''; },
+        // 没配钥匙 就照实说；否则一律告诉用户「答案不对」
+        transformError: function (err) {
+          return (err && err.message === 'NO_RECOVERY') ? err : new Error('RECOVERY_WRONG');
+        }
+      });
+    });
+
+    // ---- 解锁之后的工具按钮 ----
+    $('#btn-lock').addEventListener('click', lock);         // 手动上锁
+    $('#btn-add').addEventListener('click', openAdd);       // 新条目
+    $('#search').addEventListener('input', renderEntries);  // 边打字边过滤
+    $('#btn-export').addEventListener('click', exportBackup);
+
+    // 导入备份：选完文件立刻处理，并清空 input（这样下次选同一个文件也会触发）
+    $('#input-import').addEventListener('change', function (ev) {
+      var f = ev.target.files && ev.target.files[0];
+      if (f) importBackup(f);
+      ev.target.value = '';
+    });
+
+    // ---- 条目弹层 ----
+    $('#btn-cancel').addEventListener('click', function () { hide($('#modal')); });
+    $('#btn-save').addEventListener('click', saveEntry);
+    $('#btn-gen').addEventListener('click', genPassword);
+
+    // ---- 恢复问题弹层 ----
+    function openRecoveryModal() {
+      $('#r-question').value = (record.recovery && record.recovery.question) || DEFAULT_QUESTION;
+      $('#r-answer').value = '';                            // 答案不回填，避免显示在屏幕上
+      updateRecoveryStatus();
+      show($('#recovery-modal'));
+      $('#r-answer').focus();
+    }
+    $('#btn-recovery-settings').addEventListener('click', openRecoveryModal);
+    $('#btn-nudge-set').addEventListener('click', openRecoveryModal);   // 顶部提醒条上的按钮
+    $('#btn-r-cancel').addEventListener('click', function () { hide($('#recovery-modal')); });
+    $('#btn-r-save').addEventListener('click', function () {
+      var q = $('#r-question').value.trim() || DEFAULT_QUESTION;
+      var a = $('#r-answer').value;
+      if (!a) { toast('答案不能为空'); return; }
+      runAction({
+        msg: $('#r-msg'),
+        doing: '保存',
+        failPrefix: '保存失败：',
+        action: function () { return saveRecovery(q, a); },
+        onSuccess: function () {
+          updateRecoveryStatus();                            // 顶部提醒条会自动消失
+          hide($('#recovery-modal'));
+          toast('恢复问题已保存。以后 U 盘不在，就用这句话开门。');
+        }
+      });
+    });
+
+    // ---- 更换钥匙弹层 ----
+    $('#btn-change-key').addEventListener('click', function () {
+      newKeyBytes = null;                                    // 清掉上次暂存的文件
+      setMsg($('#k-status'), '尚未选择');
+      $('#k-pass').value = '';
+      $('#k-pass2').value = '';
+      setMsg($('#k-msg'), '');
+      show($('#key-modal'));
+    });
+    $('#btn-k-cancel').addEventListener('click', function () { hide($('#key-modal')); });
+
+    // 生成一把新钥匙（新 U 盘文件）
+    $('#btn-k-gen').addEventListener('click', function () {
+      newKeyBytes = randomBytes(32);
+      download(newKeyBytes, 'lenyv-vault-key-new.bin');
+      setMsg($('#k-status'), '已生成并下载。存进 U 盘后点「保存」。', 'ok');
+    });
+
+    // 或者选一个已有的密钥文件当新钥匙
+    $('#input-k-file').addEventListener('change', function (ev) {
+      var f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      readFileBytes(f).then(function (b) {
+        newKeyBytes = b;
+        setMsg($('#k-status'), '已选择：「' + f.name + '」', 'ok');
+      });
+    });
+
+    // 保存新钥匙
+    $('#btn-k-save').addEventListener('click', function () {
+      if (!newKeyBytes) { setMsg($('#k-msg'), '先生成或选择一个新密钥文件。', 'err'); return; }
+      if ($('#k-pass').value !== $('#k-pass2').value) { setMsg($('#k-msg'), '两次主密码不一致。', 'err'); return; }
+      runAction({
+        msg: $('#k-msg'),
+        doing: '保存',
+        failPrefix: '保存失败：',
+        action: function () { return changePrimaryKey(newKeyBytes, $('#k-pass').value); },
+        onSuccess: function () {
+          newKeyBytes = null;
+          hide($('#key-modal'));
+          toast('钥匙已更换。旧钥匙从此刻起失效。');
+        }
+      });
+    });
+
+    // ---- 钥匙体检弹层 ----
+    var verifyKeyBytes = null;                     // 体检时选中的 U 盘密钥文件字节
+
+    // 刷新「上次备份」那行字
+    function refreshBackupInfo() {
+      var el = $('#v-backup-info');
+      if (!el || !record) return;
+      var last = record.lastBackupAt;
+      if (!last) {
+        el.textContent = '还没有导出过备份。建议每月导一份，放到别的地方（比如另一块 U 盘）。';
+        return;
+      }
+      var days = Math.floor((Date.now() - last) / 86400000);
+      el.textContent = '上次备份：' + days + ' 天前。建议每月导一份，放到别的地方。';
+    }
+
+    // 打开体检弹层，并把上次的状态清干净
+    function openVerifyModal() {
+      verifyKeyBytes = null;
+      setMsg($('#v-key-status'), '尚未选择');
+      setMsg($('#v-key-result'), '');
+      setMsg($('#v-rec-result'), '');
+      $('#v-password').value = '';
+      $('#v-answer').value = '';
+      refreshBackupInfo();
+      show($('#verify-modal'));
+    }
+    $('#btn-verify').addEventListener('click', openVerifyModal);       // 提醒条上的按钮
+    $('#btn-verify-foot').addEventListener('click', openVerifyModal);  // 底部工具区的按钮
+    $('#btn-v-close').addEventListener('click', function () { hide($('#verify-modal')); });
+
+    // 选 U 盘密钥文件
+    $('#v-key-file').addEventListener('change', function (ev) {
+      var f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      readFileBytes(f).then(function (b) {
+        verifyKeyBytes = b;
+        setMsg($('#v-key-status'), '已选择：「' + f.name + '」', 'ok');
+      });
+    });
+
+    // 体检①：U 盘密钥文件 + 主密码，这两样配在一起还能不能开门
+    $('#btn-v-check-key').addEventListener('click', function () {
+      if (!verifyKeyBytes) { setMsg($('#v-key-result'), '先选择 U 盘里的密钥文件。', 'err'); return; }
+      var pw = $('#v-password').value;
+      setMsg($('#v-key-result'), '正在检查……');
+      verifyPrimaryKey(verifyKeyBytes, pw).then(function (good) {
+        if (!good) {
+          setMsg($('#v-key-result'), '打不开：密钥文件或主密码不对。先确认是不是选错了文件，再确认密码有没有打错。', 'err');
+          return;
+        }
+        // 检查通过 → 盖时间戳，提醒条随之消失
+        // 顺便说清楚到底验了什么：这个库设过主密码没有，说法不一样
+        var what = pw.length > 0
+          ? 'U 盘密钥文件和主密码都对'
+          : 'U 盘密钥文件没问题（这个库没有设主密码）';
+        return markVerified().then(function () {
+          setMsg($('#v-key-result'), '能打开 —— ' + what + '。', 'ok');
+          updateVerifyNudge();
+        });
+      }).catch(function (err) {
+        showError($('#v-key-result'), '检查失败：', err);
+      });
+    });
+
+    // 体检②：恢复答案还能不能开门
+    $('#btn-v-check-rec').addEventListener('click', function () {
+      var ans = $('#v-answer').value;
+      if (!ans) { setMsg($('#v-rec-result'), '请输入恢复答案。', 'err'); return; }
+      setMsg($('#v-rec-result'), '正在检查……');
+      // 包一层 Promise：因为没配恢复问题时，verifyRecoveryAnswer 会同步抛错
+      Promise.resolve()
+        .then(function () { return verifyRecoveryAnswer(ans); })
+        .then(function (good) {
+          if (!good) {
+            setMsg($('#v-rec-result'), '打不开：答案不对。再想想那句话是怎么说的（标点、字数都要一样）。', 'err');
+            return;
+          }
+          return markVerified().then(function () {
+            setMsg($('#v-rec-result'), '能打开 —— 恢复答案是对的，这条后路是通的。', 'ok');
+            updateVerifyNudge();
+          });
+        })
+        .catch(function (err) {
+          showError($('#v-rec-result'), '检查失败：', err);
+        });
+    });
+
+    // 体检③：导出一份新备份
+    $('#btn-v-backup').addEventListener('click', function () {
+      exportBackup();
+      refreshBackupInfo();
+    });
+
+    // ---- 云同步弹层 ----
+    $('#btn-cloud-open').addEventListener('click', function () {
+      setMsg($('#cloud-login-msg'), '');
+      setMsg($('#cloud-msg'), '');
+      refreshCloudModal();
+      show($('#cloud-modal'));
+    });
+    $('#btn-cloud-close').addEventListener('click', function () { hide($('#cloud-modal')); });
+
+    // 输入手机号时，把上一次的错误提示清掉
+    $('#cloud-phone').addEventListener('input', function () {
+      setMsg($('#cloud-login-msg'), '');
+    });
+
+    // 第一步：获取验证码。注意这一步只「发送」，不验证。
+    $('#btn-cloud-send').addEventListener('click', function () {
+      var phone = $('#cloud-phone').value.trim();
+      // 中国大陆手机号：正好 11 位、以 1 开头
+      if (!/^1\d{10}$/.test(phone)) {
+        setMsg($('#cloud-login-msg'), '请输入正确的 11 位手机号', 'err');
+        return;
+      }
+      var c = getCloud();
+      if (!c) { setMsg($('#cloud-login-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
+      setMsg($('#cloud-login-msg'), '正在发送……');
+      // 原样传进去，不要自己加 +86 —— SDK 会做规范化
+      c.auth.sendOtp({ phone: phone }).then(function (r) {
+        if (r.error) { showError($('#cloud-login-msg'), '发送失败：', r.error); return; }
+        // 保存这次的凭据：登录时必须用它，不能重新发一次
+        pendingOtp = {
+          phone: phone,
+          verificationId: r.data.verificationId,
+          isExistingUser: r.data.isExistingUser
+        };
+        setMsg($('#cloud-login-msg'), '验证码已发送，请查看手机短信。', 'ok');
+      }).catch(function (err) {
+        showError($('#cloud-login-msg'), '发送失败：', err);
+      });
+    });
+
+    // 第二步：用验证码登录 / 注册。这一步不发新验证码。
+    $('#btn-cloud-login').addEventListener('click', function () {
+      var phone = $('#cloud-phone').value.trim();
+      var token = $('#cloud-code').value.trim();
+      // 号码变了或者压根没发过 → 让用户重新获取，而不是直接调接口
+      if (!pendingOtp || pendingOtp.phone !== phone) {
+        setMsg($('#cloud-login-msg'), '请先点「获取验证码」（号码变了就要重新获取）', 'err');
+        return;
+      }
+      if (!token) { setMsg($('#cloud-login-msg'), '请输入收到的验证码', 'err'); return; }
+
+      var c = getCloud();
+      if (!c) { setMsg($('#cloud-login-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
+      setMsg($('#cloud-login-msg'), '正在登录……');
+      c.auth.verifyOtp({
+        phone: pendingOtp.phone,
+        verificationId: pendingOtp.verificationId,
+        isExistingUser: pendingOtp.isExistingUser,
+        token: token
+      }).then(function (r) {
+        if (r.error) { showError($('#cloud-login-msg'), '登录失败：', r.error); return; }
+        pendingOtp = null;                 // 用掉了就清掉
+        $('#cloud-code').value = '';
+        setMsg($('#cloud-login-msg'), '');
+        refreshCloudModal();
+        updateCloudBar();
+        toast('已登录云账号');
+      }).catch(function (err) {
+        showError($('#cloud-login-msg'), '登录失败：', err);
+      });
+    });
+
+    // 上传到云端
+    $('#btn-cloud-push').addEventListener('click', function () {
+      var c = getCloud();
+      if (!c) { setMsg($('#cloud-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
+      cloudSession().then(function (s) {
+        if (!s) throw new Error('CLOUD_NOT_LOGGED_IN');
+        setMsg($('#cloud-msg'), '正在上传……');
+        return cloudPush();
+      }).then(function () {
+        setMsg($('#cloud-msg'), '上传成功。云端现在是最新的了。', 'ok');
+        refreshCloudModal();
+        updateCloudBar();
+      }).catch(function (err) {
+        showError($('#cloud-msg'), '上传失败：', err);
+      });
+    });
+
+    // 从云端下载（会覆盖本地，必须先确认）
+    $('#btn-cloud-pull').addEventListener('click', function () {
+      var c = getCloud();
+      if (!c) { setMsg($('#cloud-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
+      if (!window.confirm('这会用云端的数据覆盖这台设备上的保险库。\n\n如果这台设备上有还没上传的改动，会被丢掉。\n确定要继续吗？')) return;
+      cloudSession().then(function (s) {
+        if (!s) throw new Error('CLOUD_NOT_LOGGED_IN');
+        setMsg($('#cloud-msg'), '正在下载……');
+        return cloudPull();
+      }).then(function () {
+        hide($('#cloud-modal'));
+        toast('已从云端恢复。请用你的钥匙重新解锁。');
+      }).catch(function (err) {
+        showError($('#cloud-msg'), '下载失败：', err);
+      });
+    });
+
+    // 退出登录
+    $('#btn-cloud-signout').addEventListener('click', function () {
+      cloudSignOut().then(function () {
+        refreshCloudModal();
+        updateCloudBar();
+        toast('已退出云账号（本地保险库不受影响）');
+      });
+    });
+
+    // ---- 点弹层外面的遮罩就关掉它 ----
+    [$('#modal'), $('#recovery-modal'), $('#key-modal'), $('#verify-modal'), $('#cloud-modal')].forEach(function (m) {
+      m.addEventListener('click', function (ev) { if (ev.target === m) hide(m); });
+    });
+
+    // ---- 键盘快捷键 ----
+    document.addEventListener('keydown', function (ev) {
+      // Esc：关掉所有弹层
+      if (ev.key === 'Escape') {
+        hide($('#modal'));
+        hide($('#recovery-modal'));
+        hide($('#key-modal'));
+        hide($('#verify-modal'));
+        hide($('#cloud-modal'));
+        return;
+      }
+      var t = ev.target || {};
+      // 判断用户是不是正在打字（正在输入框里敲字时，快捷键要让位）
+      var typing = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
+      var unlocked = !$('#vault-view').classList.contains('hidden');   // 只有解锁状态下才响应
+      // 按 / ：跳到搜索框
+      if (ev.key === '/' && !typing && unlocked) {
+        ev.preventDefault();
+        $('#search').focus();
+        return;
+      }
+      // 按 n ：新建条目
+      if ((ev.key === 'n' || ev.key === 'N') && !typing && unlocked &&
+          !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        ev.preventDefault();
+        openAdd();
+      }
+    });
+  }
+
+  /* ==========================================================================
+     15. 启动
+     ========================================================================== */
+
+  function init() {
+    // 第一道关：浏览器得支持加密。不支持就整页换成一句说明，别让用户面对一堆报错。
+    if (!window.crypto || !window.crypto.subtle) {
+      document.body.innerHTML = '<div class="container" style="padding:80px 0">' +
+        '<h1>这个浏览器不支持加密功能</h1>' +
+        '<p>请用较新的 Chrome / Edge / Firefox，并通过 https 或 localhost 打开本页。</p></div>';
+      return;
+    }
+
+    bind();                                   // 把所有事件挂上
+
+    // 把「数据存在哪」显示到页面底部
+    storageLabel().then(function (label) {
+      var el = $('#storage-note');
+      if (el) el.textContent = label;
+    });
+
+    // 读取本机是否已有保险库，决定显示「创建」还是「解锁」界面
+    storeGet(REC_ID).then(function (rec) {
+      record = rec || null;
+      refreshLockUI();
+    }, function () {
+      record = null;                          // 读取失败也当没有，至少让用户能创建新的
+      refreshLockUI();
+    });
+  }
+
+  // 页面还在加载就等 DOM 就绪，否则立刻执行
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+
+</script>
+</body>
+</html>
