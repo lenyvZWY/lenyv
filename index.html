@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>lenyv · 我的网站</title>
   <meta name="description" content="lenyv — 正在慢慢搭建的网站，地基已就绪，内容会逐步丰富。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/main.css">
 </head>
@@ -13,12 +16,13 @@
 
   <main>
     <section class="hero">
+      <div class="aurora"></div>
       <div class="container hero-inner">
-        <p class="hero-eyebrow">欢迎来到</p>
+        <span class="badge"><span class="pulse"></span> 慢慢搭建 · 一点点丰富</span>
         <h1 class="hero-title">lenyv</h1>
-        <p class="hero-sub">网站的地基已经打好，这里会一点点丰富起来。先看看下面的入口，挑个方向开始吧。</p>
+        <p class="hero-sub">这是我的小天地。地基已经打好，之后会放上关于、作品、笔记，还有一点点更私密的小工具。</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="/projects.html">看看项目</a>
+          <a class="btn btn-primary" href="/projects.html">看看作品</a>
           <a class="btn btn-ghost" href="/contact.html">联系我</a>
         </div>
       </div>
@@ -26,28 +30,74 @@
 
     <section class="section">
       <div class="container">
-        <h2 class="section-title">从这里开始</h2>
-        <div class="card-grid">
-          <a class="card" href="/about.html">
+        <div class="section-head reveal">
+          <h2 class="section-title">从这里开始</h2>
+          <p class="section-sub">想往哪个方向填，挑一个入口。</p>
+        </div>
+        <div class="grid grid-2">
+          <a class="card reveal" href="/about.html">
             <div class="card-icon">👤</div>
             <h3>关于</h3>
-            <p>介绍你是谁、在做什么。以后把这里填满。</p>
+            <p>介绍你是谁、在做什么、喜欢什么。</p>
           </a>
-          <a class="card" href="/projects.html">
+          <a class="card reveal" href="/projects.html">
             <div class="card-icon">🚀</div>
-            <h3>项目</h3>
-            <p>展示你做过的事情、作品集。</p>
+            <h3>作品</h3>
+            <p>展示你做过的事情、项目集。</p>
           </a>
-          <a class="card" href="/blog.html">
+          <a class="card reveal" href="/blog.html">
             <div class="card-icon">📝</div>
-            <h3>博客</h3>
-            <p>写点笔记、想法、教程。</p>
+            <h3>笔记</h3>
+            <p>写点想法、教程、随手记。</p>
           </a>
-          <a class="card" href="/contact.html">
+          <a class="card reveal" href="/contact.html">
             <div class="card-icon">✉️</div>
             <h3>联系</h3>
             <p>留下方式，方便别人找到你。</p>
           </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head reveal">
+          <h2 class="section-title">先睹为快</h2>
+          <p class="section-sub">页面长这样——以后内容会替换成真实的你。</p>
+        </div>
+        <div class="browser reveal">
+          <div class="bar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span class="url">lenyv.netlify.app</span>
+          </div>
+          <div class="screen">
+            <div class="mini">
+              <h4>lenyv</h4>
+              <p>你的网站 · 正在生长中</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="stats reveal">
+          <div class="stat"><div class="num">0→∞</div><div class="label">内容慢慢长</div></div>
+          <div class="stat"><div class="num">100%</div><div class="label">由你掌控</div></div>
+          <div class="stat"><div class="num">24/7</div><div class="label">随时可改</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="cta reveal">
+          <div class="cta-panel">
+            <h2>想加点什么？</h2>
+            <p>无论是作品、笔记，还是一个私密小工具，告诉我就行，我来搭。</p>
+            <a class="btn btn-primary" href="/contact.html">聊聊</a>
+          </div>
         </div>
       </div>
     </section>

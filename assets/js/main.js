@@ -1,4 +1,4 @@
-/* lenyv 网站基础脚本：负责加载公共页头/页脚、主题切换、导航高亮、移动端菜单 */
+/* lenyv 网站基础脚本：加载公共页头/页脚、主题切换、导航高亮、移动端菜单、滚动渐显 */
 (function () {
   const PARTIALS = {
     header: '/partials/header.html',
@@ -54,6 +54,36 @@
     });
   }
 
+  function initHeaderShadow() {
+    const header = document.querySelector('.site-header');
+    if (!header) return;
+    const onScroll = function () {
+      header.classList.toggle('scrolled', window.scrollY > 12);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  function initReveal() {
+    const els = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window) || !els.length) {
+      els.forEach(function (el) { el.classList.add('in'); });
+      return;
+    }
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    els.forEach(function (el, i) {
+      el.style.transitionDelay = (Math.min(i, 6) * 60) + 'ms';
+      io.observe(el);
+    });
+  }
+
   function initYear() {
     const y = document.getElementById('year');
     if (y) y.textContent = new Date().getFullYear();
@@ -67,6 +97,8 @@
     initTheme();
     initNav();
     initMobileMenu();
+    initHeaderShadow();
+    initReveal();
     initYear();
   }
 
