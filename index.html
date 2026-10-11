@@ -3,103 +3,339 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>lenyv</title>
-  <meta name="description" content="lenyv —— 一个只属于你的密码本，以及一些慢慢补上的东西。">
+  <title>保险库</title>
+  <meta name="description" content="本地加密的密码本，钥匙在你手里。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/tokens.css">
   <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/vault.css">
 </head>
-<body data-page="home">
-  <div id="site-header"></div>
+<body data-page="vault">
+  <!-- 极简页头：不带任何身份标识，也不依赖任何外部组件 -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <span class="brand-name">保险库</span>
+      <span class="hint muted">数据只存在这台设备的浏览器里</span>
+    </div>
+  </header>
 
-  <main>
-    <section class="hero">
-      <div class="container">
-        <span class="hero-eyebrow">lenyv</span>
-        <h1 class="hero-title">一个只属于你的密码本</h1>
-        <p class="hero-sub">
-          密码在你自己电脑上加密，钥匙就是你手里的 U 盘。
-          没有服务器能读到你的密码 —— 因为上传的东西它根本看不懂。
-        </p>
-        <div class="hero-actions">
-          <a class="btn btn-primary" href="/vault.html">打开保险库</a>
-          <a class="btn btn-ghost" href="/download/lenyv-vault.html" download>下载单文件版</a>
-        </div>
-      </div>
-    </section>
+  <main class="vault-main">
+    <div class="container">
 
-    <section class="section">
-      <div class="container">
-        <div class="section-head reveal">
-          <h2 class="section-title">两种用法，同一套加密</h2>
-          <p class="section-sub">数据放哪儿你自己选，加密方式一模一样，钥匙也通用。</p>
-        </div>
-        <div class="duo">
-          <div class="card reveal">
-            <span class="tag">在线版</span>
-            <h3>打开就能用</h3>
-            <ul>
-              <li>手机、公司电脑都能打开</li>
-              <li>登录同一个手机号，就能在设备之间同步</li>
-              <li>传上去的只有密文，服务器解不开</li>
-            </ul>
-            <a class="btn btn-primary" href="/vault.html">打开在线版</a>
+      <!-- ===================== 未解锁 ===================== -->
+      <section id="lock-view">
+        <header class="vault-head">
+          <span class="hero-eyebrow">保险库</span>
+          <h1>一扇门，两把钥匙</h1>
+          <p class="muted">数据只存在这台设备的浏览器里，加密后才落盘。<strong>密钥永远不离开你的浏览器</strong>，任何服务器都拿不到明文。</p>
+        </header>
+
+        <!-- 首次使用：创建 -->
+        <div id="setup-panel" class="panel hidden">
+          <h2 class="panel-title">首次使用 · 造一把钥匙</h2>
+
+          <div class="field">
+            <label>① U 盘密钥文件</label>
+            <p class="hint">生成一个随机密钥文件，存进你的 U 盘。以后插上 U 盘、选中它，才能开门。</p>
+            <div class="row">
+              <button id="btn-generate-key" class="btn btn-ghost" type="button">生成并下载密钥文件</button>
+              <label class="btn btn-ghost file-btn">选择已有密钥文件
+                <input id="input-key-file-setup" type="file" accept=".bin,.key,.txt,application/octet-stream">
+              </label>
+            </div>
+            <p id="setup-key-status" class="hint muted">尚未选择密钥文件</p>
           </div>
-          <div class="card reveal">
-            <span class="tag">下载版</span>
-            <h3>一个文件，完全离线</h3>
-            <ul>
-              <li>整个保险库就是这一个 HTML 文件</li>
-              <li>双击即用，不联网、不上传任何东西</li>
-              <li>可以放进 U 盘随身带着走</li>
-            </ul>
-            <a class="btn btn-ghost" href="/download/lenyv-vault.html" download>下载这一个文件</a>
+
+          <div class="field">
+            <label for="setup-password">② 主密码（可选，建议设置）</label>
+            <p class="hint">设了它，就需要「U 盘 + 主密码」两样一起才能开门；不设，则只靠 U 盘。</p>
+            <div class="pw-row">
+              <input id="setup-password" type="password" autocomplete="new-password" placeholder="留空 = 只用 U 盘">
+              <button class="mini pw-toggle" type="button">显示</button>
+            </div>
+            <div class="pw-row">
+              <input id="setup-password2" type="password" autocomplete="new-password" placeholder="再输一次">
+              <button class="mini pw-toggle" type="button">显示</button>
+            </div>
+            <p id="setup-pw-hint" class="hint muted">看不清就先点「显示」，确认没打错再创建。</p>
           </div>
-        </div>
-      </div>
-    </section>
 
-    <section class="section">
-      <div class="container">
-        <div class="section-head reveal">
-          <h2 class="section-title">还有这些地方</h2>
-          <p class="section-sub">慢慢填，不急。</p>
+          <button id="btn-create" class="btn btn-primary" type="button">创建保险库</button>
+          <p class="hint muted" style="margin-top:12px">提示：钥匙文件请留个备份。丢了它、又没设恢复问题，就打不开了。</p>
+          <div id="setup-msg" class="msg"></div>
         </div>
-        <div class="grid grid-2">
-          <a class="card reveal" href="/about.html">
-            <h3>关于</h3>
-            <p>你是谁、在做什么、喜欢什么。</p>
-          </a>
-          <a class="card reveal" href="/projects.html">
-            <h3>作品</h3>
-            <p>做过的事情，慢慢攒起来。</p>
-          </a>
-          <a class="card reveal" href="/blog.html">
-            <h3>笔记</h3>
-            <p>想法、教程、随手记。</p>
-          </a>
-          <a class="card reveal" href="/contact.html">
-            <h3>联系</h3>
-            <p>留个方式，方便别人找到你。</p>
-          </a>
-        </div>
-      </div>
-    </section>
 
-    <section class="section">
-      <div class="container">
-        <div class="cta-panel reveal">
-          <h2>想加点什么？</h2>
-          <p>作品、笔记，或者别的什么，说一声就行。</p>
-          <a class="btn btn-ghost" href="/contact.html">聊聊</a>
+        <!-- 已有保险库：解锁 -->
+        <div id="unlock-panel" class="panel hidden">
+          <div class="tabs" role="tablist">
+            <button class="tab is-active" data-tab="usb" type="button" role="tab">用 U 盘解锁</button>
+            <button class="tab" data-tab="recovery" type="button" role="tab">用恢复问题解锁</button>
+          </div>
+
+          <div id="tab-usb" class="tab-panel">
+            <div class="field">
+              <label class="btn btn-ghost file-btn">选择 U 盘里的密钥文件
+                <input id="input-key-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
+              </label>
+              <p id="unlock-key-status" class="hint muted">尚未选择密钥文件</p>
+              <div class="pw-row">
+                <input id="unlock-password" type="password" autocomplete="current-password" placeholder="主密码（如果设过）">
+                <button class="mini pw-toggle" type="button">显示</button>
+              </div>
+            </div>
+            <button id="btn-unlock" class="btn btn-primary" type="button">解锁</button>
+          </div>
+
+          <div id="tab-recovery" class="tab-panel hidden">
+            <div id="recovery-not-set" class="placeholder hidden">这个保险库还没有设置恢复问题 —— 钥匙口还在，只是还没有配钥匙。</div>
+            <div id="recovery-form" class="field hidden">
+              <label id="recovery-question" for="recovery-answer">你今天什么心情？</label>
+              <div class="pw-row">
+                <input id="recovery-answer" type="password" autocomplete="off" placeholder="说出那句只有你们知道的话">
+                <button class="mini pw-toggle" type="button">显示</button>
+              </div>
+              <button id="btn-unlock-recovery" class="btn btn-primary" type="button">用答案解锁</button>
+            </div>
+          </div>
+          <div id="unlock-msg" class="msg"></div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <!-- ===================== 已解锁 ===================== -->
+      <section id="vault-view" class="hidden">
+        <header class="vault-bar">
+          <div>
+            <span class="hero-eyebrow">保险库</span>
+            <h1>我的密码本</h1>
+          </div>
+          <div class="vault-actions">
+            <button id="btn-lock" class="btn btn-ghost" type="button">锁定</button>
+          </div>
+        </header>
+
+        <div id="cloud-bar" class="keyhole">
+          <span id="cloud-status">云端同步：检查中……</span>
+          <button id="btn-cloud-open" class="mini" type="button">设置</button>
+        </div>
+
+        <div id="recovery-nudge" class="keyhole hidden">
+          <span>恢复钥匙口：<strong>还没有配钥匙</strong>。U 盘要是坏了就打不开，建议现在设置一个恢复问题。</span>
+          <button id="btn-nudge-set" class="mini" type="button">去设置</button>
+        </div>
+
+        <div id="verify-nudge" class="keyhole hidden">
+          <span id="verify-nudge-text">该做体检了。</span>
+          <button id="btn-verify" class="mini" type="button">去体检</button>
+        </div>
+
+        <div class="toolbar">
+          <input id="search" type="search" placeholder="搜索标题 / 账号 / 网站">
+          <button id="btn-add" class="btn btn-primary" type="button">＋ 新条目</button>
+        </div>
+
+        <div id="entries" class="entries"></div>
+        <div id="empty-hint" class="empty hidden">
+          <div class="empty-mark">＋</div>
+          <h3>还没有条目</h3>
+          <p>点右上角的「＋ 新条目」放进去第一个。电脑上也可以直接按 <strong>n</strong> 键。</p>
+        </div>
+
+        <div class="vault-foot">
+          <button id="btn-verify-foot" class="btn btn-ghost" type="button">钥匙体检</button>
+          <button id="btn-change-key" class="btn btn-ghost" type="button">更换钥匙（U 盘）</button>
+          <button id="btn-recovery-settings" class="btn btn-ghost" type="button">恢复问题</button>
+          <button id="btn-export" class="btn btn-ghost" type="button">导出加密备份</button>
+          <label class="btn btn-ghost file-btn">导入加密备份
+            <input id="input-import" type="file" accept=".json,application/json">
+          </label>
+        </div>
+
+        <div class="note-box">
+          <strong>关于安全，说人话：</strong><br>
+          · 你的密码用 <strong>AES-GCM</strong> 加密后才写进这台设备的浏览器数据库（IndexedDB）。<br>
+          · 开门的钥匙由「U 盘密钥文件 + 主密码」推出来，<strong>只在你解锁时短暂存在于内存</strong>，刷新页面即消失。<br>
+          · 所以：关掉网页 = 门自动锁上；别人拿到你的电脑，没有 U 盘也打不开。<br>
+          · U 盘密钥文件请备份一份。真丢了，就用「恢复问题」那把钥匙开门，然后换一把新钥匙。<br>
+          · <strong>用法</strong>：点「① 复制账号」贴上去，回来点「② 复制密码」再贴 —— 密码 30 秒后自动从剪贴板清空。<br>
+          · 电脑上按 <strong>/</strong> 跳到搜索框，按 <strong>n</strong> 新建条目。网站一栏填了域名就能直接点开。<br>
+          · 数据存放位置：<strong id="storage-note">检测中……</strong>
+        </div>
+      </section>
+
+    </div>
   </main>
 
-  <div id="site-footer"></div>
-  <script src="/assets/js/main.js"></script>
+  <!-- 条目编辑弹层 -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="modal-title">新条目</h3>
+      <div class="field"><label for="f-title">标题</label><input id="f-title" type="text" placeholder="例如：某网站账号"></div>
+      <div class="field"><label for="f-site">网站 / 应用</label><input id="f-site" type="text" placeholder="example.com"></div>
+      <div class="field"><label for="f-user">账号</label><input id="f-user" type="text" placeholder="用户名 / 手机号 / 邮箱"></div>
+      <div class="field">
+        <label for="f-pass">密码</label>
+        <div class="row" style="flex-wrap:nowrap">
+          <input id="f-pass" type="text" placeholder="密码">
+          <button id="btn-gen" class="btn btn-ghost" type="button" style="white-space:nowrap">生成</button>
+        </div>
+      </div>
+      <div class="field"><label for="f-note">备注</label><textarea id="f-note" placeholder="可选"></textarea></div>
+      <div class="modal-actions">
+        <button id="btn-cancel" class="btn btn-ghost" type="button">取消</button>
+        <button id="btn-save" class="btn btn-primary" type="button">保存</button>
+      </div>
+      <div id="edit-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 恢复问题弹层 -->
+  <div id="recovery-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>恢复问题</h3>
+      <p class="hint">如果 U 盘坏了或丢了，就用这个问题的答案开门。答案应该是<strong>只有你和被问的人知道</strong>的一句话。</p>
+      <div class="field" style="margin-top:20px"><label for="r-question">问题</label><input id="r-question" type="text" placeholder="你今天什么心情？"></div>
+      <div class="field"><label for="r-answer">答案</label>
+        <div class="pw-row">
+          <input id="r-answer" type="password" autocomplete="off" placeholder="例如：冷羽什么心情我就什么心情">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+      </div>
+      <p class="hint muted" style="margin-top:-8px">当前状态：<span id="r-status">未设置</span></p>
+      <div class="modal-actions">
+        <button id="btn-r-cancel" class="btn btn-ghost" type="button">取消</button>
+        <button id="btn-r-save" class="btn btn-primary" type="button">保存恢复问题</button>
+      </div>
+      <div id="r-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 更换钥匙弹层 -->
+  <div id="key-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>更换钥匙（U 盘）</h3>
+      <p class="hint">重新选一个新密钥文件、设一个新主密码。保存后，旧钥匙立刻失效。适合换 U 盘、或怀疑密钥外泄时用。</p>
+      <div class="field" style="margin-top:20px">
+        <div class="row">
+          <button id="btn-k-gen" class="btn btn-ghost" type="button">生成并下载新密钥文件</button>
+          <label class="btn btn-ghost file-btn">选择密钥文件
+            <input id="input-k-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
+          </label>
+        </div>
+        <p id="k-status" class="hint muted">尚未选择</p>
+      </div>
+      <div class="field">
+        <div class="pw-row">
+          <input id="k-pass" type="password" autocomplete="new-password" placeholder="新的主密码（可留空）">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <div class="pw-row">
+          <input id="k-pass2" type="password" autocomplete="new-password" placeholder="再输一次">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-k-cancel" class="btn btn-ghost" type="button">取消</button>
+        <button id="btn-k-save" class="btn btn-primary" type="button">保存</button>
+      </div>
+      <div id="k-msg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- 钥匙体检弹层 -->
+  <div id="verify-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>钥匙体检</h3>
+      <p class="hint">趁现在不着急，先确认你的钥匙都还能打开这个保险库。<strong>只读检查，不会改动任何密码条目。</strong></p>
+
+      <div class="verify-block">
+        <h4>① U 盘密钥文件 + 主密码</h4>
+        <p class="hint">这两样是配对使用的：选中 U 盘里的密钥文件、再输一次主密码，一起验一遍。</p>
+        <label class="btn btn-ghost file-btn">选择密钥文件
+          <input id="v-key-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
+        </label>
+        <p id="v-key-status" class="hint muted">尚未选择</p>
+        <div class="pw-row">
+          <input id="v-password" type="password" autocomplete="off" placeholder="主密码（没设过就留空）">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <button id="btn-v-check-key" class="btn btn-primary" type="button">检查密钥 + 主密码</button>
+        <div id="v-key-result" class="msg"></div>
+      </div>
+
+      <div class="verify-block">
+        <h4>② 恢复问题的答案</h4>
+        <p class="hint">U 盘坏掉时的唯一后路。输入那句答案，确认它还能开门。</p>
+        <div class="pw-row">
+          <input id="v-answer" type="password" autocomplete="off" placeholder="恢复问题的答案">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <button id="btn-v-check-rec" class="btn btn-primary" type="button">检查这个答案</button>
+        <div id="v-rec-result" class="msg"></div>
+      </div>
+
+      <div class="verify-block">
+        <h4>③ 备份</h4>
+        <p class="hint" id="v-backup-info">还没有导出过备份。</p>
+        <button id="btn-v-backup" class="btn btn-ghost" type="button">现在导出一份加密备份</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-v-close" class="btn btn-ghost" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 云同步弹层 -->
+  <div id="cloud-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>云端同步</h3>
+      <p class="hint">云上<strong>只存密文</strong>。你的密码在上传之前就已经在本机加密好了，服务器看不到任何内容 —— 这叫「零知识」。换台电脑登录同一个账号，下载下来用钥匙一解就全回来了。</p>
+
+      <div id="cloud-login" class="verify-block">
+        <h4>① 用手机号登录</h4>
+        <p class="hint">手机号只是用来认出「哪一份密文是你的」，跟你的密码无关。验证码发到你手机上。</p>
+        <input id="cloud-phone" type="tel" inputmode="numeric" placeholder="11 位手机号">
+        <button id="btn-cloud-send" class="btn btn-ghost" type="button">获取验证码</button>
+        <div class="row">
+          <input id="cloud-code" type="text" inputmode="numeric" placeholder="收到的验证码">
+          <button id="btn-cloud-login" class="btn btn-primary" type="button">登录 / 注册</button>
+        </div>
+        <div id="cloud-login-msg" class="msg"></div>
+      </div>
+
+      <div id="cloud-panel" class="verify-block hidden">
+        <h4>② 同步</h4>
+        <p class="hint" id="cloud-who">已登录</p>
+        <p class="hint" id="cloud-times"></p>
+        <div class="row">
+          <button id="btn-cloud-push" class="btn btn-primary" type="button">上传到云端</button>
+          <button id="btn-cloud-pull" class="btn btn-ghost" type="button">从云端下载</button>
+        </div>
+        <div id="cloud-msg" class="msg"></div>
+        <button id="btn-cloud-signout" class="mini" type="button">退出登录</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-cloud-close" class="btn btn-ghost" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- 极简页脚 -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-note">零知识加密：密码在这台设备上加密，钥匙在你手里，服务器看不到内容。</p>
+      <p class="footer-copy">本地运行 · <span id="year"></span> · <a href="/download/vault.html" download>下载单文件版</a></p>
+    </div>
+  </footer>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+
+  <!-- 云服务 SDK（本项目是无构建的纯静态站，所以用 CDN 形式加载） -->
+  <script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+  <script src="/assets/js/vault.js"></script>
 </body>
 </html>

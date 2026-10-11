@@ -1,5 +1,5 @@
 /* ============================================================
-   lenyv 保险库 · 回归测试
+   保险库 · 回归测试
    ------------------------------------------------------------
    运行：  node tests/vault.test.cjs
    （需在项目根目录运行）
@@ -196,7 +196,7 @@ const section = s => console.log('\n' + s);
     await api.setEntries([{ id: 'x', title: 'X站', username: 'ux', password: 'px' }]);
     await api.persistEntries();
 
-    const backup = JSON.parse(JSON.stringify({ app: 'lenyv-vault', version: 1, record: disk.main }));
+    const backup = JSON.parse(JSON.stringify({ app: 'vault', version: 1, record: disk.main }));
     const fresh = makeVault();
     fresh.disk.main = JSON.parse(JSON.stringify(backup.record));
     fresh.api.setRecord(fresh.disk.main);            // 相当于页面 init() 读记录

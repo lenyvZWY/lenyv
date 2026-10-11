@@ -1,4 +1,4 @@
-# lenyv 网站 · Netlify 部署配置
+# Netlify 部署配置
 # 纯静态站点，无需构建步骤；Netlify 直接从仓库根目录发布
 [build]
   publish = "."

@@ -1,5 +1,5 @@
 /* ============================================================================
-   lenyv 保险库 · 零知识本地密码本
+   保险库 · 零知识本地密码本
    ============================================================================
    【这个文件是干什么的】
    在浏览器里实现一个「密码本」：你把各个网站的账号密码存进来，
@@ -61,12 +61,19 @@
     publishableKey: 'wbpk_Si7P7nvqJ2Kw8v6Tyk2uag_UQiCGuDBVwox3YDfGeGXLB2a3UOF4TNJ'
   };
 
-  var DB_NAME = 'lenyv_vault';             // IndexedDB 数据库名
+  /* --------------------------------------------------------------------------
+     ⚠️ 下面 DB_NAME / VERIFIER_TEXT / NO_PASSWORD / LS_KEY 里带着一串旧前缀。
+     它们是【内部标识】，页面上、界面上、文件名里都看不见，只有读源码才会看到。
+     之所以不改：改掉会让**已经存进浏览器的密码读不出来**
+     （数据库对不上号；校验串对不上会被判成「钥匙不对」）。
+     所以除非确认这台设备上还没存过任何东西，否则别动这几个值。
+     -------------------------------------------------------------------------- */
+  var DB_NAME = 'lenyv_vault';             // IndexedDB 数据库名（内部标识，勿改）
   var STORE = 'vault';                     // 数据库里的表名
   var REC_ID = 'main';                     // 整库只存一条记录，用这个固定 id
   var ITER = 250000;                       // PBKDF2 迭代次数：把「猜密码」的速度拖慢 25 万倍
-  var VERIFIER_TEXT = 'lenyv-vault-ok-v1'; // 一句校验暗号，用来判断钥匙对不对
-  var NO_PASSWORD = 'lenyv::no-master-password::v1'; // 用户不设主密码时，用这个固定串占位
+  var VERIFIER_TEXT = 'lenyv-vault-ok-v1'; // 校验暗号，用来判断钥匙对不对（内部标识，勿改）
+  var NO_PASSWORD = 'lenyv::no-master-password::v1'; // 不设主密码时的固定占位串（内部标识，勿改）
   var DEFAULT_QUESTION = '你今天什么心情？';          // 恢复问题的默认问题
   var enc = new TextEncoder();             // 文字 → 字节
   var dec = new TextDecoder();             // 字节 → 文字
@@ -152,7 +159,7 @@
     NO_VAULT: '这台设备上还没有保险库。',
     LOCKED: '保险库已经锁上了，请先解锁再操作。',
     DATA_CORRUPT: '数据解开了，但内容格式不对，可能文件被改动过。建议用备份恢复。',
-    BAD_FILE: '这不是有效的 lenyv 保险库备份文件。',
+    BAD_FILE: '这不是有效的备份文件。',
     STORAGE_BLOCKED: '浏览器不让这个页面保存数据。如果你是在「预览小窗口」里打开的，请改用真正的浏览器窗口打开本页；如果是无痕模式，请换成普通窗口。',
     STORAGE_ABORTED: '写入本地存储时被打断了，请再试一次。',
     STORAGE_FULL: '本地存储空间不够了，清理一点浏览器数据再试。',
@@ -1129,10 +1136,10 @@
 
   // 导出一个 JSON 文件。注意：里面**全是密文**，没有钥匙打不开。
   function exportBackup() {
-    var payload = JSON.stringify({ app: 'lenyv-vault', version: 1, record: record }, null, 2);
+    var payload = JSON.stringify({ app: 'vault', version: 1, record: record }, null, 2);
     // 文件名带上日期，方便区分多个备份
     var d = new Date();
-    var name = 'lenyv-vault-backup-' + d.getFullYear() + '-' +
+    var name = 'vault-backup-' + d.getFullYear() + '-' +
       String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.json';
     download(payload, name, 'application/json');
     markBackedUp();     // 记一下备份时间，体检弹层里会显示「上次备份：N 天前」
@@ -1426,7 +1433,7 @@
     // ---- 生成密钥文件（首次创建）----
     $('#btn-generate-key').addEventListener('click', function () {
       setupKeyBytes = randomBytes(32);                   // 随机 32 字节 = 密钥文件内容
-      download(setupKeyBytes, 'lenyv-vault-key.bin');    // 让用户下载到 U 盘
+      download(setupKeyBytes, 'vault-key.bin');    // 让用户下载到 U 盘
       setMsg($('#setup-key-status'), '已生成并下载。请把它存进 U 盘，然后回来点「创建保险库」。', 'ok');
     });
 
@@ -1561,7 +1568,7 @@
     // 生成一把新钥匙（新 U 盘文件）
     $('#btn-k-gen').addEventListener('click', function () {
       newKeyBytes = randomBytes(32);
-      download(newKeyBytes, 'lenyv-vault-key-new.bin');
+      download(newKeyBytes, 'vault-key-new.bin');
       setMsg($('#k-status'), '已生成并下载。存进 U 盘后点「保存」。', 'ok');
     });
 
