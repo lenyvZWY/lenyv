@@ -283,34 +283,41 @@
     </div>
   </div>
 
-  <!-- 云同步弹层 -->
+  <!-- 设备同步弹层 -->
   <div id="cloud-modal" class="modal hidden">
     <div class="modal-card">
-      <h3>云端同步</h3>
-      <p class="hint">云上<strong>只存密文</strong>。你的密码在上传之前就已经在本机加密好了，服务器看不到任何内容 —— 这叫「零知识」。换台电脑登录同一个账号，下载下来用钥匙一解就全回来了。</p>
+      <h3>设备同步</h3>
+      <p class="hint">
+        上传的<strong>只有密文</strong> —— 密码在你本机就加密好了。
+        这个同步服务就跑在<strong>你自己的站点</strong>上，它没有钥匙，也解不开里面的内容。
+      </p>
 
-      <div id="cloud-login" class="verify-block">
-        <h4>① 用手机号登录</h4>
-        <p class="hint">手机号只是用来认出「哪一份密文是你的」，跟你的密码无关。验证码发到你手机上。</p>
-        <input id="cloud-phone" type="tel" inputmode="numeric" placeholder="11 位手机号">
-        <button id="btn-cloud-send" class="btn btn-ghost" type="button">获取验证码</button>
+      <div class="verify-block">
+        <h4>① 同步码（你的通行证）</h4>
+        <p class="sync-code" id="sync-code">——</p>
         <div class="row">
-          <input id="cloud-code" type="text" inputmode="numeric" placeholder="收到的验证码">
-          <button id="btn-cloud-login" class="btn btn-primary" type="button">登录 / 注册</button>
+          <button id="btn-sync-copy" class="btn btn-ghost" type="button">复制同步码</button>
+          <button id="btn-sync-regen" class="btn btn-ghost" type="button">换一串</button>
         </div>
-        <div id="cloud-login-msg" class="msg"></div>
+        <p class="hint">
+          换设备时，把这串码填到新设备上，就能拉到同一份数据。<br>
+          <strong>谁拿到这串码，谁就能覆盖你的云端数据</strong>（但看不到内容，因为全是密文）。
+        </p>
+        <div class="row">
+          <input id="sync-code-input" type="text" placeholder="粘贴另一台设备的同步码" autocomplete="off">
+          <button id="btn-sync-set" class="btn btn-ghost" type="button">用这串</button>
+        </div>
       </div>
 
-      <div id="cloud-panel" class="verify-block hidden">
+      <div class="verify-block">
         <h4>② 同步</h4>
-        <p class="hint" id="cloud-who">已登录</p>
-        <p class="hint" id="cloud-times"></p>
+        <p class="hint" id="sync-times">正在检查……</p>
         <div class="row">
           <button id="btn-cloud-push" class="btn btn-primary" type="button">上传到云端</button>
           <button id="btn-cloud-pull" class="btn btn-ghost" type="button">从云端下载</button>
         </div>
-        <div id="cloud-msg" class="msg"></div>
-        <button id="btn-cloud-signout" class="mini" type="button">退出登录</button>
+        <div id="sync-msg" class="msg"></div>
+        <button id="btn-cloud-erase" class="mini danger" type="button">抹掉云端数据</button>
       </div>
 
       <div class="modal-actions">
@@ -330,8 +337,7 @@
   </footer>
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 
-  <!-- 云服务 SDK（本项目是无构建的纯静态站，所以用 CDN 形式加载） -->
-  <script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+  <!-- 保险库逻辑：同步接口就在本站 /api/vault，不需要任何外部 SDK -->
   <script src="/assets/js/vault.js"></script>
 </body>
 </html>

@@ -339,6 +339,12 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
 /* 复制后短暂高亮整个条目 */
 .entry.flash{border-color:var(--brand)}
 
+/* 同步码：等宽字体 + 可整段选中，方便抄写和复制 */
+.sync-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:1.05rem;letter-spacing:.06em;word-break:break-all;text-align:center;
+  background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:12px 14px;margin:0;user-select:all;width:100%}
+
 /* 体检弹层里的分区 */
 .verify-block{border-top:1px solid var(--border);margin-top:var(--sp-5);padding-top:var(--sp-5);
   display:grid;gap:10px;justify-items:start}
@@ -637,34 +643,41 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
     </div>
   </div>
 
-  <!-- 云同步弹层 -->
+  <!-- 设备同步弹层 -->
   <div id="cloud-modal" class="modal hidden">
     <div class="modal-card">
-      <h3>云端同步</h3>
-      <p class="hint">云上<strong>只存密文</strong>。你的密码在上传之前就已经在本机加密好了，服务器看不到任何内容 —— 这叫「零知识」。换台电脑登录同一个账号，下载下来用钥匙一解就全回来了。</p>
+      <h3>设备同步</h3>
+      <p class="hint">
+        上传的<strong>只有密文</strong> —— 密码在你本机就加密好了。
+        这个同步服务就跑在<strong>你自己的站点</strong>上，它没有钥匙，也解不开里面的内容。
+      </p>
 
-      <div id="cloud-login" class="verify-block">
-        <h4>① 用手机号登录</h4>
-        <p class="hint">手机号只是用来认出「哪一份密文是你的」，跟你的密码无关。验证码发到你手机上。</p>
-        <input id="cloud-phone" type="tel" inputmode="numeric" placeholder="11 位手机号">
-        <button id="btn-cloud-send" class="btn btn-ghost" type="button">获取验证码</button>
+      <div class="verify-block">
+        <h4>① 同步码（你的通行证）</h4>
+        <p class="sync-code" id="sync-code">——</p>
         <div class="row">
-          <input id="cloud-code" type="text" inputmode="numeric" placeholder="收到的验证码">
-          <button id="btn-cloud-login" class="btn btn-primary" type="button">登录 / 注册</button>
+          <button id="btn-sync-copy" class="btn btn-ghost" type="button">复制同步码</button>
+          <button id="btn-sync-regen" class="btn btn-ghost" type="button">换一串</button>
         </div>
-        <div id="cloud-login-msg" class="msg"></div>
+        <p class="hint">
+          换设备时，把这串码填到新设备上，就能拉到同一份数据。<br>
+          <strong>谁拿到这串码，谁就能覆盖你的云端数据</strong>（但看不到内容，因为全是密文）。
+        </p>
+        <div class="row">
+          <input id="sync-code-input" type="text" placeholder="粘贴另一台设备的同步码" autocomplete="off">
+          <button id="btn-sync-set" class="btn btn-ghost" type="button">用这串</button>
+        </div>
       </div>
 
-      <div id="cloud-panel" class="verify-block hidden">
+      <div class="verify-block">
         <h4>② 同步</h4>
-        <p class="hint" id="cloud-who">已登录</p>
-        <p class="hint" id="cloud-times"></p>
+        <p class="hint" id="sync-times">正在检查……</p>
         <div class="row">
           <button id="btn-cloud-push" class="btn btn-primary" type="button">上传到云端</button>
           <button id="btn-cloud-pull" class="btn btn-ghost" type="button">从云端下载</button>
         </div>
-        <div id="cloud-msg" class="msg"></div>
-        <button id="btn-cloud-signout" class="mini" type="button">退出登录</button>
+        <div id="sync-msg" class="msg"></div>
+        <button id="btn-cloud-erase" class="mini danger" type="button">抹掉云端数据</button>
       </div>
 
       <div class="modal-actions">
@@ -683,6 +696,8 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
     </div>
   </footer>
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+
+  <!-- 保险库逻辑：同步接口就在本站 /api/vault，不需要任何外部 SDK -->
 <script>
 /* ============================================================================
    保险库 · 零知识本地密码本
@@ -732,20 +747,16 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
      ========================================================================== */
 
   /* ==========================================================================
-     云服务配置（来自「开通云服务」时平台返回的 publicConfig）
+     自建同步后端配置
      --------------------------------------------------------------------------
-     这三个值不是密钥，可以放在前端代码里 —— 浏览器里本来就看得见。
-     · endpoint        本应用的后端地址，由平台分配
-     · publishableKey  只用来标识「是哪个应用」，本身不含任何权限；
-                       真正的安全由服务器端的域名校验 + 数据库的 RLS 策略负责
-     · oauthRelayBaseUrl  微信扫码登录用的中转地址（本项目暂时用手机号登录，先留着）
-     ⚠️ endpoint 不要手改，也不要从 location 里推 —— 写错会直接导致登录失败。
+     同步功能跑在**你自己的 Netlify 站点**上（Netlify Functions + Blobs），
+     不经过任何第三方服务，也不需要注册任何账号。
+
+     接口就在同一个站点下，所以这里只写一个相对路径 ——
+     不写域名：换域名、换环境、本地调试，全都自动跟着走。
      ========================================================================== */
-  var CLOUD_CONFIG = {
-    endpoint: 'https://lenyv-vault.app.workbuddy.host',
-    oauthRelayBaseUrl: 'https://www.workbuddy.cn/v2/as/genie-baas/oauth',
-    publishableKey: 'wbpk_Si7P7nvqJ2Kw8v6Tyk2uag_UQiCGuDBVwox3YDfGeGXLB2a3UOF4TNJ'
-  };
+  var SYNC_API = '/api/vault';             // 同步接口地址（同站点，相对路径）
+  var SYNC_CODE_KEY = 'vault-sync-code';   // 同步码在这台设备上的存档位置
 
   /* --------------------------------------------------------------------------
      ⚠️ 下面 DB_NAME / VERIFIER_TEXT / NO_PASSWORD / LS_KEY 里带着一串旧前缀。
@@ -849,13 +860,14 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
     STORAGE_BLOCKED: '浏览器不让这个页面保存数据。如果你是在「预览小窗口」里打开的，请改用真正的浏览器窗口打开本页；如果是无痕模式，请换成普通窗口。',
     STORAGE_ABORTED: '写入本地存储时被打断了，请再试一次。',
     STORAGE_FULL: '本地存储空间不够了，清理一点浏览器数据再试。',
-    // ---- 云同步相关 ----
-    CLOUD_SDK_MISSING: '云服务组件没加载出来（通常是网络问题）。刷新页面再试一次。',
-    CLOUD_READ_FAIL: '读取云端数据失败，请稍后重试。',
-    CLOUD_WRITE_FAIL: '上传到云端失败，请稍后重试。',
-    CLOUD_WRITE_DENIED: '上传被服务器拒绝了：这条数据不属于当前账号。请先登录你自己的账号。',
-    CLOUD_EMPTY: '云端还没有数据。先在存着最新密码的那台设备上点一次「上传到云端」。',
-    CLOUD_NOT_LOGGED_IN: '还没有登录云账号，请先登录。',
+    // ---- 同步相关 ----
+    SYNC_OFFLINE: '连不上同步服务。检查一下网络；如果刚改过代码，可能部署还没跑完，等一会儿再试。',
+    SYNC_BAD_RESPONSE: '同步服务返回了看不懂的内容。多半是部署还没完成，等一两分钟再试。',
+    SYNC_WRITE_FAIL: '上传失败，请稍后重试。',
+    SYNC_EMPTY: '云端还没有数据。先在存着最新密码的那台设备上点一次「上传到云端」。',
+    SYNC_HTTP_400: '同步码不对，或者数据格式有问题。',
+    SYNC_HTTP_405: '同步接口不认识这个请求，可能部署版本不对。',
+    SYNC_HTTP_500: '同步服务出错了，请稍后再试。',
 
     // ---- 浏览器抛出的异常（按异常名称翻译）----
     NotAllowedError: '浏览器拒绝了这次操作。如果你正在用「无痕 / 隐私模式」，请换成普通窗口打开本页。',
@@ -1849,49 +1861,53 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
   }
 
   /* ==========================================================================
-     13. 云同步（可选功能）
+     13. 同步（可选功能）· 跑在你自己的 Netlify 上
      --------------------------------------------------------------------------
-     设计原则：上传的永远只是「已经加密好的那一坨」——
-     保险库密钥、主密码、明文条目，一步都不出浏览器。云端那张表里，
-     每个用户只有一行，存的就是本地那个 record 的副本（全是密文）。
+     上传的永远只是「已经加密好的那一团」——
+     保险库密钥、主密码、明文条目，一步都不出浏览器。
+     后端只是一个存东西的柜子：它没有钥匙，也解不开里面的东西。
+
+     【同步码 = 你的通行证】
+     柜子上的锁不是账号密码，而是一段随机码：
+       · 本机第一次打开时自动生成，存在浏览器里，不用你记；
+       · 换设备时，把这串码填过去，就能拉到同一份数据；
+       · 这串码本身**不上传**，后端只存它的 SHA-256 —— 谁也反推不出来。
 
      为什么不做「自动覆盖」：万一云端是旧的、本地是新的，
      自动拉下来就把你刚记的密码冲掉了。所以永远是「先告诉你状态，你再决定」。
-
-     换台电脑怎么用：登录同一个手机号 → 从云端下载 → 用你的钥匙解锁。
-     因为下载回来的还是同一把保险库密钥的包裹，所以原来那把钥匙照样能开。
      ========================================================================== */
 
-  var cloudClient = null;   // SDK 客户端（整个页面只建一次）
-  var pendingOtp = null;    // 发过验证码之后暂存起来，登录时要用（不能重新发一次）
-  var cloudInfo = null;     // 云端那一行的最新信息 { payload, updatedAt }
+  var syncInfo = null;   // 最近一次查到的云端信息 { payload, updatedAt }
 
-  // 懒创建客户端。SDK 是 CDN 加载的，万一没加载出来就返回 null，界面给提示。
-  function getCloud() {
-    if (cloudClient) return cloudClient;
-    if (!window.WorkBuddyCloud || !window.WorkBuddyCloud.createWorkBuddyCloud) return null;
-    cloudClient = window.WorkBuddyCloud.createWorkBuddyCloud({
-      endpoint: CLOUD_CONFIG.endpoint,
-      oauthRelayBaseUrl: CLOUD_CONFIG.oauthRelayBaseUrl,
-      publishableKey: CLOUD_CONFIG.publishableKey
-    });
-    return cloudClient;
+  // ---- 同步码：生成 / 读取 / 保存 ----
+
+  // 字母表刻意去掉了容易看混的 I O 0 1，方便手抄
+  var SYNC_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  // 生成一串新的同步码：24 个字符，分成三段方便核对
+  function genSyncCode() {
+    var a = randomBytes(24), out = '';
+    // 256 能被 32 整除，所以取模不会有偏 —— 每个字符出现的概率一样
+    for (var i = 0; i < 24; i++) out += SYNC_ALPHABET.charAt(a[i] % 32);
+    return out.slice(0, 8) + '-' + out.slice(8, 16) + '-' + out.slice(16, 24);
   }
 
-  // 当前登录状态：返回 session 或 null（没登录 / SDK 没加载出来）
-  function cloudSession() {
-    var c = getCloud();
-    if (!c) return Promise.resolve(null);
-    return c.auth.getSession().then(function (r) {
-      return (r && r.data) ? r.data : null;
-    }).catch(function () { return null; });
+  function readSyncCode() {
+    try { return localStorage.getItem(SYNC_CODE_KEY) || ''; } catch (e) { return ''; }
   }
 
-  // 手机号打码：界面上不要完整显示
-  function maskPhone(p) {
-    var s = String(p || '').replace(/\s/g, '');
-    return s.length >= 7 ? s.slice(0, 3) + '****' + s.slice(-4) : '已登录';
+  function saveSyncCode(code) {
+    try { localStorage.setItem(SYNC_CODE_KEY, code); } catch (e) { /* 存不下也不影响本次使用 */ }
   }
+
+  // 确保本机有一串同步码；没有就现生成一个
+  function ensureSyncCode() {
+    var c = readSyncCode();
+    if (!c) { c = genSyncCode(); saveSyncCode(c); }
+    return c;
+  }
+
+  // ---- 时间显示 ----
 
   // 把「毫秒数」或「ISO 时间字符串」统一成毫秒数
   function toMs(v) {
@@ -1904,146 +1920,132 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
   // 把时间说成人话
   function humanAgo(ms) {
     if (!ms) return '未知';
-    var s = Math.floor((Date.now() - ms) / 1000);
-    if (s < 60) return '刚刚';
-    if (s < 3600) return Math.floor(s / 60) + ' 分钟前';
-    if (s < 86400) return Math.floor(s / 3600) + ' 小时前';
-    return Math.floor(s / 86400) + ' 天前';
+    var sec = Math.floor((Date.now() - ms) / 1000);
+    if (sec < 60) return '刚刚';
+    if (sec < 3600) return Math.floor(sec / 60) + ' 分钟前';
+    if (sec < 86400) return Math.floor(sec / 3600) + ' 小时前';
+    return Math.floor(sec / 86400) + ' 天前';
   }
 
-  // 读取云端那一行（没有就返回 null）。RLS 保证只能读到自己那行。
-  function cloudFetchRow() {
-    var c = getCloud();
-    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
-    return c.database.from('vault_sync').select('payload, updated_at').maybeSingle()
-      .then(function (r) {
-        if (r.error) throw new Error('CLOUD_READ_FAIL');
-        if (!r.data) return null;
-        return { payload: r.data.payload, updatedAt: toMs(r.data.updated_at) };
+  // ---- 和后端说话：三个动作共用这一段 ----
+
+  function syncRequest(method, opts) {
+    opts = opts || {};
+    var url = SYNC_API;
+    // 取和删都要带上同步码
+    if (method === 'GET' || method === 'DELETE') {
+      url += '?code=' + encodeURIComponent(ensureSyncCode());
+    }
+    var init = { method: method, cache: 'no-store' };
+    if (method === 'POST') {
+      init.headers = { 'content-type': 'application/json' };
+      init.body = JSON.stringify({
+        code: ensureSyncCode(),
+        payload: opts.payload,
+        updatedAt: opts.updatedAt
       });
+    }
+    return fetch(url, init).then(function (res) {
+      // 404 表示「云端还没数据」，是正常情况，不该当成错误弹给用户
+      if (res.status === 404) return null;
+      return res.json().then(function (data) {
+        if (!res.ok) throw new Error((data && data.error) || 'SYNC_HTTP_' + res.status);
+        return data;
+      }, function () {
+        throw new Error('SYNC_BAD_RESPONSE');
+      });
+    }, function () {
+      // fetch 本身失败 = 没网，或者接口还没部署好
+      throw new Error('SYNC_OFFLINE');
+    });
   }
 
-  /* 上传：把本地那份密文推上去。
-     用 owner_id 当冲突键 —— 每个用户永远只有一行，重复上传是覆盖，不是新增。
-     注意：绝不传 owner_id，交给数据库的 DEFAULT auth.uid() 填。 */
-  function cloudPush() {
+  // 看云端有什么（没有就返回 null）
+  function syncFetch() {
+    return syncRequest('GET').then(function (r) {
+      if (!r) return null;
+      return { payload: r.payload, updatedAt: toMs(r.updatedAt) };
+    });
+  }
+
+  // 上传：把本地这团密文推上去
+  function syncPush() {
     requireUnlocked();
-    var c = getCloud();
-    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
-    return c.database.from('vault_sync')
-      .upsert(
-        { payload: JSON.stringify(record), updated_at: new Date().toISOString() },
-        { onConflict: 'owner_id' }
-      )
-      .select('updated_at')
-      .then(function (r) {
-        if (r.error) throw new Error('CLOUD_WRITE_FAIL');
-        // 返回空数组 ≠ 成功 —— 那是被 RLS 挡下来了，必须当成失败
-        if (!Array.isArray(r.data) || r.data.length === 0) throw new Error('CLOUD_WRITE_DENIED');
-        return toMs(r.data[0].updated_at);
-      });
+    return syncRequest('POST', {
+      payload: JSON.stringify(record),
+      updatedAt: record.updatedAt || Date.now()
+    }).then(function (r) {
+      if (!r || !r.ok) throw new Error('SYNC_WRITE_FAIL');
+      return toMs(r.updatedAt);
+    });
   }
 
-  /* 下载：把云端那份密文写回本地。
-     写完之后必须上锁 —— 因为换了一份数据，内存里那把密钥已经和新的包裹对不上了，
-     要继续用就得重新走一次解锁流程。这也是「拉下来之后要重新解锁」的原因。 */
-  function cloudPull() {
-    var c = getCloud();
-    if (!c) return Promise.reject(new Error('CLOUD_SDK_MISSING'));
-    return cloudFetchRow().then(function (row) {
-      if (!row) throw new Error('CLOUD_EMPTY');
+  /* 下载：把云端那团密文写回本地。
+     写完之后必须上锁 —— 换了一份数据，内存里那把密钥已经和新包裹对不上了，
+     要继续用就得重新走一次解锁流程。 */
+  function syncPull() {
+    return syncFetch().then(function (row) {
+      if (!row) throw new Error('SYNC_EMPTY');
       var rec;
       try { rec = JSON.parse(row.payload); } catch (e) { throw new Error('DATA_CORRUPT'); }
-      // 结构不对就直接拒绝，别把一个坏记录写进本地把好数据顶掉
+      // 结构不对就直接拒绝，别把坏记录写进本地、把好数据顶掉
       if (!rec || !rec.primary || !rec.verifier) throw new Error('DATA_CORRUPT');
       return storePut(rec).then(function () {
         record = rec;
-        lock();      // 回到锁定界面，让用户用钥匙重新开
+        lock();
       });
     });
   }
 
-  // 退出登录：只清掉云端的会话，本地保险库和钥匙完全不受影响
-  function cloudSignOut() {
-    var c = getCloud();
-    if (!c) return Promise.resolve();
-    return c.auth.signOut().then(function () {
-      cloudInfo = null;
-      pendingOtp = null;
-    });
+  // 抹掉云端那份（本地不受影响）
+  function syncErase() {
+    return syncRequest('DELETE');
   }
 
-  /* 刷新保险库页面上那条云同步状态。
-     三种说法：没登录 / 云上有更新的 / 本地有改动没上传 / 已是最新。 */
+  // ---- 界面状态 ----
+
+  /* 刷新保险库页面上那条同步状态。
+     四种说法：云端还没数据 / 云端有更新 / 本地有改动没上传 / 已是最新。 */
   function updateCloudBar() {
     var el = $('#cloud-status');
-    var btn = $('#btn-cloud-open');
     if (!el) return;
+    ensureSyncCode();
+    el.textContent = '同步：正在检查……';
 
-    // SDK 没加载出来（比如断网），先给个能看懂的提示
-    if (!getCloud()) {
-      el.textContent = '云端同步：组件没加载出来（可能没联网）';
-      if (btn) btn.textContent = '重试';
-      return;
-    }
-
-    cloudSession().then(function (s) {
-      if (!s) {
-        el.textContent = '云端同步：没登录（数据只在这台设备上）';
-        if (btn) btn.textContent = '设置';
-        return;
+    syncFetch().then(function (row) {
+      syncInfo = row;
+      if (!row) { el.textContent = '同步：云端还没有数据，点右边上传'; return; }
+      var local = record ? (record.updatedAt || 0) : 0;
+      // 留 2 秒容差，免得两边时间略有差异就来回提示
+      if (row.updatedAt > local + 2000) {
+        el.textContent = '同步：云端有更新的数据（' + humanAgo(row.updatedAt) + '），建议下载';
+      } else if (local > row.updatedAt + 2000) {
+        el.textContent = '同步：本地有改动还没上传（' + humanAgo(local) + '）';
+      } else {
+        el.textContent = '同步：已是最新（' + humanAgo(row.updatedAt) + '）';
       }
-      var who = maskPhone(s.user && (s.user.phone || s.user.email));
-      return cloudFetchRow().then(function (row) {
-        cloudInfo = row;
-        if (!row) {
-          el.textContent = '云端同步：已登录（' + who + '），云上还没有数据';
-          return;
-        }
-        var local = record ? (record.updatedAt || 0) : 0;
-        // 留 2 秒容差，避免时钟误差导致的来回抖动
-        if (row.updatedAt > local + 2000) {
-          el.textContent = '云端同步：云端有更新的数据（' + humanAgo(row.updatedAt) + '），建议下载';
-        } else if (local > row.updatedAt + 2000) {
-          el.textContent = '云端同步：本地有改动还没上传（本地 ' + humanAgo(local) + '）';
-        } else {
-          el.textContent = '云端同步：已是最新（' + humanAgo(row.updatedAt) + '）';
-        }
-      });
-    }).catch(function () {
-      el.textContent = '云端同步：检查失败，点右边重试';
-      if (btn) btn.textContent = '重试';
+    }).catch(function (err) {
+      el.textContent = '同步：' + friendlyError(err);
     });
   }
 
-  // 刷新云同步弹层：没登录显示登录框，登录了显示同步面板
+  // 刷新同步弹层：显示同步码 + 两边的时间
   function refreshCloudModal() {
-    var loginBox = $('#cloud-login');
-    var panel = $('#cloud-panel');
+    var codeEl = $('#sync-code');
+    if (codeEl) codeEl.textContent = ensureSyncCode();
 
-    if (!getCloud()) {
-      setMsg($('#cloud-login-msg'), '云服务组件没加载出来，可能是网络问题。刷新页面再试。', 'err');
-      show(loginBox); hide(panel);
-      return;
-    }
-
-    cloudSession().then(function (s) {
-      if (!s) { show(loginBox); hide(panel); return; }
-      hide(loginBox); show(panel);
-
-      var who = $('#cloud-who');
-      if (who) who.textContent = '已登录：' + maskPhone(s.user && (s.user.phone || s.user.email));
-
-      return cloudFetchRow().then(function (row) {
-        cloudInfo = row;
-        var local = record ? (record.updatedAt || 0) : 0;
-        var t = $('#cloud-times');
-        if (t) {
-          t.textContent = '本地数据：' + humanAgo(local) +
-            ' ｜ 云端数据：' + (row ? humanAgo(row.updatedAt) : '还没有');
-        }
-      });
-    }).catch(function () { /* 状态刷新失败不打扰用户，手动点按钮时会再报 */ });
+    syncFetch().then(function (row) {
+      syncInfo = row;
+      var local = record ? (record.updatedAt || 0) : 0;
+      var t = $('#sync-times');
+      if (t) {
+        t.textContent = '本地数据：' + humanAgo(local) +
+          ' ｜ 云端数据：' + (row ? humanAgo(row.updatedAt) : '还没有');
+      }
+    }).catch(function (err) {
+      var t = $('#sync-times');
+      if (t) t.textContent = friendlyError(err);
+    });
   }
 
   /* ==========================================================================
@@ -2379,118 +2381,73 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
       refreshBackupInfo();
     });
 
-    // ---- 云同步弹层 ----
+    // ---- 同步弹层 ----
     $('#btn-cloud-open').addEventListener('click', function () {
-      setMsg($('#cloud-login-msg'), '');
-      setMsg($('#cloud-msg'), '');
+      setMsg($('#sync-msg'), '');
       refreshCloudModal();
       show($('#cloud-modal'));
     });
     $('#btn-cloud-close').addEventListener('click', function () { hide($('#cloud-modal')); });
 
-    // 输入手机号时，把上一次的错误提示清掉
-    $('#cloud-phone').addEventListener('input', function () {
-      setMsg($('#cloud-login-msg'), '');
+    // 复制同步码
+    $('#btn-sync-copy').addEventListener('click', function () {
+      copyText(ensureSyncCode(), function () { toast('同步码已复制，粘到另一台设备就能同步'); });
     });
 
-    // 第一步：获取验证码。注意这一步只「发送」，不验证。
-    $('#btn-cloud-send').addEventListener('click', function () {
-      var phone = $('#cloud-phone').value.trim();
-      // 中国大陆手机号：正好 11 位、以 1 开头
-      if (!/^1\d{10}$/.test(phone)) {
-        setMsg($('#cloud-login-msg'), '请输入正确的 11 位手机号', 'err');
-        return;
-      }
-      var c = getCloud();
-      if (!c) { setMsg($('#cloud-login-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
-      setMsg($('#cloud-login-msg'), '正在发送……');
-      // 原样传进去，不要自己加 +86 —— SDK 会做规范化
-      c.auth.sendOtp({ phone: phone }).then(function (r) {
-        if (r.error) { showError($('#cloud-login-msg'), '发送失败：', r.error); return; }
-        // 保存这次的凭据：登录时必须用它，不能重新发一次
-        pendingOtp = {
-          phone: phone,
-          verificationId: r.data.verificationId,
-          isExistingUser: r.data.isExistingUser
-        };
-        setMsg($('#cloud-login-msg'), '验证码已发送，请查看手机短信。', 'ok');
-      }).catch(function (err) {
-        showError($('#cloud-login-msg'), '发送失败：', err);
-      });
+    // 换一串新同步码：等于换一个空柜子，别的设备要重新填这串新码
+    $('#btn-sync-regen').addEventListener('click', function () {
+      if (!window.confirm('换一串新的同步码？\n\n换了之后云端会指向一个全新的空柜子，\n你在别的设备上要重新填这串新码。\n本地数据不受影响。')) return;
+      saveSyncCode(genSyncCode());
+      refreshCloudModal();
+      updateCloudBar();
+      toast('已生成新的同步码');
     });
 
-    // 第二步：用验证码登录 / 注册。这一步不发新验证码。
-    $('#btn-cloud-login').addEventListener('click', function () {
-      var phone = $('#cloud-phone').value.trim();
-      var token = $('#cloud-code').value.trim();
-      // 号码变了或者压根没发过 → 让用户重新获取，而不是直接调接口
-      if (!pendingOtp || pendingOtp.phone !== phone) {
-        setMsg($('#cloud-login-msg'), '请先点「获取验证码」（号码变了就要重新获取）', 'err');
-        return;
-      }
-      if (!token) { setMsg($('#cloud-login-msg'), '请输入收到的验证码', 'err'); return; }
-
-      var c = getCloud();
-      if (!c) { setMsg($('#cloud-login-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
-      setMsg($('#cloud-login-msg'), '正在登录……');
-      c.auth.verifyOtp({
-        phone: pendingOtp.phone,
-        verificationId: pendingOtp.verificationId,
-        isExistingUser: pendingOtp.isExistingUser,
-        token: token
-      }).then(function (r) {
-        if (r.error) { showError($('#cloud-login-msg'), '登录失败：', r.error); return; }
-        pendingOtp = null;                 // 用掉了就清掉
-        $('#cloud-code').value = '';
-        setMsg($('#cloud-login-msg'), '');
-        refreshCloudModal();
-        updateCloudBar();
-        toast('已登录云账号');
-      }).catch(function (err) {
-        showError($('#cloud-login-msg'), '登录失败：', err);
-      });
+    // 填入另一台设备的同步码（换设备时用）
+    $('#btn-sync-set').addEventListener('click', function () {
+      var v = ($('#sync-code-input').value || '').trim().toUpperCase();
+      if (v.length < 16) { setMsg($('#sync-msg'), '同步码至少 16 位，检查一下有没有抄漏。', 'err'); return; }
+      saveSyncCode(v);
+      $('#sync-code-input').value = '';
+      refreshCloudModal();
+      updateCloudBar();
+      toast('已切换到这串同步码');
     });
 
     // 上传到云端
     $('#btn-cloud-push').addEventListener('click', function () {
-      var c = getCloud();
-      if (!c) { setMsg($('#cloud-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
-      cloudSession().then(function (s) {
-        if (!s) throw new Error('CLOUD_NOT_LOGGED_IN');
-        setMsg($('#cloud-msg'), '正在上传……');
-        return cloudPush();
-      }).then(function () {
-        setMsg($('#cloud-msg'), '上传成功。云端现在是最新的了。', 'ok');
+      setMsg($('#sync-msg'), '正在上传……');
+      syncPush().then(function () {
+        setMsg($('#sync-msg'), '上传成功，云端已是最新。', 'ok');
         refreshCloudModal();
         updateCloudBar();
       }).catch(function (err) {
-        showError($('#cloud-msg'), '上传失败：', err);
+        showError($('#sync-msg'), '上传失败：', err);
       });
     });
 
     // 从云端下载（会覆盖本地，必须先确认）
     $('#btn-cloud-pull').addEventListener('click', function () {
-      var c = getCloud();
-      if (!c) { setMsg($('#cloud-msg'), friendlyError(new Error('CLOUD_SDK_MISSING')), 'err'); return; }
-      if (!window.confirm('这会用云端的数据覆盖这台设备上的保险库。\n\n如果这台设备上有还没上传的改动，会被丢掉。\n确定要继续吗？')) return;
-      cloudSession().then(function (s) {
-        if (!s) throw new Error('CLOUD_NOT_LOGGED_IN');
-        setMsg($('#cloud-msg'), '正在下载……');
-        return cloudPull();
-      }).then(function () {
+      if (!window.confirm('这会用云端的数据覆盖这台设备上的保险库。\n\n这台设备上还没上传的改动会被丢掉。\n确定要继续吗？')) return;
+      setMsg($('#sync-msg'), '正在下载……');
+      syncPull().then(function () {
         hide($('#cloud-modal'));
         toast('已从云端恢复。请用你的钥匙重新解锁。');
       }).catch(function (err) {
-        showError($('#cloud-msg'), '下载失败：', err);
+        showError($('#sync-msg'), '下载失败：', err);
       });
     });
 
-    // 退出登录
-    $('#btn-cloud-signout').addEventListener('click', function () {
-      cloudSignOut().then(function () {
+    // 抹掉云端那份
+    $('#btn-cloud-erase').addEventListener('click', function () {
+      if (!window.confirm('确定抹掉云端那份数据吗？\n\n本地这份不受影响，但其他设备将拉不到数据。')) return;
+      setMsg($('#sync-msg'), '正在清除……');
+      syncErase().then(function () {
+        setMsg($('#sync-msg'), '云端那份已抹掉。', 'ok');
         refreshCloudModal();
         updateCloudBar();
-        toast('已退出云账号（本地保险库不受影响）');
+      }).catch(function (err) {
+        showError($('#sync-msg'), '清除失败：', err);
       });
     });
 

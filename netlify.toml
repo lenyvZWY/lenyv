@@ -1,5 +1,46 @@
 # Netlify 部署配置
-# 纯静态站点，无需构建步骤；Netlify 直接从仓库根目录发布
+# 纯静态站点 + 一个自建的同步接口（Netlify Functions + Netlify Blobs）
+# 同步后端跑在你自己的站点上，不经过任何第三方服务。
+
 [build]
   publish = "."
-  command = ""
+  # 同步接口要用 @netlify/blobs，所以构建时先装依赖（纯静态页面本身不需要构建）
+  command = "npm install"
+
+[functions]
+  directory = "netlify/functions"
+
+# ---- 同步接口 ----
+# 把 /api/vault 转到那个函数上
+[[redirects]]
+  from = "/api/vault"
+  to = "/.netlify/functions/vault"
+  status = 200
+
+# ---- 把内部文件挡在外面 ----
+# publish = "." 会把仓库根目录整个发出去，下面这些是给开发用的，不该被公开访问。
+# 放在同步接口规则**后面**，避免抢走 /api/vault。
+[[redirects]]
+  from = "/tests/*"
+  to = "/404"
+  status = 404
+
+[[redirects]]
+  from = "/tools/*"
+  to = "/404"
+  status = 404
+
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404"
+  status = 404
+
+[[redirects]]
+  from = "/package.json"
+  to = "/404"
+  status = 404
+
+[[redirects]]
+  from = "/package-lock.json"
+  to = "/404"
+  status = 404

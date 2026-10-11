@@ -115,6 +115,12 @@ a.entry-link:hover{border-bottom-color:var(--brand)}
 /* 复制后短暂高亮整个条目 */
 .entry.flash{border-color:var(--brand)}
 
+/* 同步码：等宽字体 + 可整段选中，方便抄写和复制 */
+.sync-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:1.05rem;letter-spacing:.06em;word-break:break-all;text-align:center;
+  background:var(--bg-subtle);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:12px 14px;margin:0;user-select:all;width:100%}
+
 /* 体检弹层里的分区 */
 .verify-block{border-top:1px solid var(--border);margin-top:var(--sp-5);padding-top:var(--sp-5);
   display:grid;gap:10px;justify-items:start}
