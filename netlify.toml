@@ -5,7 +5,9 @@
 [build]
   publish = "."
   # 同步接口要用 @netlify/blobs，所以构建时先装依赖（纯静态页面本身不需要构建）
-  command = "npm install"
+  # --omit=dev 很重要：桌面版用的 Electron 是 devDependency，有 200MB 运行时，
+  # 线上构建完全用不到它，跳过可以省下大量时间和风险。
+  command = "npm install --omit=dev"
 
 [functions]
   directory = "netlify/functions"

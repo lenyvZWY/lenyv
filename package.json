@@ -4,12 +4,18 @@
   "private": true,
   "description": "零知识保险库：静态站点 + 自建同步后端 + 桌面启动器",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
+    "desktop": "electron .",
     "start": "node desktop/launcher.cjs",
     "test": "node tests/vault.test.cjs && node tests/sync.test.mjs",
-    "build:standalone": "node tools/build-standalone.cjs"
+    "build:standalone": "node tools/build-standalone.cjs",
+    "build:desktop": "node tools/build-desktop.cjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.4"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0"
   }
 }

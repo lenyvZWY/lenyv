@@ -43,6 +43,31 @@ const path = require('path');
 // 项目根目录（desktop/ 的上一级）
 const ROOT = path.join(__dirname, '..');
 
+const os = require('os');
+
+/* 记日志用。优先写在程序目录旁边（开发时好找）；
+   如果那个位置写不进去（比如程序装在 C:\Program Files，需要管理员权限），
+   就自动退到系统临时目录 —— 绝不能因为写不了日志就让程序崩掉。 */
+let logPath = null;
+function resolveLogPath() {
+  if (logPath) return logPath;
+  const prefer = path.join(ROOT, 'desktop-launch.log');
+  try {
+    fs.appendFileSync(prefer, '');
+    logPath = prefer;
+  } catch (e) {
+    logPath = path.join(os.tmpdir(), 'vault-launch.log');
+  }
+  return logPath;
+}
+
+// 记一行日志。Electron 是 GUI 程序，控制台输出经常看不到，所以必须落盘。
+function log(msg) {
+  const line = '[' + new Date().toLocaleString() + '] [desktop] ' + msg;
+  try { console.log(line); } catch (e) { /* GUI 下没有控制台 */ }
+  try { fs.appendFileSync(resolveLogPath(), line + os.EOL); } catch (e) { /* 写不了就算了 */ }
+}
+
 // 密钥文件的默认名字（跟网页版生成的一致）
 const KEY_FILE_NAMES = ['vault-key.bin', 'vault-key-new.bin'];
 
@@ -148,6 +173,22 @@ function findKeyFiles() {
   return found;
 }
 
+/* 彻底关掉 GPU 相关的一切。
+   为什么必须这么做：Electron 的 GPU 进程在某些环境（虚拟机、远程桌面、
+   显卡驱动异常）里会反复崩溃，而它崩溃之后会**直接让整个程序退出** ——
+   日志里写着 "GPU process isn't usable. Goodbye."，
+   在用户看来就是「双击了，什么都没发生」。
+   保险库是纯文字界面，完全用不到 GPU，关掉最稳。 */
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+/* 让 GPU 逻辑跑在主进程里，而不是单独开一个 GPU 进程。
+   实测过：不加这一行，在受限环境（虚拟机 / 远程桌面 / 显卡驱动异常）下
+   GPU 子进程会崩溃，然后主程序直接自杀 —— 用户看到的就是「双击没反应」。
+   加上它之后窗口能正常出现。对纯文字界面没有任何副作用。 */
+app.commandLine.appendSwitch('in-process-gpu');
+
 /* ---------------------------------------------------------------------------
    窗口
    --------------------------------------------------------------------------- */
@@ -174,6 +215,7 @@ async function createWindow() {
     }
   });
 
+  log('服务已启动，端口 ' + port + '，正在打开窗口……');
   mainWindow.loadURL('http://127.0.0.1:' + port + '/');
 
   // 页面里的外链一律用系统浏览器打开，不在应用窗口里跳走
@@ -182,7 +224,8 @@ async function createWindow() {
     return { action: 'deny' };
   });
 
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.webContents.on('did-finish-load', () => { log('窗口已连上，可以开始用了。'); });
+  mainWindow.on('closed', () => { mainWindow = null; log('窗口已关闭，退出。'); });
 }
 
 /* ---------------------------------------------------------------------------
