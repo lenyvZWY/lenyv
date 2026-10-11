@@ -10,3 +10,4 @@ Thumbs.db
 
 # 依赖（以后若引入构建工具）
 node_modules/
+desktop-launch.log

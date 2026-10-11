@@ -24,10 +24,20 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { spawn } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const KEY_FILE_NAMES = ['vault-key.bin', 'vault-key-new.bin'];
+
+/* 记一行日志。既打到控制台，也写进项目里的 desktop-launch.log ——
+   双击启动时控制台是最小化的，出问题把那个日志发给开发者就能定位。 */
+const LOG_FILE = path.join(ROOT, 'desktop-launch.log');
+function log(msg) {
+  const line = '[' + new Date().toLocaleString() + '] ' + msg;
+  console.log(line);
+  try { fs.appendFileSync(LOG_FILE, line + os.EOL); } catch (e) { /* 写不了就算了 */ }
+}
 
 /* ---------------------------------------------------------------------------
    静态文件白名单：只发这几个形状的路径
@@ -112,6 +122,7 @@ function findKeyFiles() {
    服务
    --------------------------------------------------------------------------- */
 let lastSeen = Date.now();     // 最后一次收到页面心跳的时间
+let everPinged = false;        // 窗口有没有真的连上来过（用来确认启动成功）
 
 function sendJson(res, obj, status) {
   res.writeHead(status || 200, {
@@ -136,7 +147,15 @@ const server = http.createServer(async (req, res) => {
 
   // ---- 桌面能力接口 ----
   if (urlPath.startsWith('/api/desktop/')) {
-    if (urlPath === '/api/desktop/ping') { lastSeen = Date.now(); return sendJson(res, { ok: true }); }
+    if (urlPath === '/api/desktop/ping') {
+      lastSeen = Date.now();
+      // 第一次收到心跳 = 窗口真的打开了。记一行，出问题时好排查。
+      if (!everPinged) {
+        everPinged = true;
+        log('窗口已连上，可以开始用了。');
+      }
+      return sendJson(res, { ok: true });
+    }
     if (urlPath === '/api/desktop/drives') return sendJson(res, listDrives());
     if (urlPath === '/api/desktop/keys') return sendJson(res, findKeyFiles());
     if (urlPath === '/api/desktop/read') {
@@ -204,16 +223,16 @@ function findBrowser() {
 /* ---------------------------------------------------------------------------
    启动
    --------------------------------------------------------------------------- */
-// 加 --no-browser 就只起服务、不开窗口（用来检查服务本身是否正常）
-const NO_BROWSER = process.argv.includes('--no-browser');
+// 加 --no-browser（或环境变量 VAULT_NO_BROWSER=1）就只起服务、不开窗口
+const NO_BROWSER = process.argv.includes('--no-browser') || process.env.VAULT_NO_BROWSER === '1';
 
 server.listen(0, '127.0.0.1', () => {
   const port = server.address().port;
   const url = 'http://127.0.0.1:' + port + '/';
 
   if (NO_BROWSER) {
-    console.log('PORT=' + port);
-    console.log('（--no-browser 模式：只起服务，不开窗口）');
+    log('PORT=' + port);
+    log('（--no-browser 模式：只起服务，不开窗口）');
     return;
   }
 
@@ -224,15 +243,15 @@ server.listen(0, '127.0.0.1', () => {
       detached: true,
       stdio: 'ignore'
     }).unref();
-    console.log('保险库已启动。关掉那个窗口就能退出。');
+    log('保险库已启动，正在打开窗口……');
   } else {
-    console.log('没找到 Edge / Chrome，请手动用浏览器打开： ' + url);
+    log('没找到 Edge / Chrome，请手动用浏览器打开： ' + url);
   }
 
   // 心跳看门狗：30 秒收不到页面心跳，说明窗口关了 → 自己退出
   setInterval(() => {
     if (Date.now() - lastSeen > 30000) {
-      console.log('窗口已关闭，退出。');
+      log('窗口已关闭，退出。');
       process.exit(0);
     }
   }, 5000);

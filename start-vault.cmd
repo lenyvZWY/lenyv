@@ -1,22 +1,31 @@
 @echo off
+setlocal
 rem ============================================================
-rem  保险库 · 桌面版启动器
-rem  双击这个文件，就会弹出保险库的独立窗口（没有地址栏、没有标签页）。
-rem  关掉那个窗口，程序自己就退出了。
+rem  Vault launcher. Double-click this file.
 rem ============================================================
 cd /d "%~dp0"
 
+set "LOG=%~dp0desktop-launch.log"
+echo ==== launch %DATE% %TIME% ==== > "%LOG%"
+echo cwd=%CD% >> "%LOG%"
+
 set "NODE="
-where node >nul 2>nul && set "NODE=node"
-if not defined NODE if exist "%USERPROFILE%\.workbuddy\binaries\node\versions\22.22.2-6\node.exe" set "NODE=%USERPROFILE%\.workbuddy\binaries\node\versions\22.22.2-6\node.exe"
+where node >nul 2>nul
+if %errorlevel%==0 set "NODE=node"
+if defined NODE goto run
+if exist "%USERPROFILE%\.workbuddy\binaries\node\versions\22.22.2-6\node.exe" set "NODE=%USERPROFILE%\.workbuddy\binaries\node\versions\22.22.2-6\node.exe"
+if defined NODE goto run
+goto nonode
 
-if not defined NODE (
-  echo.
-  echo   [X] 没找到 Node.js，装一个 Node.js 之后再来双击这个文件。
-  echo.
-  pause
-  exit /b 1
-)
+:run
+echo node=%NODE% >> "%LOG%"
+start "Vault" /min "%NODE%" "%~dp0desktop\launcher.cjs"
+exit /b 0
 
-"%NODE%" desktop\launcher.cjs
-if errorlevel 1 pause
+:nonode
+echo Node.js not found >> "%LOG%"
+echo.
+echo   [X] Node.js not found. Please install Node.js first.
+echo.
+pause
+exit /b 1
