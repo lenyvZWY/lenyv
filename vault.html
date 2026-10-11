@@ -45,13 +45,20 @@
           <div class="field">
             <label for="setup-password">② 主密码（可选，建议设置）</label>
             <p class="hint">设了它，就需要「U 盘 + 主密码」两样一起才能开门；不设，则只靠 U 盘。</p>
-            <input id="setup-password" type="password" autocomplete="new-password" placeholder="留空 = 只用 U 盘">
-            <input id="setup-password2" type="password" autocomplete="new-password" placeholder="再输一次">
+            <div class="pw-row">
+              <input id="setup-password" type="password" autocomplete="new-password" placeholder="留空 = 只用 U 盘">
+              <button class="mini pw-toggle" type="button">显示</button>
+            </div>
+            <div class="pw-row">
+              <input id="setup-password2" type="password" autocomplete="new-password" placeholder="再输一次">
+              <button class="mini pw-toggle" type="button">显示</button>
+            </div>
+            <p id="setup-pw-hint" class="hint muted">看不清就先点「显示」，确认没打错再创建。</p>
           </div>
 
           <button id="btn-create" class="btn btn-primary" type="button">创建保险库</button>
           <p class="hint muted" style="margin-top:12px">提示：钥匙文件请留个备份。丢了它、又没设恢复问题，就打不开了。</p>
-          <p id="setup-msg" class="msg"></p>
+          <div id="setup-msg" class="msg"></div>
         </div>
 
         <!-- 已有保险库：解锁 -->
@@ -67,7 +74,10 @@
                 <input id="input-key-file" type="file" accept=".bin,.key,.txt,application/octet-stream">
               </label>
               <p id="unlock-key-status" class="hint muted">尚未选择密钥文件</p>
-              <input id="unlock-password" type="password" autocomplete="current-password" placeholder="主密码（如果设过）">
+              <div class="pw-row">
+                <input id="unlock-password" type="password" autocomplete="current-password" placeholder="主密码（如果设过）">
+                <button class="mini pw-toggle" type="button">显示</button>
+              </div>
             </div>
             <button id="btn-unlock" class="btn btn-primary" type="button">解锁</button>
           </div>
@@ -76,11 +86,14 @@
             <div id="recovery-not-set" class="placeholder hidden">这个保险库还没有设置恢复问题 —— 钥匙口还在，只是还没有配钥匙。</div>
             <div id="recovery-form" class="field hidden">
               <label id="recovery-question" for="recovery-answer">你今天什么心情？</label>
-              <input id="recovery-answer" type="password" autocomplete="off" placeholder="说出那句只有你们知道的话">
+              <div class="pw-row">
+                <input id="recovery-answer" type="password" autocomplete="off" placeholder="说出那句只有你们知道的话">
+                <button class="mini pw-toggle" type="button">显示</button>
+              </div>
               <button id="btn-unlock-recovery" class="btn btn-primary" type="button">用答案解锁</button>
             </div>
           </div>
-          <p id="unlock-msg" class="msg"></p>
+          <div id="unlock-msg" class="msg"></div>
         </div>
       </section>
 
@@ -123,7 +136,8 @@
           · 你的密码用 <strong>AES-GCM</strong> 加密后才写进这台设备的浏览器数据库（IndexedDB）。<br>
           · 开门的钥匙由「U 盘密钥文件 + 主密码」推出来，<strong>只在你解锁时短暂存在于内存</strong>，刷新页面即消失。<br>
           · 所以：关掉网页 = 门自动锁上；别人拿到你的电脑，没有 U 盘也打不开。<br>
-          · U 盘密钥文件请备份一份。真丢了，就用「恢复问题」那把钥匙开门，然后换一把新钥匙。
+          · U 盘密钥文件请备份一份。真丢了，就用「恢复问题」那把钥匙开门，然后换一把新钥匙。<br>
+          · 数据存放位置：<strong id="storage-note">检测中……</strong>
         </div>
       </section>
 
@@ -158,7 +172,12 @@
       <h3>恢复问题</h3>
       <p class="hint">如果 U 盘坏了或丢了，就用这个问题的答案开门。答案应该是<strong>只有你和被问的人知道</strong>的一句话。</p>
       <div class="field" style="margin-top:20px"><label for="r-question">问题</label><input id="r-question" type="text" placeholder="你今天什么心情？"></div>
-      <div class="field"><label for="r-answer">答案</label><input id="r-answer" type="text" autocomplete="off" placeholder="例如：冷羽什么心情我就什么心情"></div>
+      <div class="field"><label for="r-answer">答案</label>
+        <div class="pw-row">
+          <input id="r-answer" type="password" autocomplete="off" placeholder="例如：冷羽什么心情我就什么心情">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+      </div>
       <p class="hint muted" style="margin-top:-8px">当前状态：<span id="r-status">未设置</span></p>
       <div class="modal-actions">
         <button id="btn-r-cancel" class="btn btn-ghost" type="button">取消</button>
@@ -182,14 +201,20 @@
         <p id="k-status" class="hint muted">尚未选择</p>
       </div>
       <div class="field">
-        <input id="k-pass" type="password" autocomplete="new-password" placeholder="新的主密码（可留空）">
-        <input id="k-pass2" type="password" autocomplete="new-password" placeholder="再输一次">
+        <div class="pw-row">
+          <input id="k-pass" type="password" autocomplete="new-password" placeholder="新的主密码（可留空）">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
+        <div class="pw-row">
+          <input id="k-pass2" type="password" autocomplete="new-password" placeholder="再输一次">
+          <button class="mini pw-toggle" type="button">显示</button>
+        </div>
       </div>
       <div class="modal-actions">
         <button id="btn-k-cancel" class="btn btn-ghost" type="button">取消</button>
         <button id="btn-k-save" class="btn btn-primary" type="button">保存</button>
       </div>
-      <p id="k-msg" class="msg"></p>
+      <div id="k-msg" class="msg"></div>
     </div>
   </div>
 

@@ -51,6 +51,74 @@
   function show(el) { if (el) el.classList.remove('hidden'); }
   function hide(el) { if (el) el.classList.add('hidden'); }
 
+  // ---------------- 报错翻译成人话 ----------------
+  var ERROR_ZH = {
+    // 本程序自己抛出的
+    WRONG_KEY: '打不开：密钥文件或主密码不对。先确认 U 盘里的那个文件选对了没有。',
+    RECOVERY_WRONG: '打不开：答案不对。再想想那句话是怎么说的。',
+    NO_RECOVERY: '这个保险库还没有设置恢复问题，所以这条路暂时走不通。',
+    NO_VAULT: '这台设备上还没有保险库。',
+    BAD_FILE: '这不是有效的 lenyv 保险库备份文件。',
+    STORAGE_BLOCKED: '浏览器不让这个页面保存数据。如果你是在「预览小窗口」里打开的，请改用真正的浏览器窗口打开本页；如果是无痕模式，请换成普通窗口。',
+    STORAGE_ABORTED: '写入本地存储时被打断了，请再试一次。',
+    STORAGE_FULL: '本地存储空间不够了，清理一点浏览器数据再试。',
+    // 浏览器发出的（名称 → 中文）
+    NotAllowedError: '浏览器拒绝了这次操作。如果你正在用「无痕 / 隐私模式」，请换成普通窗口打开本页。',
+    SecurityError: '浏览器出于安全策略挡住了本地存储。请用普通窗口（不是无痕模式）打开本页。',
+    QuotaExceededError: '本地存储空间不够了，清理一点浏览器数据再试。',
+    InvalidStateError: '本地数据库状态异常，写不进去。刷新页面重来一次通常就好了。',
+    VersionError: '本地数据库版本对不上，无法打开。',
+    ConstraintError: '本地数据库写入冲突，请重试。',
+    TransactionInactiveError: '本地数据库事务已结束，请重试。',
+    AbortError: '操作被中断了，请重试一次。',
+    DataError: '数据格式有问题，处理不了。',
+    OperationError: '加密操作没能完成。请确认密钥文件是完好的、没被别人改过。',
+    UnknownError: '浏览器报了一个未知错误，请重试。',
+    NetworkError: '本地存储被占用，请关掉其他打开了本页的标签页再试。'
+  };
+
+  function friendlyError(err) {
+    if (!err) return '没能完成，请再试一次。';
+    if (typeof err === 'string') return ERROR_ZH[err] || '没能完成，请再试一次。';
+    if (err.message && ERROR_ZH[err.message]) return ERROR_ZH[err.message];
+    if (err.name && ERROR_ZH[err.name]) return ERROR_ZH[err.name];
+    if (err.name === 'TypeError') {
+      return '这个浏览器缺少所需的加密功能。请用较新的 Chrome / Edge / Firefox，并通过 https 或 localhost 打开本页。';
+    }
+    var m = String(err.message || '');
+    if (/indexeddb|database|transaction/i.test(m)) return '本地数据库打不开。如果你在用「无痕 / 隐私模式」，换成普通窗口再试。';
+    if (/storage|quota/i.test(m)) return '本地存储不可用，换成普通窗口再试。';
+    return '没能完成，请再试一次。';
+  }
+
+  // 中文主提示 + 可折叠的英文技术细节（方便排查，看不懂可忽略）
+  function showError(el, prefix, err) {
+    if (!el) return;
+    el.textContent = '';
+    el.classList.remove('is-ok');
+    el.classList.add('is-err');
+    var span = document.createElement('span');
+    span.textContent = (prefix || '') + friendlyError(err);
+    el.appendChild(span);
+
+    var detail = '';
+    if (err) {
+      detail = (typeof err === 'string') ? err
+        : ((err.name ? err.name + ': ' : '') + (err.message || ''));
+    }
+    if (detail && detail.replace(/[:\s]/g, '') !== '') {
+      var box = document.createElement('details');
+      box.className = 'tech';
+      var sum = document.createElement('summary');
+      sum.textContent = '技术细节（看不懂可忽略；需要我帮忙时复制这段给我）';
+      var code = document.createElement('code');
+      code.textContent = detail;
+      box.appendChild(sum);
+      box.appendChild(code);
+      el.appendChild(box);
+    }
+  }
+
   // ---------------- 加密 ----------------
   function deriveAesKey(passphrase, saltBytes) {
     return crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey'])
@@ -75,7 +143,31 @@
     return crypto.subtle.importKey('raw', mat, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   }
 
-  // ---------------- IndexedDB ----------------
+  // ---------------- 存储层 ----------------
+  // 首选 IndexedDB；若浏览器禁用、无痕模式、或预览面板里不可用，自动降级到 localStorage。
+  var LS_KEY = 'lenyv_vault_record_v1';
+  var idbUsable = null; // null = 还没探测过
+
+  function probeStorage() {
+    if (idbUsable !== null) return Promise.resolve(idbUsable);
+    return new Promise(function (resolve) {
+      var done = false;
+      function finish(v) { if (done) return; done = true; idbUsable = v; resolve(v); }
+      if (!window.indexedDB) return finish(false);
+      var t = setTimeout(function () { finish(false); }, 2500);
+      try {
+        var rq = indexedDB.open(DB_NAME, 1);
+        rq.onupgradeneeded = function () {
+          var db = rq.result;
+          if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+        };
+        rq.onsuccess = function () { clearTimeout(t); try { rq.result.close(); } catch (e) { /* ignore */ } finish(true); };
+        rq.onerror = function () { clearTimeout(t); finish(false); };
+        rq.onblocked = function () { clearTimeout(t); finish(false); };
+      } catch (e) { clearTimeout(t); finish(false); }
+    });
+  }
+
   function openDB() {
     return new Promise(function (res, rej) {
       var rq = indexedDB.open(DB_NAME, 1);
@@ -84,26 +176,64 @@
         if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
       };
       rq.onsuccess = function () { res(rq.result); };
-      rq.onerror = function () { rej(rq.error); };
+      rq.onerror = function () { rej(rq.error || new Error('STORAGE_BLOCKED')); };
+      rq.onblocked = function () { rej(new Error('STORAGE_BLOCKED')); };
     });
   }
-  function dbGet(id) {
+  function idbGet(id) {
     return openDB().then(function (db) {
       return new Promise(function (res, rej) {
         var rq = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
-        rq.onsuccess = function () { res(rq.result); };
+        rq.onsuccess = function () { res(rq.result || null); };
         rq.onerror = function () { rej(rq.error); };
       });
     });
   }
-  function dbPut(rec) {
+  function idbPut(rec) {
     return openDB().then(function (db) {
       return new Promise(function (res, rej) {
         var tx = db.transaction(STORE, 'readwrite');
         tx.objectStore(STORE).put(rec);
         tx.oncomplete = function () { res(); };
-        tx.onerror = function () { rej(tx.error); };
+        tx.onerror = function () { rej(tx.error || new Error('STORAGE_ABORTED')); };
+        tx.onabort = function () { rej(tx.error || new Error('STORAGE_ABORTED')); };
       });
+    });
+  }
+  function lsGet() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      var obj = JSON.parse(raw);
+      return (obj && obj.id) ? obj : null;
+    } catch (e) { return null; }
+  }
+  function lsPut(rec) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(rec)); }
+    catch (e) {
+      if (e && (e.name === 'SecurityError' || e.name === 'NotAllowedError')) throw new Error('STORAGE_BLOCKED');
+      throw new Error('STORAGE_FULL');
+    }
+  }
+  function lsClear() { try { localStorage.removeItem(LS_KEY); } catch (e) { /* ignore */ } }
+
+  function storeGet(id) {
+    return probeStorage().then(function (useIdb) {
+      if (!useIdb) return lsGet();
+      return idbGet(id).then(function (rec) {
+        return rec || lsGet();
+      }, function () { return lsGet(); });
+    });
+  }
+  function storePut(rec) {
+    return probeStorage().then(function (useIdb) {
+      if (!useIdb) { lsPut(rec); return; }
+      return idbPut(rec).then(function () { lsClear(); }, function () { lsPut(rec); });
+    });
+  }
+  function storageLabel() {
+    return probeStorage().then(function (useIdb) {
+      return useIdb ? '浏览器本地数据库（IndexedDB）' : '浏览器本地存储（localStorage · 降级模式）';
     });
   }
 
@@ -173,7 +303,7 @@
         data: null,
         recovery: null
       };
-      return dbPut(rec).then(function () {
+      return storePut(rec).then(function () {
         record = rec; vaultKeyMat = r.mat; entries = [];
         enterVault();
       });
@@ -225,7 +355,7 @@
       return encryptBytes(k, enc.encode(JSON.stringify(entries))).then(function (blob) {
         record.data = blob;
         record.updatedAt = Date.now();
-        return dbPut(record);
+        return storePut(record);
       });
     });
   }
@@ -238,7 +368,7 @@
     }).then(function (wrap) {
       record.recovery = { question: question, salt: u8ToB64(salt), wrap: wrap };
       record.updatedAt = Date.now();
-      return dbPut(record);
+      return storePut(record);
     });
   }
 
@@ -250,7 +380,7 @@
     }).then(function (wrap) {
       record.primary = { wrap: wrap };
       record.updatedAt = Date.now();
-      return dbPut(record);
+      return storePut(record);
     });
   }
 
@@ -271,6 +401,11 @@
     ['#unlock-password', '#recovery-answer', '#setup-password', '#setup-password2'].forEach(function (s) {
       var el = $(s); if (el) el.value = '';
     });
+    // 把所有「显示」按钮复位成隐藏状态
+    $$('.pw-toggle').forEach(function (b) { b.textContent = '显示'; });
+    $$('.pw-row input').forEach(function (i) { i.type = 'password'; });
+    var hint = $('#setup-pw-hint');
+    if (hint) { hint.textContent = '看不清就先点「显示」，确认没打错再创建。'; hint.classList.remove('is-ok', 'is-err'); }
     refreshLockUI();
   }
 
@@ -466,7 +601,7 @@
       var obj = JSON.parse(dec.decode(bytes));
       var rec = obj && obj.record ? obj.record : obj;
       if (!rec || !rec.primary || !rec.verifier) throw new Error('BAD_FILE');
-      return dbPut(rec).then(function () {
+      return storePut(rec).then(function () {
         record = rec;
         alert('导入成功。请用这份备份对应的钥匙解锁。');
         lock();
@@ -488,6 +623,38 @@
         $('#tab-recovery').classList.toggle('hidden', name !== 'recovery');
       });
     });
+
+    // 密码「显示 / 隐藏」：全站通用，点一下就能看清自己输了什么
+    document.addEventListener('click', function (ev) {
+      var btn = (ev.target && ev.target.closest) ? ev.target.closest('.pw-toggle') : null;
+      if (!btn) return;
+      var row = btn.closest('.pw-row');
+      var input = row ? row.querySelector('input') : null;
+      if (!input) return;
+      var willShow = input.type === 'password';
+      input.type = willShow ? 'text' : 'password';
+      btn.textContent = willShow ? '隐藏' : '显示';
+      input.focus();
+    });
+
+    // 创建时的实时提示：输了几个字符 / 两次是否一致
+    function updatePwHint() {
+      var el = $('#setup-pw-hint');
+      if (!el) return;
+      var p1 = $('#setup-password').value, p2 = $('#setup-password2').value;
+      el.classList.remove('is-ok', 'is-err');
+      if (!p1 && !p2) { el.textContent = '看不清就先点「显示」，确认没打错再创建。'; return; }
+      if (!p1) { el.textContent = '下面那栏已输入 ' + p2.length + ' 个字符；上面那栏还没填。'; return; }
+      if (p1 !== p2) {
+        el.textContent = '两次输入不一致（上面 ' + p1.length + ' 个字符，下面 ' + p2.length + ' 个字符）。';
+        el.classList.add('is-err');
+        return;
+      }
+      el.textContent = '两次一致，共 ' + p1.length + ' 个字符，可以创建了。';
+      el.classList.add('is-ok');
+    }
+    $('#setup-password').addEventListener('input', updatePwHint);
+    $('#setup-password2').addEventListener('input', updatePwHint);
 
     // 生成密钥文件（首次创建）
     $('#btn-generate-key').addEventListener('click', function () {
@@ -514,7 +681,7 @@
         setupKeyBytes = null;
         setMsg($('#setup-msg'), '');
       }).catch(function (e) {
-        setMsg($('#setup-msg'), '创建失败：' + (e && e.message ? e.message : e), 'err');
+        showError($('#setup-msg'), '创建失败：', e);
       });
     });
 
@@ -534,8 +701,8 @@
       unlockWithPrimary(unlockBytes, $('#unlock-password').value).then(function () {
         unlockBytes = null;
         setMsg($('#unlock-msg'), '');
-      }).catch(function () {
-        setMsg($('#unlock-msg'), '打不开：密钥文件或主密码不对。', 'err');
+      }).catch(function (e) {
+        showError($('#unlock-msg'), '', e);
       });
     });
 
@@ -547,8 +714,9 @@
       Promise.resolve().then(function () { return unlockWithRecovery(ans); }).then(function () {
         $('#recovery-answer').value = '';
         setMsg($('#unlock-msg'), '');
-      }).catch(function () {
-        setMsg($('#unlock-msg'), '打不开：答案不对，或者还没有设置恢复问题。', 'err');
+      }).catch(function (e) {
+        if (e && e.message === 'NO_RECOVERY') { showError($('#unlock-msg'), '', e); return; }
+        showError($('#unlock-msg'), '', new Error('RECOVERY_WRONG'));
       });
     });
 
@@ -621,7 +789,7 @@
         hide($('#key-modal'));
         alert('钥匙已更换。旧钥匙从此刻起失效。');
       }).catch(function (e) {
-        setMsg($('#k-msg'), '保存失败：' + (e && e.message ? e.message : e), 'err');
+        showError($('#k-msg'), '保存失败：', e);
       });
     });
 
@@ -643,7 +811,11 @@
       return;
     }
     bind();
-    dbGet(REC_ID).then(function (rec) {
+    storageLabel().then(function (label) {
+      var el = $('#storage-note');
+      if (el) el.textContent = label;
+    });
+    storeGet(REC_ID).then(function (rec) {
       record = rec || null;
       refreshLockUI();
     }, function () {
