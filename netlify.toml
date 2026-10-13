@@ -83,6 +83,13 @@
   status = 404
   force = true
 
+# 启动脚本也别给人看（里面带本机路径）
+[[redirects]]
+  from = "/start-vault.cmd"
+  to = "/404"
+  status = 404
+  force = true
+
 # ---- 安全响应头 ----
 [[headers]]
   for = "/*"
