@@ -53,7 +53,7 @@ const MIME = {
 };
 const ALLOWED = [
   /^\/$/,
-  /^\/index\.html$/,
+  /^\/vault\.html$/,
   /^\/favicon\.ico$/,
   /^\/assets\/css\/[A-Za-z0-9_.-]+$/,
   /^\/assets\/js\/[A-Za-z0-9_.-]+$/,
@@ -180,7 +180,7 @@ const server = http.createServer(async (req, res) => {
     return res.end('Not found');
   }
 
-  const rel = urlPath === '/' ? 'index.html' : urlPath.slice(1);
+  const rel = urlPath === '/' ? 'vault.html' : urlPath.slice(1);
   const resolved = path.resolve(path.join(ROOT, rel));
   // 双保险：路径必须还在项目目录里（防目录穿越）
   if (!resolved.startsWith(path.resolve(ROOT))) {
@@ -196,7 +196,7 @@ const server = http.createServer(async (req, res) => {
     let out = text;
     // 首页：把「桌面能力桥」注入进去。
     // 必须在 vault.js **之前**注入 —— 因为 vault.js 一加载就会读 window.desktop。
-    if (rel === 'index.html') {
+    if (rel === 'vault.html') {
       out = out.replace('<script src="/assets/js/vault.js"></script>', BRIDGE + '\n  <script src="/assets/js/vault.js"></script>');
     }
     res.writeHead(200, { 'content-type': MIME[path.extname(resolved).toLowerCase()] || 'application/octet-stream', 'cache-control': 'no-store' });

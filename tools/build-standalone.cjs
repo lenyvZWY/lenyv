@@ -7,8 +7,8 @@
    运行：  node tools/build-standalone.cjs
    （需在项目根目录运行）
 
-   原理：直接读真实的 index.html 做替换，而不是另抄一份模板 ——
-   这样以后改了 index.html，重新跑一遍就能同步，不会两份代码各走各的。
+   原理：直接读真实的 vault.html 做替换，而不是另抄一份模板 ——
+   这样以后改了 vault.html，重新跑一遍就能同步，不会两份代码各走各的。
    ============================================================ */
 'use strict';
 const fs = require('fs');
@@ -26,7 +26,7 @@ const CSS_FILES = ['assets/css/tokens.css', 'assets/css/main.css', 'assets/css/v
 const css = CSS_FILES.map(read).join('\n\n');
 const vaultJs = read('assets/js/vault.js');
 
-let html = read('index.html');
+let html = read('vault.html');
 
 /* ---- 1. 去掉联网依赖 ----
    离线版不联网：Google 字体（用系统字体兜底）和云服务 SDK 都去掉。

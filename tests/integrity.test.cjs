@@ -26,7 +26,7 @@ fs.mkdirSync(usbDir, { recursive: true });
 
 // 假程序文件
 const FILES = {
-  'index.html': 'A',
+  'vault.html': 'A',
   'assets/js/vault.js': 'B',
   'desktop/main.cjs': 'C'
 };
@@ -66,10 +66,10 @@ section('[3] 文件被改 → 发现');
 {
   writeFiles();
   writeManifest(manifestOf());
-  fs.writeFileSync(path.join(appDir, 'index.html'), 'A-modified');
+  fs.writeFileSync(path.join(appDir, 'vault.html'), 'A-modified');
   const r = checkIntegrity(appDir, []);
   ok(r.ok === false, '被改后 → 不通过');
-  ok(r.problems.some(p => p.includes('index.html')), '能指出是 index.html 被改');
+  ok(r.problems.some(p => p.includes('vault.html')), '能指出是 vault.html 被改');
 }
 
 section('[4] 文件被删 → 发现');

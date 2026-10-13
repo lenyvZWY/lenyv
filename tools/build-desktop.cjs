@@ -26,7 +26,7 @@ const OUT_APP = path.join(OUT_DIR, APP_NAME);
 const ELECTRON_DIST = path.join(ROOT, 'node_modules', 'electron', 'dist');
 
 /* 要放进程序里的东西（其余一概不带：测试、工具、Netlify 函数都用不上） */
-const INCLUDE = ['index.html', 'assets', 'download', 'desktop'];
+const INCLUDE = ['vault.html', 'assets', 'download', 'desktop'];
 
 function copyDir(from, to, { skip = [] } = {}) {
   fs.mkdirSync(to, { recursive: true });
@@ -95,7 +95,7 @@ console.log('  ✔ 已写入程序清单');
 const crypto = require('crypto');
 
 const WATCH = [
-  'index.html',
+  'vault.html',
   'assets/js/vault.js',
   'assets/css/tokens.css',
   'assets/css/main.css',
@@ -159,7 +159,7 @@ if (!usbDrives.length) {
 // ---- 8. 自检 ----
 const problems = [];
 if (!fs.existsSync(exeTo)) problems.push('主程序 exe 不存在');
-if (!fs.existsSync(path.join(appDir, 'index.html'))) problems.push('index.html 没进去');
+if (!fs.existsSync(path.join(appDir, 'vault.html'))) problems.push('vault.html 没进去');
 if (!fs.existsSync(path.join(appDir, 'assets/js/vault.js'))) problems.push('vault.js 没进去');
 if (!fs.existsSync(path.join(appDir, 'desktop/main.cjs'))) problems.push('main.cjs 没进去');
 if (!fs.existsSync(path.join(appDir, 'integrity.json'))) problems.push('指纹清单没生成');

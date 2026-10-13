@@ -90,7 +90,7 @@ const MIME = {
 // 白名单：只有这些形状的路径会被发出去，别的一律 404
 const ALLOWED = [
   /^\/$/,
-  /^\/index\.html$/,
+  /^\/vault\.html$/,
   /^\/favicon\.ico$/,
   /^\/assets\/css\/[A-Za-z0-9_.-]+$/,
   /^\/assets\/js\/[A-Za-z0-9_.-]+$/,
@@ -109,7 +109,7 @@ function startServer() {
         return;
       }
 
-      const rel = urlPath === '/' ? 'index.html' : urlPath.slice(1);
+      const rel = urlPath === '/' ? 'vault.html' : urlPath.slice(1);
       const filePath = path.join(ROOT, rel);
 
       // 双保险：解析出来的路径必须还在项目目录里面（防目录穿越）
