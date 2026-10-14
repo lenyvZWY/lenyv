@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>世界时钟</title>
+  <meta name="description" content="一眼看到各国现在几点，以及和北京时间差多少。出国订机票、约视频会议都用得上。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .clock-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+    .clock{border:1px solid var(--border);border-radius:var(--r-md);padding:var(--sp-4);background:var(--bg-elev)}
+    .clock .city{font-size:.88rem;color:var(--text-soft)}
+    .clock .t{font-family:var(--font-display);font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+    .clock .d{font-size:.8rem;color:var(--text-soft);margin-top:2px}
+    .clock .df{font-size:.8rem;margin-top:6px;color:var(--brand)}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>世界时钟</h1>
+      <p>下表每秒自己走。时差那一列是<strong>当地时间减本地时间</strong>，正数表示比你早。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <div>
+          <div class="hint muted">你这里现在</div>
+          <div id="local" style="font-family:var(--font-display);font-size:1.5rem;font-weight:700">—</div>
+        </div>
+        <div style="text-align:right">
+          <div class="hint muted">对比基准</div>
+          <select id="base" style="min-width:180px"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="clock-grid" id="grid"></div>
+
+    <p class="hint muted" style="margin-top:var(--sp-5)">
+      时间用的是你电脑上装的时区数据库，各国夏令时会自动跟着变。
+    </p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  var CITIES = [
+    ['北京', 'Asia/Shanghai'], ['香港', 'Asia/Hong_Kong'], ['台北', 'Asia/Taipei'],
+    ['东京', 'Asia/Tokyo'], ['首尔', 'Asia/Seoul'], ['新加坡', 'Asia/Singapore'],
+    ['曼谷', 'Asia/Bangkok'], ['新德里', 'Asia/Kolkata'], ['迪拜', 'Asia/Dubai'],
+    ['莫斯科', 'Europe/Moscow'], ['柏林', 'Europe/Berlin'], ['巴黎', 'Europe/Paris'],
+    ['罗马', 'Europe/Rome'], ['伦敦', 'Europe/London'], ['纽约', 'America/New_York'],
+    ['多伦多', 'America/Toronto'], ['芝加哥', 'America/Chicago'], ['洛杉矶', 'America/Los_Angeles'],
+    ['墨西哥城', 'America/Mexico_City'], ['圣保罗', 'America/Sao_Paulo'],
+    ['悉尼', 'Australia/Sydney'], ['奥克兰', 'Pacific/Auckland']
+  ];
+
+  function parts(date, tz) {
+    var dtf = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    var p = {};
+    dtf.formatToParts(date).forEach(function (x) { p[x.type] = x.value; });
+    return p;
+  }
+  /* 这个时区此刻相对 UTC 偏移了多少分钟 */
+  function offsetMin(date, tz) {
+    var p = parts(date, tz);
+    var asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, (+p.hour) % 24, +p.minute, +p.second);
+    return Math.round((asUTC - date.getTime()) / 60000);
+  }
+  function hhmm(p) { return String((+p.hour) % 24).padStart(2, '0') + ':' + p.minute; }
+  function diffText(mins) {
+    if (mins === 0) return '和你同时';
+    var sign = mins > 0 ? '+' : '−';
+    var a = Math.abs(mins);
+    var h = Math.floor(a / 60), m = a % 60;
+    return sign + h + (m ? ':' + String(m).padStart(2, '0') : '') + ' 小时';
+  }
+
+  var baseSel = document.getElementById('base');
+  CITIES.forEach(function (c, i) {
+    var o = document.createElement('option'); o.value = i; o.textContent = c[0];
+    baseSel.appendChild(o);
+  });
+  var localOpt = document.createElement('option');
+  localOpt.value = '-1'; localOpt.textContent = '本地时间';
+  baseSel.insertBefore(localOpt, baseSel.firstChild);
+  baseSel.value = '0'; // 默认拿北京当基准
+
+  var grid = document.getElementById('grid');
+  var cards = CITIES.map(function (c) {
+    var box = document.createElement('div');
+    box.className = 'clock';
+    var city = document.createElement('div'); city.className = 'city'; city.textContent = c[0];
+    var t = document.createElement('div'); t.className = 't'; t.textContent = '—';
+    var d = document.createElement('div'); d.className = 'd'; d.textContent = '—';
+    var df = document.createElement('div'); df.className = 'df'; df.textContent = '—';
+    box.appendChild(city); box.appendChild(t); box.appendChild(d); box.appendChild(df);
+    grid.appendChild(box);
+    return { tz: c[1], t: t, d: d, df: df };
+  });
+
+  function tick() {
+    var now = new Date();
+    var lp = parts(now, undefined);
+    document.getElementById('local').textContent = hhmm(lp) + '（本地）';
+
+    var bi = parseInt(baseSel.value, 10);
+    var localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var baseOff = bi === -1 ? offsetMin(now, localTz) : offsetMin(now, CITIES[bi][1]);
+    var baseLabel = bi === -1 ? '本地' : CITIES[bi][0];
+
+    cards.forEach(function (c) {
+      var p = parts(now, c.tz);
+      c.t.textContent = hhmm(p);
+      c.d.textContent = p.month + ' 月 ' + (+p.day) + ' 日';
+      var diff = offsetMin(now, c.tz) - baseOff;
+      c.df.textContent = '与' + baseLabel + '差 ' + diffText(diff);
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+  baseSel.addEventListener('change', tick);
+  </script>
+</body>
+</html>

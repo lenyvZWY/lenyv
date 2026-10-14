@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>工具箱</title>
-  <meta name="description" content="给初中生用的小工具，点开就能用，不用装、不用联网。">
+  <meta name="description" content="二十来个小工具：学习、生活、出国都用得上。点开就能用，不用装、不用联网。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -13,6 +13,10 @@
   <link rel="stylesheet" href="/assets/css/tools.css">
   <style>
     #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .cat{margin-bottom:var(--sp-7)}
+    .cat h2{font-family:var(--font-display);font-size:1.15rem;margin:0 0 var(--sp-4);
+      padding-bottom:var(--sp-2);border-bottom:1px solid var(--border)}
+    .cat p.lead{color:var(--text-soft);font-size:.9rem;margin:-8px 0 var(--sp-4)}
   </style>
 </head>
 <body data-page="apps">
@@ -30,73 +34,201 @@
     </div>
   </header>
 
-  <main class="tool-page">
+  <main class="tool-page" style="max-width:900px">
     <div class="tool-head">
-      <span class="hero-eyebrow">初中生常用</span>
+      <span class="hero-eyebrow">学习 · 生活 · 出国</span>
       <h1>工具箱</h1>
-      <p>点开就能用。不用注册、不用联网、不装东西，算完关掉就走。</p>
+      <p>点开就能用。不用注册、不用联网、不装东西，算完关掉就走。<br>
+        每个工具页面的最下面，还会列出<strong>同类做得更好的免费网站</strong>，一键跳过去。</p>
     </div>
 
-    <div class="tool-grid">
-      <a class="card" href="calculator.html">
-        <span class="mark">算</span>
-        <h3>科学计算器</h3>
-        <p>四则、括号、平方、根号、三角函数。默认角度制，可切弧度。</p>
-      </a>
-      <a class="card" href="fraction.html">
-        <span class="mark">分</span>
-        <h3>分数计算器</h3>
-        <p>分数加减乘除，自动约分，同时给出小数和百分数。</p>
-      </a>
-      <a class="card" href="equation.html">
-        <span class="mark">解</span>
-        <h3>解方程</h3>
-        <p>一元一次、一元二次方程。带判别式、求根公式和过程。</p>
-      </a>
-      <a class="card" href="geometry.html">
-        <span class="mark">形</span>
-        <h3>图形计算</h3>
-        <p>三角形、圆、梯形、长方体、圆柱、圆锥、球的面积与体积。</p>
-      </a>
-      <a class="card" href="unit.html">
-        <span class="mark">换</span>
-        <h3>单位换算</h3>
-        <p>长度、质量、面积、体积、时间、温度、速度。含亩、斤、里。</p>
-      </a>
-      <a class="card" href="stats.html">
-        <span class="mark">统</span>
-        <h3>统计分析</h3>
-        <p>平均数、中位数、众数、极差、方差、标准差，一步出结果。</p>
-      </a>
-      <a class="card" href="physics.html">
-        <span class="mark">物</span>
-        <h3>物理公式</h3>
-        <p>速度、密度、压强、欧姆定律等。填两个，自动求第三个。</p>
-      </a>
-      <a class="card" href="base.html">
-        <span class="mark">码</span>
-        <h3>进制转换</h3>
-        <p>二进制、八进制、十进制、十六进制互转，信息技术课用得上。</p>
-      </a>
-      <a class="card" href="number.html">
-        <span class="mark">数</span>
-        <h3>数与因数</h3>
-        <p>判断质数、分解质因数、最大公约数、最小公倍数。</p>
-      </a>
-      <a class="card" href="countdown.html">
-        <span class="mark">钟</span>
-        <h3>倒计时与番茄钟</h3>
-        <p>中考倒计时，外加 25 分钟专注计时，到点响一声。</p>
-      </a>
-      <a class="card" href="random.html">
-        <span class="mark">抽</span>
-        <h3>随机抽签</h3>
-        <p>课堂点名、随机分组、抽签决定顺序。也能生成随机数。</p>
-      </a>
-    </div>
+    <section class="cat">
+      <h2>学习 · 算数</h2>
+      <div class="tool-grid">
+        <a class="card" href="calculator.html">
+          <span class="mark">算</span>
+          <h3>科学计算器</h3>
+          <p>四则、括号、平方、根号、三角函数。默认角度制，可切弧度。</p>
+        </a>
+        <a class="card" href="fraction.html">
+          <span class="mark">分</span>
+          <h3>分数计算器</h3>
+          <p>分数加减乘除，自动约分，同时给出小数和百分数。</p>
+        </a>
+        <a class="card" href="equation.html">
+          <span class="mark">解</span>
+          <h3>解方程</h3>
+          <p>一元一次、一元二次方程。带判别式、求根公式和过程。</p>
+        </a>
+        <a class="card" href="geometry.html">
+          <span class="mark">形</span>
+          <h3>图形计算</h3>
+          <p>三角形、圆、梯形、长方体、圆柱、圆锥、球的面积与体积。</p>
+        </a>
+        <a class="card" href="unit.html">
+          <span class="mark">换</span>
+          <h3>单位换算</h3>
+          <p>长度、质量、面积、体积、时间、温度、速度。含亩、斤、里。</p>
+        </a>
+        <a class="card" href="stats.html">
+          <span class="mark">统</span>
+          <h3>统计分析</h3>
+          <p>平均数、中位数、众数、极差、方差、标准差，一步出结果。</p>
+        </a>
+        <a class="card" href="physics.html">
+          <span class="mark">物</span>
+          <h3>物理公式</h3>
+          <p>速度、密度、压强、欧姆定律等。填两个，自动求第三个。</p>
+        </a>
+        <a class="card" href="base.html">
+          <span class="mark">码</span>
+          <h3>进制转换</h3>
+          <p>二进制、八进制、十进制、十六进制互转，信息技术课用得上。</p>
+        </a>
+        <a class="card" href="number.html">
+          <span class="mark">数</span>
+          <h3>数与因数</h3>
+          <p>判断质数、分解质因数、最大公约数、最小公倍数。</p>
+        </a>
+        <a class="card" href="percent.html">
+          <span class="mark">%</span>
+          <h3>百分比与折扣</h3>
+          <p>打折、涨价、反推原价、算占比、算涨幅。五种算法。</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="cat">
+      <h2>出国 · 在外</h2>
+      <div class="tool-grid">
+        <a class="card" href="currency.html">
+          <span class="mark">¥</span>
+          <h3>汇率换算</h3>
+          <p>二十多种货币。可联网更新汇率，断网就自己填，照样能用。</p>
+        </a>
+        <a class="card" href="worldclock.html">
+          <span class="mark">◷</span>
+          <h3>世界时钟</h3>
+          <p>22 个城市现在几点，跟北京时间差多少，夏令时自动算。</p>
+        </a>
+        <a class="card" href="tip.html">
+          <span class="mark">帐</span>
+          <h3>小费与分账</h3>
+          <p>按百分比算小费、含税价、AA 人均。附各国小费习惯。</p>
+        </a>
+        <a class="card" href="size.html">
+          <span class="mark">码</span>
+          <h3>尺码换算</h3>
+          <p>鞋码按脚长算（中/欧/美/英/日），衣服尺码各国对照表。</p>
+        </a>
+        <a class="card" href="datecalc.html">
+          <span class="mark">日</span>
+          <h3>日期计算</h3>
+          <p>相隔多少天、往前往后推算、查星期几、算年龄。</p>
+        </a>
+        <a class="card" href="text.html">
+          <span class="mark">文</span>
+          <h3>文本工具</h3>
+          <p>字数统计、大小写、去空格空行，URL 与 Base64 编解码。</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="cat">
+      <h2>生活 · 日常</h2>
+      <div class="tool-grid">
+        <a class="card" href="bmi.html">
+          <span class="mark">体</span>
+          <h3>BMI 与健康体重</h3>
+          <p>算 BMI，中国标准和 WHO 标准都给，附健康体重范围。</p>
+        </a>
+        <a class="card" href="loan.html">
+          <span class="mark">贷</span>
+          <h3>房贷 / 分期</h3>
+          <p>等额本息月供、总利息，还能看提前还一笔能省多少。</p>
+        </a>
+        <a class="card" href="password.html">
+          <span class="mark">密</span>
+          <h3>密码生成器</h3>
+          <p>用加密级随机数造强密码，不上传、不记录，可存进保险库。</p>
+        </a>
+        <a class="card" href="countdown.html">
+          <span class="mark">钟</span>
+          <h3>倒计时与番茄钟</h3>
+          <p>中考倒计时到秒，外加 25 分钟专注计时，到点响一声。</p>
+        </a>
+        <a class="card" href="random.html">
+          <span class="mark">抽</span>
+          <h3>随机抽签</h3>
+          <p>课堂点名、随机分组、抽签排顺序，也能生成随机数。</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="cat">
+      <h2>这些直接用别人的（免费，点了就过去 ↗）</h2>
+      <p class="lead">有些活儿别人早就做得更好了，没必要自己再写一遍 —— 下面这些都是免费、不用注册的。</p>
+      <div class="tool-grid">
+        <a class="card" href="https://www.deepl.com/translator" target="_blank" rel="noopener noreferrer">
+          <span class="mark">译</span><h3>DeepL 翻译 ↗</h3><p>长句翻得最自然，欧洲语言尤其强。</p>
+        </a>
+        <a class="card" href="https://translate.google.com/" target="_blank" rel="noopener noreferrer">
+          <span class="mark">译</span><h3>Google 翻译 ↗</h3><p>语种最全，还能整篇文档、整页网页。</p>
+        </a>
+        <a class="card" href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer">
+          <span class="mark">图</span><h3>Google 地图 ↗</h3><p>国外导航、街景、找店。</p>
+        </a>
+        <a class="card" href="https://www.rome2rio.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">行</span><h3>Rome2rio ↗</h3><p>查两个城市之间怎么走，飞机火车大巴全算上。</p>
+        </a>
+        <a class="card" href="https://www.desmos.com/calculator" target="_blank" rel="noopener noreferrer">
+          <span class="mark">图</span><h3>Desmos 图形计算器 ↗</h3><p>画函数图像，比纯算数直观得多。</p>
+        </a>
+        <a class="card" href="https://www.geogebra.org" target="_blank" rel="noopener noreferrer">
+          <span class="mark">形</span><h3>GeoGebra ↗</h3><p>几何作图、动态演示，学几何的神器。</p>
+        </a>
+        <a class="card" href="https://www.wolframalpha.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">算</span><h3>WolframAlpha ↗</h3><p>什么都能算，还能给步骤，微积分也行。</p>
+        </a>
+        <a class="card" href="https://www.symbolab.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">解</span><h3>Symbolab ↗</h3><p>一步步解方程、求导、积分。</p>
+        </a>
+        <a class="card" href="https://www.omnicalculator.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">器</span><h3>Omni Calculator ↗</h3><p>几千个计算器，什么领域都有。</p>
+        </a>
+        <a class="card" href="https://smallpdf.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">档</span><h3>Smallpdf ↗</h3><p>PDF 转换、压缩、合并、加水印。</p>
+        </a>
+        <a class="card" href="https://www.ilovepdf.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">档</span><h3>iLovePDF ↗</h3><p>也是 PDF 工具，不注册也能用。</p>
+        </a>
+        <a class="card" href="https://cli.im" target="_blank" rel="noopener noreferrer">
+          <span class="mark">码</span><h3>草料二维码 ↗</h3><p>文字、网址、名片生成二维码。</p>
+        </a>
+        <a class="card" href="https://tinypng.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">图</span><h3>TinyPNG ↗</h3><p>压缩图片体积，画质几乎不变。</p>
+        </a>
+        <a class="card" href="https://gchq.github.io/CyberChef/" target="_blank" rel="noopener noreferrer">
+          <span class="mark">码</span><h3>CyberChef ↗</h3><p>编码解码、加解密、数据处理，几百种操作。</p>
+        </a>
+        <a class="card" href="https://www.random.org" target="_blank" rel="noopener noreferrer">
+          <span class="mark">抽</span><h3>Random.org ↗</h3><p>真随机数（用大气噪声生成），抽奖公证级别。</p>
+        </a>
+        <a class="card" href="https://www.timeanddate.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">钟</span><h3>timeanddate ↗</h3><p>时区、日历、日出日落、倒计时。</p>
+        </a>
+        <a class="card" href="https://www.xe.com" target="_blank" rel="noopener noreferrer">
+          <span class="mark">¥</span><h3>XE 汇率 ↗</h3><p>权威汇率，跟本站汇率换算对着看。</p>
+        </a>
+        <a class="card" href="https://cs.mfa.gov.cn" target="_blank" rel="noopener noreferrer">
+          <span class="mark">领</span><h3>中国领事服务网 ↗</h3><p>出国在外：护照、公证、紧急求助都在这儿。</p>
+        </a>
+      </div>
+    </section>
 
     <p class="footer-note" style="margin-top:var(--sp-6)">
-      所有计算都在你自己的浏览器里完成，什么数据都不会发出去。
+      本站自己的工具全在你浏览器里算完，什么数据都不发出去。
+      （只有汇率那个页面，在你点「联网更新」时才会出去问一次汇率。）
     </p>
   </main>
 

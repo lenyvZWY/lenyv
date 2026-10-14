@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>文本工具</title>
+  <meta name="description" content="字数统计、大小写转换、去空格空行、URL 与 Base64 编解码。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>文本工具</h1>
+      <p>数一数多少字、改大小写、清掉多余空格，以及 URL / Base64 编解码。全在你自己浏览器里处理。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>把文字粘进来</label>
+        <textarea id="src" placeholder="在这里粘贴文字……">Hello 世界！
+ second   line </textarea>
+      </div>
+      <div class="chips" id="ops">
+        <button class="chip on" data-op="stat" type="button">统计</button>
+        <button class="chip" data-op="upper" type="button">全大写</button>
+        <button class="chip" data-op="lower" type="button">全小写</button>
+        <button class="chip" data-op="trim" type="button">去多余空格</button>
+        <button class="chip" data-op="blank" type="button">去空行</button>
+        <button class="chip" data-op="nospace" type="button">去掉所有空格</button>
+        <button class="chip" data-op="reverse" type="button">倒过来</button>
+        <button class="chip" data-op="urlenc" type="button">URL 编码</button>
+        <button class="chip" data-op="urldec" type="button">URL 解码</button>
+        <button class="chip" data-op="b64enc" type="button">Base64 编码</button>
+        <button class="chip" data-op="b64dec" type="button">Base64 解码</button>
+      </div>
+      <div class="result is-empty" id="out">选一个操作</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function byteLen(s) { return new TextEncoder().encode(s).length; }
+
+  var OPS = {
+    upper: function (s) { return s.toUpperCase(); },
+    lower: function (s) { return s.toLowerCase(); },
+    trim: function (s) {
+      return s.split('\n').map(function (l) { return l.replace(/[ \t]+/g, ' ').trim(); }).join('\n');
+    },
+    blank: function (s) { return s.split('\n').filter(function (l) { return l.trim() !== ''; }).join('\n'); },
+    nospace: function (s) { return s.replace(/\s+/g, ''); },
+    reverse: function (s) { return s.split('').reverse().join(''); },
+    urlenc: function (s) { return encodeURIComponent(s); },
+    urldec: function (s) { return decodeURIComponent(s); },
+    b64enc: function (s) { return btoa(unescape(encodeURIComponent(s))); },
+    b64dec: function (s) { return decodeURIComponent(escape(atob(s))); }
+  };
+
+  var cur = 'stat';
+
+  function run() {
+    var out = document.getElementById('out');
+    var s = document.getElementById('src').value;
+    out.innerHTML = '';
+
+    if (cur === 'stat') {
+      var lines = s === '' ? 0 : s.split('\n').length;
+      var chars = s.length;
+      var noSpace = s.replace(/\s/g, '').length;
+      var cjk = (s.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+      var words = (s.trim().match(/[A-Za-z0-9_\u4e00-\u9fff]+/g) || []).length;
+
+      out.className = 'result';
+      var big = document.createElement('div');
+      big.className = 'big';
+      big.textContent = chars + ' 个字符 · ' + noSpace + ' 个（不含空格）· ' + lines + ' 行';
+      out.appendChild(big);
+
+      var tb = document.createElement('table');
+      tb.className = 'tbl'; tb.style.marginTop = '16px';
+      var tb2 = document.createElement('tbody');
+      [['字符数（含空格换行）', chars],
+       ['字符数（不含空白）', noSpace],
+       ['行数', lines],
+       ['中文字数', cjk],
+       ['词 / 字数（粗略）', words],
+       ['字节数（UTF-8）', byteLen(s)]].forEach(function (r) {
+        var tr = document.createElement('tr');
+        var a = document.createElement('td'); a.textContent = r[0];
+        var b = document.createElement('td'); b.textContent = String(r[1]);
+        tr.appendChild(a); tr.appendChild(b); tb2.appendChild(tr);
+      });
+      tb.appendChild(tb2);
+      out.appendChild(tb);
+      return;
+    }
+
+    var res;
+    try { res = OPS[cur](s); }
+    catch (e) {
+      out.className = 'result is-error';
+      var b = document.createElement('div'); b.className = 'big';
+      b.textContent = '⚠ 处理不了：' + e.message;
+      out.appendChild(b);
+      return;
+    }
+    out.className = 'result';
+    var pre = document.createElement('div');
+    pre.className = 'steps';
+    pre.style.whiteSpace = 'pre-wrap';
+    pre.textContent = res;
+    out.appendChild(pre);
+
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-ghost';
+    btn.style.marginTop = '12px';
+    btn.textContent = '复制结果';
+    btn.addEventListener('click', function () {
+      navigator.clipboard.writeText(res).then(function () {
+        btn.textContent = '已复制';
+        setTimeout(function () { btn.textContent = '复制结果'; }, 1200);
+      }).catch(function () {});
+    });
+    out.appendChild(btn);
+  }
+
+  document.getElementById('ops').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    var all = this.querySelectorAll('.chip');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    cur = b.dataset.op;
+    run();
+  });
+  document.getElementById('src').addEventListener('input', run);
+  run();
+  </script>
+</body>
+</html>

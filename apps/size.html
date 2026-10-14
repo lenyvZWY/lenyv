@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>尺码换算</title>
+  <meta name="description" content="鞋码、衣服尺码各国对照，出国买鞋买衣服不再靠猜。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>尺码换算</h1>
+      <p>最靠谱的办法是<strong>量脚长</strong>（厘米），各国鞋码都由它推出来。衣服尺码各国标准不统一，下面给的是常用对照。</p>
+    </div>
+
+    <div class="panel">
+      <h2>鞋码（按脚长算）</h2>
+      <div class="row">
+        <div class="field"><label>脚长（厘米）</label><input id="foot" type="number" value="26" step="0.5" min="10"></div>
+        <div class="field" style="max-width:160px">
+          <label>性别</label>
+          <select id="sex"><option value="m">男鞋</option><option value="f">女鞋</option></select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">换算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        不同品牌会有半码左右的出入，买鞋前最好看该品牌自己的尺码表。
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>衣服尺码对照</h2>
+      <div class="field" style="max-width:220px">
+        <label>选一个你手上的尺码</label>
+        <select id="sel"></select>
+      </div>
+      <div id="tbl"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 鞋码：以脚长（cm）为基准做线性换算。
+     锚点（男鞋）：25cm → US 7 / EU 40 / UK 6.5；28cm → US 10 / EU 44 / UK 9.5
+     女鞋的美码 = 同脚长男码 + 1.5；中国旧码 = 脚长×2−10；中国新码 = 脚长(mm) */
+  function shoe(cm, sex) {
+    var usM = 7 + (cm - 25) * 1;
+    var eu = 40 + (cm - 25) * (4 / 3);
+    var uk = 6.5 + (cm - 25) * 1;
+    var us = sex === 'f' ? usM + 1.5 : usM;
+    return {
+      cnOld: Math.round((cm * 2 - 10) * 2) / 2,
+      cnNew: Math.round(cm * 10),
+      us: roundHalf(us),
+      uk: roundHalf(uk),
+      eu: roundHalf(eu),
+      jp: cm
+    };
+  }
+  function roundHalf(v) { return Math.round(v * 2) / 2; }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var cm = parseFloat(document.getElementById('foot').value);
+    var sex = document.getElementById('sex').value;
+    if (!isFinite(cm) || cm < 10 || cm > 40) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 脚长填 10 ~ 40 厘米之间的数';
+      out.appendChild(e); return;
+    }
+    var s = shoe(cm, sex);
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '中国 ' + s.cnNew + '（' + s.cnOld + ' 码）　欧码 EU ' + s.eu;
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var head = document.createElement('tr');
+    ['地区', '尺码'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; head.appendChild(th); });
+    var thead = document.createElement('thead'); thead.appendChild(head); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    [['中国（新码，毫米）', s.cnNew], ['中国（旧码）', s.cnOld], ['欧洲 EU', s.eu],
+     ['美国 US（' + (sex === 'f' ? '女' : '男') + '）', s.us], ['英国 UK', s.uk], ['日本 JP（厘米）', s.jp]]
+      .forEach(function (r) {
+        var tr = document.createElement('tr');
+        var a = document.createElement('td'); a.textContent = r[0];
+        var b = document.createElement('td'); b.textContent = String(r[1]);
+        tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
+      });
+    tb.appendChild(body);
+    out.appendChild(tb);
+  });
+
+  /* ---- 衣服尺码对照表 ---- */
+  var CLOTH = [
+    { intl: 'XS', cn: '160 / 84A', us: '0–2', uk: '4–6', eu: '34', it: '38', jp: 'S' },
+    { intl: 'S', cn: '165 / 88A', us: '4–6', uk: '8–10', eu: '36', it: '40', jp: 'M' },
+    { intl: 'M', cn: '170 / 92A', us: '8–10', uk: '12–14', eu: '38', it: '42', jp: 'L' },
+    { intl: 'L', cn: '175 / 96A', us: '12–14', uk: '16–18', eu: '40', it: '44', jp: 'LL' },
+    { intl: 'XL', cn: '180 / 100A', us: '16–18', uk: '20–22', eu: '42', it: '46', jp: '3L' },
+    { intl: 'XXL', cn: '185 / 104A', us: '20–22', uk: '24–26', eu: '44', it: '48', jp: '4L' }
+  ];
+  var sel = document.getElementById('sel');
+  CLOTH.forEach(function (r, i) {
+    var o = document.createElement('option'); o.value = i; o.textContent = r.intl + '（中国 ' + r.cn + '）';
+    sel.appendChild(o);
+  });
+  function drawCloth() {
+    var pick = CLOTH[sel.value];
+    var box = document.getElementById('tbl');
+    box.innerHTML = '';
+    var tb = document.createElement('table');
+    tb.className = 'tbl';
+    var head = document.createElement('tr');
+    ['国际', '中国', '美国 US', '英国 UK', '欧洲 EU', '意大利 IT', '日本 JP'].forEach(function (t) {
+      var th = document.createElement('th'); th.textContent = t; head.appendChild(th);
+    });
+    var thead = document.createElement('thead'); thead.appendChild(head); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    CLOTH.forEach(function (r) {
+      var tr = document.createElement('tr');
+      if (r === pick) tr.style.background = 'var(--bg-subtle)';
+      [r.intl, r.cn, r.us, r.uk, r.eu, r.it, r.jp].forEach(function (t) {
+        var td = document.createElement('td'); td.textContent = t; tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    box.appendChild(tb);
+  }
+  sel.addEventListener('change', drawCloth);
+  drawCloth();
+  </script>
+</body>
+</html>

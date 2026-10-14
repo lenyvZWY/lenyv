@@ -219,6 +219,38 @@ section('[9] 所有工具页的硬性检查');
 }
 
 /* ======================================================================== */
+section('[10] 每个工具页都要有「同类免费网站」跳板（app-shell.js 自动插入）');
+{
+  const shell = fs.readFileSync(path.join(ROOT, 'assets/js/app-shell.js'), 'utf8');
+  const files = fs.readdirSync(APPS).filter(f => f.endsWith('.html') && f !== 'index.html');
+
+  // 从真实的外壳脚本里取出 ALSO 的键名（不抄副本）
+  const keys = [];
+  const re = /^\s{4}([a-z0-9]+):\s*\[$/gm;
+  let mm;
+  while ((mm = re.exec(shell)) !== null) keys.push(mm[1]);
+  ok(keys.length > 0, '外壳脚本里读到了 ' + keys.length + ' 组外链配置');
+
+  files.forEach(function (f) {
+    const key = f.replace(/\.html$/, '');
+    ok(keys.indexOf(key) >= 0, key + ' 有对应的同类网站外链');
+  });
+
+  // 页面文件名 → key 的识别规则
+  const rule = /\/apps\/([a-z0-9_-]+?)(?:\.html)?\/?$/i;
+  const pick = function (p) { const x = p.match(rule); return x ? x[1].toLowerCase() : ''; };
+  eq(pick('/apps/calculator.html'), 'calculator', '/apps/calculator.html → calculator');
+  eq(pick('/apps/calculator'), 'calculator', '美化后的 /apps/calculator 也能认出来');
+  eq(pick('/apps/'), '', '工具箱首页不插外链');
+  eq(pick('/apps/index.html'), 'index', '首页识别成 index（会被跳过）');
+
+  // 每个工具页都要有 main.tool-page，否则外链插不进去
+  files.forEach(function (f) {
+    const html = fs.readFileSync(path.join(APPS, f), 'utf8');
+    ok(html.indexOf('class="tool-page"') >= 0, f + '：有 main.tool-page（外链要插这里）');
+  });
+}
+
 console.log('\n============================');
 console.log('  结果：' + pass + ' 通过 / ' + fail + ' 失败');
 console.log('============================');

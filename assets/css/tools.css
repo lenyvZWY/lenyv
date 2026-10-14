@@ -63,6 +63,12 @@ textarea{min-height:110px;resize:vertical;line-height:1.7}
 .calc-keys button.eq{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
 .calc-keys button.wide{grid-column:span 2}
 
+/* 分组标题（工具箱首页、以及自动插入的「同类网站」区块都用） */
+.cat{margin-top:var(--sp-8)}
+.cat h2{font-family:var(--font-display);font-size:1.15rem;margin:0 0 var(--sp-4);
+  padding-bottom:var(--sp-2);border-bottom:1px solid var(--border)}
+.cat p.lead{color:var(--text-soft);font-size:.88rem;margin:-8px 0 var(--sp-4)}
+
 /* 工具箱首页的网格 */
 .tool-grid{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
 .tool-grid .card{display:grid;gap:6px;align-content:start}

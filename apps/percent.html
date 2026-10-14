@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>百分比与折扣</title>
+  <meta name="description" content="打折、涨价、求原价、求占比、算增长率，五种算法一次搞定。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>百分比与折扣</h1>
+      <p>买东西打折、算涨幅、求原价、算占比 —— 五种最常见的算法，各一个小格子。</p>
+    </div>
+
+    <div class="panel">
+      <h2>① 打完折是多少钱</h2>
+      <div class="row">
+        <div class="field"><label>原价</label><input id="p1" type="number" value="299" step="any"></div>
+        <div class="field"><label>折扣（8 表示八折，7.5 表示七五折）</label><input id="d1" type="number" value="8" step="any"></div>
+      </div>
+      <button class="btn btn-primary" data-c="1" type="button">算</button>
+      <div class="result is-empty" id="o1">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>② 涨价 / 降价后是多少钱</h2>
+      <div class="row">
+        <div class="field"><label>原价</label><input id="p2" type="number" value="100" step="any"></div>
+        <div class="field"><label>变化百分比（正数涨，负数降）</label><input id="d2" type="number" value="20" step="any"></div>
+      </div>
+      <button class="btn btn-primary" data-c="2" type="button">算</button>
+      <div class="result is-empty" id="o2">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>③ 现价反推原价</h2>
+      <div class="row">
+        <div class="field"><label>现价（折后价）</label><input id="p3" type="number" value="239.2" step="any"></div>
+        <div class="field"><label>折扣</label><input id="d3" type="number" value="8" step="any"></div>
+      </div>
+      <button class="btn btn-primary" data-c="3" type="button">算</button>
+      <div class="result is-empty" id="o3">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>④ A 占 B 的百分之几</h2>
+      <div class="row">
+        <div class="field"><label>A（部分）</label><input id="p4" type="number" value="18" step="any"></div>
+        <div class="field"><label>B（整体）</label><input id="d4" type="number" value="45" step="any"></div>
+      </div>
+      <button class="btn btn-primary" data-c="4" type="button">算</button>
+      <div class="result is-empty" id="o4">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>⑤ 增长率 / 变化幅度</h2>
+      <div class="row">
+        <div class="field"><label>原来</label><input id="p5" type="number" value="80" step="any"></div>
+        <div class="field"><label>现在</label><input id="d5" type="number" value="100" step="any"></div>
+      </div>
+      <button class="btn btn-primary" data-c="5" type="button">算</button>
+      <div class="result is-empty" id="o5">—</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function f(v) {
+    if (Math.abs(v) >= 1e7) return v.toExponential(6);
+    return String(Math.round(v * 1e6) / 1e6);
+  }
+  function rd(id) {
+    var v = parseFloat(document.getElementById(id).value);
+    if (!isFinite(v)) throw new Error('请填数字');
+    return v;
+  }
+  function show(el, big, step, err) {
+    el.className = 'result' + (err ? ' is-error' : '');
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big';
+    b.textContent = err ? '⚠ ' + err : big;
+    el.appendChild(b);
+    if (step) {
+      var s = document.createElement('div'); s.className = 'steps'; s.textContent = step;
+      el.appendChild(s);
+    }
+  }
+
+  var JOBS = {
+    1: function () {
+      var p = rd('p1'), d = rd('d1');
+      if (d <= 0 || d > 10) throw new Error('折扣一般填 0.1 ~ 10（8 = 八折）');
+      var r = p * d / 10;
+      return ['折后价 ' + f(r) + '，省了 ' + f(p - r),
+        '原价 ' + f(p) + ' × ' + f(d) + ' ÷ 10 = ' + f(r) + '\n省下：' + f(p) + ' − ' + f(r) + ' = ' + f(p - r)];
+    },
+    2: function () {
+      var p = rd('p2'), d = rd('d2');
+      var r = p * (1 + d / 100);
+      return ['变化后是 ' + f(r),
+        f(p) + ' × (1 + ' + f(d) + '%) = ' + f(p) + ' × ' + f(1 + d / 100) + ' = ' + f(r)];
+    },
+    3: function () {
+      var p = rd('p3'), d = rd('d3');
+      if (d <= 0 || d > 10) throw new Error('折扣一般填 0.1 ~ 10');
+      var r = p / (d / 10);
+      return ['原价是 ' + f(r),
+        '现价 ' + f(p) + ' ÷ (' + f(d) + ' ÷ 10) = ' + f(r)];
+    },
+    4: function () {
+      var a = rd('p4'), b = rd('d4');
+      if (b === 0) throw new Error('整体不能是 0');
+      var r = a / b * 100;
+      return [f(r) + '%', f(a) + ' ÷ ' + f(b) + ' × 100% = ' + f(r) + '%'];
+    },
+    5: function () {
+      var a = rd('p5'), b = rd('d5');
+      if (a === 0) throw new Error('原来的数不能是 0');
+      var r = (b - a) / a * 100;
+      return [(r >= 0 ? '增长 ' : '下降 ') + f(Math.abs(r)) + '%',
+        '(' + f(b) + ' − ' + f(a) + ') ÷ ' + f(a) + ' × 100% = ' + f(r) + '%'];
+    }
+  };
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-c]');
+    if (!btn) return;
+    var n = btn.dataset.c;
+    var el = document.getElementById('o' + n);
+    try {
+      var r = JOBS[n]();
+      show(el, r[0], r[1]);
+    } catch (err) { show(el, null, null, err.message); }
+  });
+  </script>
+</body>
+</html>

@@ -96,7 +96,8 @@
   [headers.values]
     # 内容安全策略：只准加载本站和 Google 字体的东西，别的域一律拒绝。
     # 没有它，一旦有人能往页面里塞东西，就能把你的密码偷走。
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+    # 注意：汇率的「联网更新」要出去问一次汇率，所以 connect-src 里放了 open.er-api.com。
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://open.er-api.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
     # 不许浏览器瞎猜文件类型（防止把 .txt 当 .js 执行）
     X-Content-Type-Options = "nosniff"
     # 不许别人把你的站嵌进 iframe 里做点击劫持

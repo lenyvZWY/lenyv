@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>房贷 / 分期计算</title>
+  <meta name="description" content="等额本息月供、总利息、提前还款对比，买房买车分期前先算清楚。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>房贷 / 分期计算</h1>
+      <p>等额本息（每月还一样的钱）怎么算、一共要付多少利息。也能看提前还一部分能省多少。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="field"><label>总额（元）</label><input id="total" type="number" value="1000000" step="any" min="0"></div>
+        <div class="field"><label>首付（元）</label><input id="down" type="number" value="300000" step="any" min="0"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>年利率（%）</label><input id="rate" type="number" value="3.5" step="any" min="0"></div>
+        <div class="field"><label>年限</label><input id="years" type="number" value="30" step="1" min="1"></div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>提前还一笔能省多少</h2>
+      <div class="field"><label>一次性多还（元）</label><input id="extra" type="number" value="100000" step="any" min="0"></div>
+      <button class="btn btn-ghost" id="go2" type="button">对比</button>
+      <div class="result is-empty" id="out2">结果会显示在这里</div>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        这里按「提前还款后月供不变、缩短年限」来算，这是最省利息的一种。实际以银行规则为准。
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function f(v) { return String(Math.round(v * 100) / 100); }
+
+  /* 等额本息：月供 = P·i·(1+i)^n / ((1+i)^n − 1) */
+  function monthly(P, annualRate, months) {
+    var i = annualRate / 100 / 12;
+    if (i === 0) return P / months;
+    var q = Math.pow(1 + i, months);
+    return P * i * q / (q - 1);
+  }
+  /* 已知月供和利率，反推还要还几个月 */
+  function monthsLeft(P, annualRate, pay) {
+    var i = annualRate / 100 / 12;
+    if (i === 0) return P / pay;
+    if (pay <= P * i) return Infinity;
+    return Math.log(pay / (pay - P * i)) / Math.log(1 + i);
+  }
+
+  function read() {
+    var total = parseFloat(document.getElementById('total').value);
+    var down = parseFloat(document.getElementById('down').value) || 0;
+    var rate = parseFloat(document.getElementById('rate').value);
+    var years = parseInt(document.getElementById('years').value, 10);
+    if (!isFinite(total) || !isFinite(rate) || !isFinite(years)) throw new Error('空格都要填数字');
+    if (down >= total) throw new Error('首付不能大于或等于总额');
+    if (total <= 0 || rate < 0 || years < 1) throw new Error('数字填得不对');
+    var P = total - down;
+    var months = years * 12;
+    return { P: P, rate: rate, months: months };
+  }
+
+  function render(el, big, lines, err) {
+    el.className = 'result' + (err ? ' is-error' : '');
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big';
+    b.textContent = err ? '⚠ ' + err : big;
+    el.appendChild(b);
+    if (lines) { var s = document.createElement('div'); s.className = 'steps'; s.textContent = lines.join('\n'); el.appendChild(s); }
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var el = document.getElementById('out');
+    try {
+      var r = read();
+      var m = monthly(r.P, r.rate, r.months);
+      var all = m * r.months;
+      var interest = all - r.P;
+      render(el, '每月还 ' + f(m) + ' 元',
+        ['贷款本金：' + f(r.P) + ' 元',
+         '年利率 ' + f(r.rate) + '%，' + (r.months / 12) + ' 年（' + r.months + ' 期）',
+         '每月月供：' + f(m) + ' 元',
+         '还款总额：' + f(all) + ' 元',
+         '其中利息：' + f(interest) + ' 元（占本金的 ' + f(interest / r.P * 100) + '%）']);
+    } catch (e) { render(el, null, null, e.message); }
+  });
+
+  document.getElementById('go2').addEventListener('click', function () {
+    var el = document.getElementById('out2');
+    try {
+      var r = read();
+      var extra = parseFloat(document.getElementById('extra').value) || 0;
+      if (extra <= 0) throw new Error('填一个大于 0 的金额');
+      if (extra >= r.P) throw new Error('多还的钱不能超过剩余本金');
+
+      var m = monthly(r.P, r.rate, r.months);
+      var totalAll = m * r.months;
+
+      var left = r.P - extra;
+      var n2 = monthsLeft(left, r.rate, m);
+      var totalAll2 = m * n2 + extra;
+      var save = totalAll - totalAll2;
+
+      render(el, '能省 ' + f(save) + ' 元利息',
+        ['原计划：还 ' + r.months + ' 期，总共 ' + f(totalAll) + ' 元',
+         '提前还 ' + f(extra) + ' 元后：约还要 ' + Math.ceil(n2) + ' 期，总共 ' + f(totalAll2) + ' 元',
+         '少还 ' + (r.months - Math.ceil(n2)) + ' 期，省下约 ' + f(save) + ' 元']);
+    } catch (e) { render(el, null, null, e.message); }
+  });
+  </script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日期计算</title>
+  <meta name="description" content="算两个日期相隔多少天、推算前后日期、查星期几、算年龄。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>日期计算</h1>
+      <p>相隔多少天、从某天往前/往后推、那天是星期几、算年龄 —— 都在这儿。</p>
+    </div>
+
+    <div class="panel">
+      <h2>① 两个日期相差多少天</h2>
+      <div class="row">
+        <div class="field"><label>开始日期</label><input id="d1" type="date"></div>
+        <div class="field"><label>结束日期</label><input id="d2" type="date"></div>
+      </div>
+      <button class="btn btn-primary" id="go1" type="button">算</button>
+      <div class="result is-empty" id="o1">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>② 从某天往前 / 往后推</h2>
+      <div class="row">
+        <div class="field"><label>起始日期</label><input id="d3" type="date"></div>
+        <div class="field"><label>天数（负数是往前）</label><input id="n3" type="number" value="100" step="1"></div>
+      </div>
+      <button class="btn btn-primary" id="go2" type="button">推算</button>
+      <div class="result is-empty" id="o2">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>③ 那天是星期几 / 算年龄</h2>
+      <div class="field" style="max-width:260px"><label>选一个日期</label><input id="d4" type="date"></div>
+      <button class="btn btn-primary" id="go3" type="button">查</button>
+      <div class="result is-empty" id="o3">—</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  var WEEK = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function parseDate(s) {
+    if (!s) throw new Error('先选一个日期');
+    var d = new Date(s + 'T00:00:00');
+    if (isNaN(d.getTime())) throw new Error('日期不认识');
+    return d;
+  }
+  function fmtDate(d) {
+    return d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 ' + d.getDate() + ' 日';
+  }
+  function show(el, big, step, err) {
+    el.className = 'result' + (err ? ' is-error' : '');
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big';
+    b.textContent = err ? '⚠ ' + err : big;
+    el.appendChild(b);
+    if (step) { var s = document.createElement('div'); s.className = 'steps'; s.textContent = step; el.appendChild(s); }
+  }
+
+  ['d1', 'd2', 'd3', 'd4'].forEach(function (id) {
+    document.getElementById(id).value = todayStr();
+  });
+  document.getElementById('d2').value = (function () {
+    var d = new Date(); d.setDate(d.getDate() + 100);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  })();
+
+  document.getElementById('go1').addEventListener('click', function () {
+    var el = document.getElementById('o1');
+    try {
+      var a = parseDate(document.getElementById('d1').value);
+      var b = parseDate(document.getElementById('d2').value);
+      var diff = Math.round((b - a) / 86400000);
+      var abs = Math.abs(diff);
+      show(el, '相隔 ' + abs + ' 天（约 ' + (abs / 7).toFixed(1) + ' 周）',
+        (diff >= 0 ? '结束在开始之后' : '结束在开始之前') + '\n' +
+        '含头含尾算就是 ' + (abs + 1) + ' 天。');
+    } catch (e) { show(el, null, null, e.message); }
+  });
+
+  document.getElementById('go2').addEventListener('click', function () {
+    var el = document.getElementById('o2');
+    try {
+      var d = parseDate(document.getElementById('d3').value);
+      var n = parseInt(document.getElementById('n3').value, 10);
+      if (!isFinite(n)) throw new Error('天数要填整数');
+      var r = new Date(d.getTime());
+      r.setDate(r.getDate() + n);
+      show(el, fmtDate(r) + '　' + WEEK[r.getDay()],
+        fmtDate(d) + ' ' + (n >= 0 ? '往后' : '往前') + ' ' + Math.abs(n) + ' 天');
+    } catch (e) { show(el, null, null, e.message); }
+  });
+
+  document.getElementById('go3').addEventListener('click', function () {
+    var el = document.getElementById('o3');
+    try {
+      var d = parseDate(document.getElementById('d4').value);
+      var now = new Date();
+      var age = now.getFullYear() - d.getFullYear();
+      var before = (now.getMonth() < d.getMonth()) || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate());
+      if (before) age--;
+      var days = Math.round((now - d) / 86400000);
+      var past = days >= 0;
+      show(el, WEEK[d.getDay()],
+        fmtDate(d) + ' 是 ' + WEEK[d.getDay()] + '\n' +
+        (past
+          ? '距今 ' + days + ' 天，满 ' + age + ' 周岁（约 ' + (days / 365.25).toFixed(1) + ' 年）'
+          : '还在未来，' + Math.abs(days) + ' 天后到'));
+    } catch (e) { show(el, null, null, e.message); }
+  });
+  </script>
+</body>
+</html>

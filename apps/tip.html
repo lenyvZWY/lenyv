@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>小费与分账</title>
+  <meta name="description" content="按百分比算小费、AA 分账、算含税价，出国吃饭结账不用掰手指。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>小费与分账</h1>
+      <p>国外吃饭要给小费、跟朋友 AA 要算人均 —— 这个页面就是干这个的。</p>
+    </div>
+
+    <div class="panel">
+      <h2>小费</h2>
+      <div class="row">
+        <div class="field"><label>账单金额</label><input id="amt" type="number" value="86.5" step="any" min="0"></div>
+        <div class="field"><label>税率（%，没有就填 0）</label><input id="tax" type="number" value="0" step="any" min="0"></div>
+      </div>
+      <div class="field">
+        <label>小费比例</label>
+        <div class="chips" id="rate">
+          <button class="chip" data-r="0" type="button">不给</button>
+          <button class="chip" data-r="5" type="button">5%</button>
+          <button class="chip" data-r="10" type="button">10%</button>
+          <button class="chip on" data-r="15" type="button">15%</button>
+          <button class="chip" data-r="18" type="button">18%</button>
+          <button class="chip" data-r="20" type="button">20%</button>
+        </div>
+        <input id="custom" type="number" value="15" step="any" min="0">
+      </div>
+      <div class="row">
+        <div class="field"><label>几个人分</label><input id="ppl" type="number" value="2" step="1" min="1"></div>
+      </div>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>各国小费大概给多少</h2>
+      <table class="tbl">
+        <thead><tr><th>地方</th><th>一般做法</th></tr></thead>
+        <tbody>
+          <tr><td>美国 / 加拿大</td><td>餐厅 15% ~ 20%，自助 10%，打车凑整</td></tr>
+          <tr><td>英国</td><td>餐厅 10% ~ 12.5%（有时已含服务费，先看账单）</td></tr>
+          <tr><td>欧洲大陆（法德意西）</td><td>餐费常含服务费，满意可再留零钱或 5% ~ 10%</td></tr>
+          <tr><td>日本 / 韩国</td><td>一般不给，给了反而尴尬</td></tr>
+          <tr><td>东南亚</td><td>高档场所 10%，小店随意</td></tr>
+          <tr><td>中国内地</td><td>通常不给</td></tr>
+        </tbody>
+      </table>
+      <p class="hint muted" style="margin-top:var(--sp-4)">只是参考，看账单上有没有写 "Service Charge" 再说。</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function f(v) { return String(Math.round(v * 100) / 100); }
+  var RATE = 15;
+
+  function calc() {
+    var out = document.getElementById('out');
+    var amt = parseFloat(document.getElementById('amt').value);
+    var tax = parseFloat(document.getElementById('tax').value) || 0;
+    var ppl = parseInt(document.getElementById('ppl').value, 10);
+    var r = parseFloat(document.getElementById('custom').value);
+
+    function err(m) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ ' + m;
+      out.appendChild(b);
+    }
+    if (!isFinite(amt) || amt < 0) { err('账单金额要填一个正数'); return; }
+    if (!isFinite(r) || r < 0) { err('小费比例要填一个正数'); return; }
+    if (!isFinite(ppl) || ppl < 1) { err('人数至少 1 个'); return; }
+
+    var taxAmt = amt * tax / 100;
+    var base = amt + taxAmt;
+    var tip = base * r / 100;
+    var total = base + tip;
+    var per = total / ppl;
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '一共 ' + f(total) + '，每人 ' + f(per);
+    out.appendChild(big);
+
+    var lines = [];
+    lines.push('账单：' + f(amt));
+    if (tax > 0) lines.push('税（' + f(tax) + '%）：' + f(taxAmt));
+    lines.push('小费（' + f(r) + '%）：' + f(tip));
+    lines.push('合计：' + f(total));
+    if (ppl > 1) lines.push('' + ppl + ' 个人分，每人：' + f(per));
+
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = lines.join('\n');
+    out.appendChild(s);
+  }
+
+  document.getElementById('rate').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    var all = this.querySelectorAll('.chip');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    RATE = parseInt(b.dataset.r, 10);
+    document.getElementById('custom').value = RATE;
+    calc();
+  });
+
+  ['amt', 'tax', 'ppl', 'custom'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', calc);
+  });
+  calc();
+  </script>
+</body>
+</html>
