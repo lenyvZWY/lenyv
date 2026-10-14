@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>分数计算器</title>
+  <meta name="description" content="分数加减乘除，自动约分，同时给出小数和百分数。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>分数计算器</h1>
+      <p>算出结果后自动约成最简分数，同时给出小数、百分数和带分数。</p>
+    </div>
+
+    <div class="panel">
+      <h2>分数四则运算</h2>
+      <div class="row">
+        <div class="field">
+          <label>第一个分数</label>
+          <div class="row" style="flex-wrap:nowrap">
+            <input id="n1" type="number" placeholder="分子" value="1">
+            <input id="d1" type="number" placeholder="分母" value="2">
+          </div>
+        </div>
+        <div class="field" style="flex:0;min-width:90px">
+          <label>运算</label>
+          <select id="op">
+            <option value="+">＋</option>
+            <option value="-">－</option>
+            <option value="*">×</option>
+            <option value="/">÷</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>第二个分数</label>
+          <div class="row" style="flex-wrap:nowrap">
+            <input id="n2" type="number" placeholder="分子" value="1">
+            <input id="d2" type="number" placeholder="分母" value="3">
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>单个分数化简</h2>
+      <div class="field">
+        <label>输入一个分数</label>
+        <div class="row">
+          <input id="sn" type="number" placeholder="分子" value="12">
+          <input id="sd" type="number" placeholder="分母" value="18">
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="go2" type="button">化简</button>
+      <div class="result is-empty" id="out2">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function gcd(a, b) {
+    a = Math.abs(a); b = Math.abs(b);
+    while (b) { var t = a % b; a = b; b = t; }
+    return a || 1;
+  }
+  function reduce(n, d) {
+    if (d === 0) throw new Error('分母不能是 0');
+    if (d < 0) { n = -n; d = -d; }
+    var g = gcd(n, d);
+    return [n / g, d / g];
+  }
+  function asText(n, d) { return d === 1 ? String(n) : n + '/' + d; }
+  function asMixed(n, d) {
+    if (d === 1 || n === 0) return null;
+    if (Math.abs(n) < d) return null;
+    var w = Math.trunc(n / d);
+    var r = Math.abs(n) % d;
+    if (r === 0) return String(w);
+    return w + ' 又 ' + r + '/' + d;
+  }
+  function pct(v) { return (v * 100).toFixed(4).replace(/\.?0+$/, '') + '%'; }
+  function dec(v) { return String(Math.round(v * 1e10) / 1e10); }
+
+  function render(el, big, lines, err) {
+    el.className = 'result' + (err ? ' is-error' : '');
+    el.innerHTML = '';
+    var b = document.createElement('div');
+    b.className = 'big';
+    b.textContent = err ? '⚠ ' + err : big;
+    el.appendChild(b);
+    if (!err && lines && lines.length) {
+      var s = document.createElement('div');
+      s.className = 'steps';
+      s.textContent = lines.join('\n');
+      el.appendChild(s);
+    }
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var n1 = parseFloat(document.getElementById('n1').value);
+    var d1 = parseFloat(document.getElementById('d1').value);
+    var n2 = parseFloat(document.getElementById('n2').value);
+    var d2 = parseFloat(document.getElementById('d2').value);
+    var op = document.getElementById('op').value;
+    var out = document.getElementById('out');
+
+    try {
+      if ([n1, d1, n2, d2].some(function (v) { return !isFinite(v); })) throw new Error('四个格子都要填数字');
+      if (d1 === 0 || d2 === 0) throw new Error('分母不能是 0');
+      if (op === '/' && n2 === 0) throw new Error('不能除以 0（第二个分子是 0）');
+
+      var rn, rd, expr;
+      if (op === '+') { rn = n1 * d2 + n2 * d1; rd = d1 * d2; expr = '通分：' + n1 + '/' + d1 + ' + ' + n2 + '/' + d2 + ' = (' + (n1 * d2) + ' + ' + (n2 * d1) + ') / ' + rd; }
+      if (op === '-') { rn = n1 * d2 - n2 * d1; rd = d1 * d2; expr = '通分：' + n1 + '/' + d1 + ' − ' + n2 + '/' + d2 + ' = (' + (n1 * d2) + ' − ' + (n2 * d1) + ') / ' + rd; }
+      if (op === '*') { rn = n1 * n2; rd = d1 * d2; expr = '分子乘分子，分母乘分母：' + rn + ' / ' + rd; }
+      if (op === '/') { rn = n1 * d2; rd = d1 * n2; expr = '除以一个分数 = 乘它的倒数：' + n1 + '/' + d1 + ' × ' + d2 + '/' + n2 + ' = ' + rn + ' / ' + rd; }
+
+      var r = reduce(rn, rd);
+      var val = r[0] / r[1];
+      var mixed = asMixed(r[0], r[1]);
+      var lines = [expr, '约分后：' + asText(r[0], r[1])];
+      if (mixed) lines.push('带分数：' + mixed);
+      lines.push('小数：' + dec(val));
+      lines.push('百分数：' + pct(val));
+      render(out, asText(r[0], r[1]), lines);
+    } catch (e) {
+      render(out, null, null, e.message);
+    }
+  });
+
+  document.getElementById('go2').addEventListener('click', function () {
+    var n = parseFloat(document.getElementById('sn').value);
+    var d = parseFloat(document.getElementById('sd').value);
+    var out = document.getElementById('out2');
+    try {
+      if (!isFinite(n) || !isFinite(d)) throw new Error('两格都要填数字');
+      var r = reduce(n, d);
+      var val = r[0] / r[1];
+      var mixed = asMixed(r[0], r[1]);
+      var lines = [];
+      if (r[0] !== n || r[1] !== d) lines.push('分子分母同除以 ' + gcd(n, d) + '：' + asText(r[0], r[1]));
+      else lines.push('已经是最简分数了');
+      if (mixed) lines.push('带分数：' + mixed);
+      lines.push('小数：' + dec(val));
+      lines.push('百分数：' + pct(val));
+      render(out, asText(r[0], r[1]), lines);
+    } catch (e) {
+      render(out, null, null, e.message);
+    }
+  });
+  </script>
+</body>
+</html>

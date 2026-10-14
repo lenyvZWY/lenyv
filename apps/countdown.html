@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>倒计时与番茄钟</title>
+  <meta name="description" content="中考倒计时，外加 25 分钟专注计时，到点响一声。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>倒计时与番茄钟</h1>
+      <p>上面是距离某一天还有多久，下面是 25 分钟专注计时。都是在你自己电脑上跑的。</p>
+    </div>
+
+    <div class="panel">
+      <h2>倒计时</h2>
+      <div class="row">
+        <div class="field"><label>倒计时名字</label><input id="cname" type="text" value="中考"></div>
+        <div class="field"><label>那一天</label><input id="cdate" type="date"></div>
+      </div>
+      <div class="result">
+        <div class="big" id="cd-big">—</div>
+        <div class="sub" id="cd-sub">先在上面选一个日期</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>番茄钟</h2>
+      <div class="chips" id="presets">
+        <button class="chip on" data-min="25" type="button">专注 25 分钟</button>
+        <button class="chip" data-min="5" type="button">休息 5 分钟</button>
+        <button class="chip" data-min="10" type="button">长休 10 分钟</button>
+        <button class="chip" data-min="45" type="button">一节课 45 分钟</button>
+      </div>
+      <div class="pomo-time" id="p-time">25:00</div>
+      <div class="pomo-state" id="p-state">还没开始</div>
+      <div class="row">
+        <button class="btn btn-primary" id="p-start" type="button">开始</button>
+        <button class="btn btn-ghost" id="p-reset" type="button">重置</button>
+      </div>
+      <div class="hint muted" style="margin-top:var(--sp-4)">
+        完成一轮记一个 🍅。已经完成：<strong id="p-count">0</strong> 个
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* ---------- 倒计时 ---------- */
+  (function () {
+    var dateEl = document.getElementById('cdate');
+    var nameEl = document.getElementById('cname');
+    var big = document.getElementById('cd-big');
+    var sub = document.getElementById('cd-sub');
+
+    // 默认给一个「今年中考前后」的日期：6 月 20 日
+    var now = new Date();
+    var y = now.getFullYear();
+    var def = new Date(y, 5, 20);
+    if (def < now) def = new Date(y + 1, 5, 20);
+    dateEl.value = def.getFullYear() + '-' +
+      String(def.getMonth() + 1).padStart(2, '0') + '-' +
+      String(def.getDate()).padStart(2, '0');
+
+    function tick() {
+      var target = new Date(dateEl.value + 'T00:00:00');
+      if (!dateEl.value || isNaN(target.getTime())) {
+        big.textContent = '—';
+        sub.textContent = '先在上面选一个日期';
+        return;
+      }
+      var name = (nameEl.value || '那天').trim();
+      var diff = target - new Date();
+      var past = diff < 0;
+      var abs = Math.abs(diff);
+
+      var days = Math.floor(abs / 86400000);
+      var h = Math.floor(abs % 86400000 / 3600000);
+      var m = Math.floor(abs % 3600000 / 60000);
+      var s = Math.floor(abs % 60000 / 1000);
+
+      if (past) {
+        big.textContent = '已经过了 ' + days + ' 天';
+        sub.textContent = name + ' 是 ' + dateEl.value + '，过去了 ' + days + ' 天 ' + h + ' 小时';
+      } else {
+        big.textContent = '还有 ' + days + ' 天';
+        sub.textContent = '距离' + name + '（' + dateEl.value + '）还有 ' + days + ' 天 ' + h + ' 小时 ' + m + ' 分 ' + s + ' 秒';
+      }
+    }
+    tick();
+    setInterval(tick, 1000);
+    dateEl.addEventListener('change', tick);
+    nameEl.addEventListener('input', tick);
+  })();
+
+  /* ---------- 番茄钟 ---------- */
+  (function () {
+    var MIN = 25;
+    var left = MIN * 60;
+    var timer = null;
+    var done = 0;
+
+    var timeEl = document.getElementById('p-time');
+    var stateEl = document.getElementById('p-state');
+    var startBtn = document.getElementById('p-start');
+    var countEl = document.getElementById('p-count');
+
+    function render() {
+      var m = Math.floor(left / 60), s = left % 60;
+      timeEl.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function beep(times) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      try {
+        var ctx = new AC();
+        for (var i = 0; i < (times || 3); i++) {
+          (function (k) {
+            var o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = 'sine'; o.frequency.value = 880;
+            o.connect(g); g.connect(ctx.destination);
+            var t = ctx.currentTime + k * 0.45;
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+            o.start(t); o.stop(t + 0.38);
+          })(i);
+        }
+      } catch (e) {}
+    }
+
+    function stop() {
+      clearInterval(timer); timer = null;
+      startBtn.textContent = '开始';
+      stateEl.textContent = '已暂停';
+    }
+
+    startBtn.addEventListener('click', function () {
+      if (timer) { stop(); return; }
+      if (left <= 0) left = MIN * 60;
+      startBtn.textContent = '暂停';
+      stateEl.textContent = '进行中……';
+      timer = setInterval(function () {
+        left--;
+        render();
+        if (left <= 0) {
+          clearInterval(timer); timer = null;
+          startBtn.textContent = '开始';
+          stateEl.textContent = '这一轮结束了，休息一下';
+          done++;
+          countEl.textContent = done;
+          beep(3);
+          left = MIN * 60;
+          render();
+        }
+      }, 1000);
+    });
+
+    document.getElementById('p-reset').addEventListener('click', function () {
+      if (timer) stop();
+      left = MIN * 60;
+      stateEl.textContent = '还没开始';
+      render();
+    });
+
+    document.getElementById('presets').addEventListener('click', function (e) {
+      var b = e.target.closest('.chip');
+      if (!b) return;
+      var all = this.querySelectorAll('.chip');
+      for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+      MIN = parseInt(b.dataset.min, 10);
+      if (timer) stop();
+      left = MIN * 60;
+      stateEl.textContent = '还没开始';
+      render();
+    });
+
+    render();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>统计分析</title>
+  <meta name="description" content="平均数、中位数、众数、极差、方差、标准差一步算完。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>统计分析</h1>
+      <p>把一组数据粘进来，用逗号、空格或换行隔开都行。常用的几个统计量一次全给。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>数据（用逗号 / 空格 / 换行隔开）</label>
+        <textarea id="data" placeholder="例如：85 92 76 88 92 67">85, 92, 76, 88, 92, 67</textarea>
+        <div class="hint">方差按初中课本的算法：除以数据个数 n。</div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">分析</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function f(v) { return String(Math.round(v * 1e6) / 1e6); }
+
+  function medianOf(sorted) {
+    var n = sorted.length, m = Math.floor(n / 2);
+    return n % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
+  }
+  function modesOf(arr) {
+    var cnt = {};
+    arr.forEach(function (x) { cnt[x] = (cnt[x] || 0) + 1; });
+    var best = 0;
+    Object.keys(cnt).forEach(function (k) { if (cnt[k] > best) best = cnt[k]; });
+    if (best <= 1) return { list: [], times: best };
+    var list = Object.keys(cnt).filter(function (k) { return cnt[k] === best; }).map(Number);
+    return { list: list, times: best };
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var raw = document.getElementById('data').value;
+    var parts = raw.split(/[\s,，、;；\n\r\t]+/).filter(function (s) { return s !== ''; });
+    var arr = [];
+    var bad = [];
+
+    parts.forEach(function (s) {
+      var v = Number(s);
+      if (isFinite(v)) arr.push(v); else bad.push(s);
+    });
+
+    function showError(msg) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ ' + msg;
+      out.appendChild(b);
+    }
+
+    if (!arr.length) { showError('没有读到任何数字'); return; }
+
+    var n = arr.length;
+    var sum = arr.reduce(function (a, b) { return a + b; }, 0);
+    var mean = sum / n;
+    var sorted = arr.slice().sort(function (a, b) { return a - b; });
+    var med = medianOf(sorted);
+    var md = modesOf(arr);
+    var min = sorted[0], max = sorted[n - 1], range = max - min;
+
+    var ss = 0;
+    arr.forEach(function (x) { ss += (x - mean) * (x - mean); });
+    var varP = ss / n;
+    var varS = n > 1 ? ss / (n - 1) : NaN;
+    var sd = Math.sqrt(varP);
+
+    out.className = 'result';
+    out.innerHTML = '';
+
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '平均数 ' + f(mean) + '　中位数 ' + f(med);
+    out.appendChild(big);
+
+    var tbl = document.createElement('table');
+    tbl.className = 'tbl'; tbl.style.marginTop = '16px';
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['统计量', '结果'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+    thead.appendChild(hr); tbl.appendChild(thead);
+
+    var rows = [
+      ['数据个数 n', n],
+      ['总和', f(sum)],
+      ['平均数', f(mean)],
+      ['中位数', f(med)],
+      ['众数', md.list.length ? md.list.join('、') + '（各出现 ' + md.times + ' 次）' : '没有（每个数都只出现一次）'],
+      ['最大值', f(max)],
+      ['最小值', f(min)],
+      ['极差', f(range)],
+      ['方差 s²（除以 n）', f(varP)],
+      ['标准差 s', f(sd)]
+    ];
+    if (n > 1) rows.push(['样本方差（除以 n−1，高中用）', f(varS)]);
+
+    var tb = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = r[0];
+      var b = document.createElement('td'); b.textContent = String(r[1]);
+      tr.appendChild(a); tr.appendChild(b); tb.appendChild(tr);
+    });
+    tbl.appendChild(tb);
+    out.appendChild(tbl);
+
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = '从小到大排好：' + sorted.map(f).join('、') +
+      '\n方差算法：s² = [(x₁−x̄)² + … + (xₙ−x̄)²] ÷ n = ' + f(ss) + ' ÷ ' + n + ' = ' + f(varP);
+    out.appendChild(s);
+
+    if (bad.length) {
+      var w = document.createElement('div');
+      w.className = 'sub';
+      w.textContent = '⚠ 这些不是数字，已跳过：' + bad.join('、');
+      out.appendChild(w);
+    }
+  });
+  </script>
+</body>
+</html>

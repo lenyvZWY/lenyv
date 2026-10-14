@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>解方程</title>
+  <meta name="description" content="一元一次、一元二次方程求解，带判别式和完整过程。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>解方程</h1>
+      <p>把方程整理成标准形式后，把系数填进去就行。</p>
+    </div>
+
+    <div class="chips" id="tabs">
+      <button class="chip on" data-tab="linear" type="button">一元一次 ax + b = 0</button>
+      <button class="chip" data-tab="quad" type="button">一元二次 ax² + bx + c = 0</button>
+    </div>
+
+    <div class="panel" id="p-linear">
+      <h2>一元一次方程：ax + b = 0</h2>
+      <div class="row">
+        <div class="field"><label>a（x 的系数）</label><input id="la" type="number" value="2" placeholder="例如 2"></div>
+        <div class="field"><label>b（常数项）</label><input id="lb" type="number" value="-6" placeholder="例如 -6"></div>
+      </div>
+      <button class="btn btn-primary" id="lgo" type="button">求解</button>
+      <div class="result is-empty" id="lout">结果会显示在这里</div>
+    </div>
+
+    <div class="panel hidden" id="p-quad">
+      <h2>一元二次方程：ax² + bx + c = 0</h2>
+      <div class="row">
+        <div class="field"><label>a</label><input id="qa" type="number" value="1" placeholder="例如 1"></div>
+        <div class="field"><label>b</label><input id="qb" type="number" value="-5" placeholder="例如 -5"></div>
+        <div class="field"><label>c</label><input id="qc" type="number" value="6" placeholder="例如 6"></div>
+      </div>
+      <button class="btn btn-primary" id="qgo" type="button">求解</button>
+      <div class="result is-empty" id="qout">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function num(id) {
+    var v = parseFloat(document.getElementById(id).value);
+    if (!isFinite(v)) throw new Error('系数要填数字');
+    return v;
+  }
+  function fx(v) { return String(Math.round(v * 1e10) / 1e10); }
+  function render(el, big, lines, err) {
+    el.className = 'result' + (err ? ' is-error' : '');
+    el.innerHTML = '';
+    var b = document.createElement('div');
+    b.className = 'big';
+    b.textContent = err ? '⚠ ' + err : big;
+    el.appendChild(b);
+    if (lines && lines.length) {
+      var s = document.createElement('div');
+      s.className = 'steps';
+      s.textContent = lines.join('\n');
+      el.appendChild(s);
+    }
+  }
+
+  /* ---------- 一元一次 ---------- */
+  document.getElementById('lgo').addEventListener('click', function () {
+    var out = document.getElementById('lout');
+    try {
+      var a = num('la'), b = num('lb');
+      if (a === 0) {
+        render(out, b === 0 ? 'x 可以是任何数' : '这个方程无解',
+          ['a = 0，方程变成 ' + fx(b) + ' = 0',
+           b === 0 ? '左边恒等于 0，所以 x 取什么都可以。' : '左边恒等于 ' + fx(b) + '，永远不等于 0，所以无解。']);
+        return;
+      }
+      var x = -b / a;
+      render(out, 'x = ' + fx(x),
+        ['ax + b = 0', '移项：ax = −b = ' + fx(-b), '两边同除以 a = ' + fx(a) + '：x = ' + fx(x)]);
+    } catch (e) { render(out, null, null, e.message); }
+  });
+
+  /* ---------- 一元二次 ---------- */
+  document.getElementById('qgo').addEventListener('click', function () {
+    var out = document.getElementById('qout');
+    try {
+      var a = num('qa'), b = num('qb'), c = num('qc');
+
+      if (a === 0) {
+        if (b === 0) {
+          render(out, c === 0 ? 'x 可以是任何数' : '这个方程无解', ['a = 0 且 b = 0，已经不是二次方程了。']);
+        } else {
+          var x0 = -c / b;
+          render(out, 'x = ' + fx(x0), ['a = 0，退化成一元一次：' + fx(b) + 'x + ' + fx(c) + ' = 0', 'x = ' + fx(x0)]);
+        }
+        return;
+      }
+
+      var disc = b * b - 4 * a * c;
+      var lines = [
+        '判别式 Δ = b² − 4ac',
+        'Δ = ' + fx(b) + '² − 4 × ' + fx(a) + ' × ' + fx(c) + ' = ' + fx(disc)
+      ];
+
+      if (Math.abs(disc) < 1e-12) disc = 0;
+
+      if (disc > 0) {
+        var s = Math.sqrt(disc);
+        var x1 = (-b + s) / (2 * a), x2 = (-b - s) / (2 * a);
+        lines.push('Δ > 0，有两个不相等的实数根');
+        lines.push('x = (−b ± √Δ) / (2a) = (' + fx(-b) + ' ± ' + fx(s) + ') / ' + fx(2 * a));
+        render(out, 'x₁ = ' + fx(x1) + '　　x₂ = ' + fx(x2), lines);
+      } else if (disc === 0) {
+        var xd = -b / (2 * a);
+        lines.push('Δ = 0，有两个相等的实数根');
+        lines.push('x = −b / (2a) = ' + fx(-b) + ' / ' + fx(2 * a));
+        render(out, 'x₁ = x₂ = ' + fx(xd), lines);
+      } else {
+        var si = Math.sqrt(-disc);
+        var re = fx(-b / (2 * a)), im = fx(si / Math.abs(2 * a));
+        lines.push('Δ < 0，实数范围内没有根');
+        lines.push('高中会学到复数根：x = ' + re + ' ± ' + im + 'i');
+        render(out, '在实数范围内无解', lines);
+      }
+    } catch (e) { render(out, null, null, e.message); }
+  });
+
+  /* ---------- 切换 ---------- */
+  document.getElementById('tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    var all = this.querySelectorAll('.chip');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    document.getElementById('p-linear').classList.toggle('hidden', b.dataset.tab !== 'linear');
+    document.getElementById('p-quad').classList.toggle('hidden', b.dataset.tab !== 'quad');
+  });
+  </script>
+</body>
+</html>

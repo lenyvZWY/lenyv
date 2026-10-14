@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>科学计算器</title>
+  <meta name="description" content="支持括号、乘方、根号、三角函数的科学计算器，默认角度制。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>科学计算器</h1>
+      <p>支持括号、乘方、根号、三角函数和 π。可以像写式子一样直接输入，比如 <code>2×(3+4)</code>、<code>√9</code>、<code>3π</code>、<code>2^10</code>。</p>
+    </div>
+
+    <div class="panel">
+      <div class="chips" id="mode-chips">
+        <button class="chip on" data-mode="deg" type="button">角度制</button>
+        <button class="chip" data-mode="rad" type="button">弧度制</button>
+        <span class="hint muted" style="align-self:center;margin-left:8px">初中三角函数一般用角度制</span>
+      </div>
+
+      <input class="calc-screen" id="expr" type="text" autocomplete="off" spellcheck="false"
+             placeholder="在这里输入式子，或用下面的按钮">
+
+      <div class="calc-keys" id="keys">
+        <button class="op" data-ins="sin(" type="button">sin</button>
+        <button class="op" data-ins="cos(" type="button">cos</button>
+        <button class="op" data-ins="tan(" type="button">tan</button>
+        <button class="op" data-ins="sqrt(" type="button">√</button>
+        <button class="op" data-ins="pi" type="button">π</button>
+
+        <button data-ins="(" type="button">(</button>
+        <button data-ins=")" type="button">)</button>
+        <button class="op" data-ins="^" type="button">^</button>
+        <button class="op" data-ins="^2" type="button">x²</button>
+        <button class="op" data-clear="1" type="button">C</button>
+
+        <button data-ins="7" type="button">7</button>
+        <button data-ins="8" type="button">8</button>
+        <button data-ins="9" type="button">9</button>
+        <button class="op" data-ins="÷" type="button">÷</button>
+        <button class="op" data-back="1" type="button">⌫</button>
+
+        <button data-ins="4" type="button">4</button>
+        <button data-ins="5" type="button">5</button>
+        <button data-ins="6" type="button">6</button>
+        <button class="op" data-ins="×" type="button">×</button>
+        <button class="op" data-ins="ln(" type="button">ln</button>
+
+        <button data-ins="1" type="button">1</button>
+        <button data-ins="2" type="button">2</button>
+        <button data-ins="3" type="button">3</button>
+        <button class="op" data-ins="-" type="button">−</button>
+        <button class="op" data-ins="log(" type="button">lg</button>
+
+        <button data-ins="0" class="wide" type="button">0</button>
+        <button data-ins="." type="button">.</button>
+        <button class="eq" data-eq="1" type="button">=</button>
+        <button class="op" data-ins="+" type="button">+</button>
+      </div>
+
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* ============================================================
+     一个真正的表达式解析器（不用 eval —— 站点开了 CSP，eval 被禁）
+     规则从松到紧：加减 → 乘除 → 正负号 → 乘方 → 单个元素
+     ============================================================ */
+  var MODE = 'deg';
+
+  function tokenize(src) {
+    var s = src
+      .replace(/×/g, '*').replace(/÷/g, '/')
+      .replace(/[−–—]/g, '-')
+      .replace(/π/g, 'pi').replace(/√/g, 'sqrt(')
+      .replace(/\*\*/g, '^');
+    // 补上 √ 自动带上的右括号数量
+    var opens = 0, i;
+    for (i = 0; i < s.length; i++) if (s[i] === '(') opens++;
+    var closes = 0;
+    for (i = 0; i < s.length; i++) if (s[i] === ')') closes++;
+    for (i = 0; i < opens - closes; i++) s += ')';
+
+    var toks = [], p = 0;
+    while (p < s.length) {
+      var c = s[p];
+      if (c === ' ' || c === '\t') { p++; continue; }
+      if (c >= '0' && c <= '9' || c === '.') {
+        var j = p;
+        while (j < s.length && ((s[j] >= '0' && s[j] <= '9') || s[j] === '.')) j++;
+        var num = parseFloat(s.slice(p, j));
+        if (isNaN(num)) throw new Error('数字写错了：' + s.slice(p, j));
+        toks.push({ t: 'num', v: num });
+        p = j; continue;
+      }
+      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+        var k = p;
+        while (k < s.length && /[a-zA-Z]/.test(s[k])) k++;
+        toks.push({ t: 'id', v: s.slice(p, k).toLowerCase() });
+        p = k; continue;
+      }
+      if ('+-*/^()'.indexOf(c) >= 0) { toks.push({ t: c }); p++; continue; }
+      throw new Error('看不懂这个符号：' + c);
+    }
+    return toks;
+  }
+
+  var TRIG = { sin: 1, cos: 1, tan: 1 };
+  var ATRIG = { asin: 1, acos: 1, atan: 1 };
+
+  function evaluate(src) {
+    var toks = tokenize(src);
+    if (!toks.length) throw new Error('还没输入式子');
+    var pos = 0;
+
+    function peek() { return toks[pos] || null; }
+    function eat(t) {
+      if (peek() && peek().t === t) { pos++; return true; }
+      return false;
+    }
+
+    function parseExpr() {
+      var v = parseTerm();
+      for (;;) {
+        if (eat('+')) v += parseTerm();
+        else if (eat('-')) v -= parseTerm();
+        else return v;
+      }
+    }
+
+    function parseTerm() {
+      var v = parseUnary();
+      for (;;) {
+        if (eat('*')) v = v * parseUnary();
+        else if (eat('/')) {
+          var d = parseUnary();
+          if (d === 0) throw new Error('不能除以 0');
+          v = v / d;
+        } else if (startsPrimary(peek())) {
+          // 隐式乘法：2(3+4)、3π、2sin(30)
+          v = v * parseUnary();
+        } else return v;
+      }
+    }
+
+    function startsPrimary(tk) {
+      return tk && (tk.t === 'num' || tk.t === 'id' || tk.t === '(');
+    }
+
+    function parseUnary() {
+      if (eat('-')) return -parseUnary();
+      if (eat('+')) return parseUnary();
+      return parsePower();
+    }
+
+    function parsePower() {
+      var base = parsePrimary();
+      if (eat('^')) return Math.pow(base, parseUnary()); // 右结合：2^3^2 = 2^(3^2)
+      return base;
+    }
+
+    function parsePrimary() {
+      var tk = peek();
+      if (!tk) throw new Error('式子没写完');
+
+      if (tk.t === 'num') { pos++; return tk.v; }
+
+      if (tk.t === '(') {
+        pos++;
+        var v = parseExpr();
+        if (!eat(')')) throw new Error('括号没有配对');
+        return v;
+      }
+
+      if (tk.t === 'id') {
+        pos++;
+        var name = tk.v;
+        if (eat('(')) {
+          var arg = parseExpr();
+          if (!eat(')')) throw new Error('函数括号没有配对');
+          return applyFn(name, arg);
+        }
+        if (name === 'pi') return Math.PI;
+        if (name === 'e') return Math.E;
+        throw new Error('不认识的符号：' + name);
+      }
+
+      throw new Error('这里不该出现「' + tk.t + '」');
+    }
+
+    function applyFn(name, x) {
+      var deg = MODE === 'deg';
+      if (TRIG[name]) {
+        var a = deg ? x * Math.PI / 180 : x;
+        return Math[name](a);
+      }
+      if (ATRIG[name]) {
+        var r = Math[name](x);
+        return deg ? r * 180 / Math.PI : r;
+      }
+      if (name === 'sqrt') {
+        if (x < 0) throw new Error('负数不能开平方（实数范围内）');
+        return Math.sqrt(x);
+      }
+      if (name === 'ln') {
+        if (x <= 0) throw new Error('ln 里面必须大于 0');
+        return Math.log(x);
+      }
+      if (name === 'log' || name === 'lg') {
+        if (x <= 0) throw new Error('lg 里面必须大于 0');
+        return Math.log(x) / Math.LN10;
+      }
+      if (name === 'abs') return Math.abs(x);
+      if (name === 'exp') return Math.exp(x);
+      throw new Error('不认识的函数：' + name);
+    }
+
+    var val = parseExpr();
+    if (pos < toks.length) throw new Error('式子后面多了东西');
+    if (typeof val !== 'number' || isNaN(val)) throw new Error('算不出来，检查一下式子');
+    return val;
+  }
+
+  /* ---- 输出格式化：整数直给，小数最多 10 位，太大太小用科学记数法 ---- */
+  function fmt(v) {
+    if (!isFinite(v)) return v > 0 ? '∞（无穷大）' : '−∞';
+    if (Math.abs(v) < 1e-12) return '0';
+    if (Math.abs(v) >= 1e12 || (Math.abs(v) < 1e-6 && v !== 0)) return v.toExponential(6);
+    var r = Math.round(v * 1e10) / 1e10;
+    return String(r);
+  }
+
+  /* ---- 界面 ---- */
+  var expr = document.getElementById('expr');
+  var out = document.getElementById('out');
+
+  function show(v, err) {
+    if (err) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var b = document.createElement('div');
+      b.className = 'big';
+      b.textContent = '⚠ ' + err;
+      out.appendChild(b);
+      return;
+    }
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '= ' + fmt(v);
+    out.appendChild(big);
+    var sub = document.createElement('div');
+    sub.className = 'sub';
+    sub.textContent = '精确值：' + v;
+    out.appendChild(sub);
+  }
+
+  function calc() {
+    var src = expr.value.trim();
+    if (!src) { out.className = 'result is-empty'; out.textContent = '结果会显示在这里'; return; }
+    try { show(evaluate(src)); }
+    catch (e) { show(null, e.message); }
+  }
+
+  document.getElementById('keys').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.eq) {
+      calc();
+      return;
+    }
+    if (b.dataset.clear) { expr.value = ''; out.className = 'result is-empty'; out.textContent = '结果会显示在这里'; return; }
+    if (b.dataset.back) { expr.value = expr.value.slice(0, -1); return; }
+    if (b.dataset.ins) {
+      expr.value += b.dataset.ins;
+      expr.focus();
+      calc();
+    }
+  });
+
+  expr.addEventListener('input', calc);
+  expr.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); calc(); }
+  });
+
+  document.getElementById('mode-chips').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    MODE = b.dataset.mode;
+    var all = this.querySelectorAll('.chip');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    calc();
+  });
+  </script>
+</body>
+</html>

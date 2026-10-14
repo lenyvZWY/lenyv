@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>物理公式</title>
+  <meta name="description" content="速度、密度、压强、欧姆定律等常用物理公式，填两个自动求第三个。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>物理公式</h1>
+      <p>选一个公式，<strong>把知道的量填进去、想求的那个留空</strong>，点计算就行。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>公式</label>
+        <select id="f"></select>
+      </div>
+      <div class="row" id="fields"></div>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function f(v) {
+    if (v === 0) return '0';
+    if (Math.abs(v) >= 1e7 || Math.abs(v) < 1e-5) return v.toExponential(6);
+    return String(Math.round(v * 1e6) / 1e6);
+  }
+  function nz(x) { return x !== 0; }
+
+  var FORMULAS = {
+    speed: {
+      name: '速度　v = s ÷ t',
+      vars: [['v', '速度 v', 'm/s'], ['s', '路程 s', 'm'], ['t', '时间 t', 's']],
+      solve: function (t, v) { return t === 'v' ? v.s / v.t : t === 's' ? v.v * v.t : v.s / v.v; },
+      step: function (t, v) {
+        return t === 'v' ? 'v = s ÷ t = ' + f(v.s) + ' ÷ ' + f(v.t)
+          : t === 's' ? 's = v × t = ' + f(v.v) + ' × ' + f(v.t)
+            : 't = s ÷ v = ' + f(v.s) + ' ÷ ' + f(v.v);
+      }
+    },
+    density: {
+      name: '密度　ρ = m ÷ V',
+      vars: [['rho', '密度 ρ', 'kg/m³'], ['m', '质量 m', 'kg'], ['V', '体积 V', 'm³']],
+      solve: function (t, v) { return t === 'rho' ? v.m / v.V : t === 'm' ? v.rho * v.V : v.m / v.rho; },
+      step: function (t, v) {
+        return t === 'rho' ? 'ρ = m ÷ V = ' + f(v.m) + ' ÷ ' + f(v.V)
+          : t === 'm' ? 'm = ρ × V = ' + f(v.rho) + ' × ' + f(v.V)
+            : 'V = m ÷ ρ = ' + f(v.m) + ' ÷ ' + f(v.rho);
+      }
+    },
+    pressure: {
+      name: '压强　p = F ÷ S',
+      vars: [['p', '压强 p', 'Pa'], ['F', '压力 F', 'N'], ['S', '受力面积 S', 'm²']],
+      solve: function (t, v) { return t === 'p' ? v.F / v.S : t === 'F' ? v.p * v.S : v.F / v.p; },
+      step: function (t, v) {
+        return t === 'p' ? 'p = F ÷ S = ' + f(v.F) + ' ÷ ' + f(v.S)
+          : t === 'F' ? 'F = p × S = ' + f(v.p) + ' × ' + f(v.S)
+            : 'S = F ÷ p = ' + f(v.F) + ' ÷ ' + f(v.p);
+      }
+    },
+    work: {
+      name: '功　W = F × s',
+      vars: [['W', '功 W', 'J'], ['F', '力 F', 'N'], ['s', '距离 s', 'm']],
+      solve: function (t, v) { return t === 'W' ? v.F * v.s : v.W / (t === 'F' ? v.s : v.F); },
+      step: function (t, v) {
+        return t === 'W' ? 'W = F × s = ' + f(v.F) + ' × ' + f(v.s)
+          : t === 'F' ? 'F = W ÷ s = ' + f(v.W) + ' ÷ ' + f(v.s)
+            : 's = W ÷ F = ' + f(v.W) + ' ÷ ' + f(v.F);
+      }
+    },
+    power: {
+      name: '功率　P = W ÷ t',
+      vars: [['P', '功率 P', 'W'], ['W', '功 W', 'J'], ['t', '时间 t', 's']],
+      solve: function (t, v) { return t === 'P' ? v.W / v.t : t === 'W' ? v.P * v.t : v.W / v.P; },
+      step: function (t, v) {
+        return t === 'P' ? 'P = W ÷ t = ' + f(v.W) + ' ÷ ' + f(v.t)
+          : t === 'W' ? 'W = P × t = ' + f(v.P) + ' × ' + f(v.t)
+            : 't = W ÷ P = ' + f(v.W) + ' ÷ ' + f(v.P);
+      }
+    },
+    ohm: {
+      name: '欧姆定律　I = U ÷ R',
+      vars: [['I', '电流 I', 'A'], ['U', '电压 U', 'V'], ['R', '电阻 R', 'Ω']],
+      solve: function (t, v) { return t === 'I' ? v.U / v.R : t === 'U' ? v.I * v.R : v.U / v.I; },
+      step: function (t, v) {
+        return t === 'I' ? 'I = U ÷ R = ' + f(v.U) + ' ÷ ' + f(v.R)
+          : t === 'U' ? 'U = I × R = ' + f(v.I) + ' × ' + f(v.R)
+            : 'R = U ÷ I = ' + f(v.U) + ' ÷ ' + f(v.I);
+      }
+    },
+    epower: {
+      name: '电功率　P = U × I',
+      vars: [['P', '电功率 P', 'W'], ['U', '电压 U', 'V'], ['I', '电流 I', 'A']],
+      solve: function (t, v) { return t === 'P' ? v.U * v.I : v.P / (t === 'U' ? v.I : v.U); },
+      step: function (t, v) {
+        return t === 'P' ? 'P = U × I = ' + f(v.U) + ' × ' + f(v.I)
+          : t === 'U' ? 'U = P ÷ I = ' + f(v.P) + ' ÷ ' + f(v.I)
+            : 'I = P ÷ U = ' + f(v.P) + ' ÷ ' + f(v.U);
+      }
+    },
+    ework: {
+      name: '电功　W = U × I × t',
+      vars: [['W', '电功 W', 'J'], ['U', '电压 U', 'V'], ['I', '电流 I', 'A'], ['t', '时间 t', 's']],
+      solve: function (t, v) {
+        if (t === 'W') return v.U * v.I * v.t;
+        if (t === 'U') return v.W / (v.I * v.t);
+        if (t === 'I') return v.W / (v.U * v.t);
+        return v.W / (v.U * v.I);
+      },
+      step: function (t, v) {
+        return t === 'W' ? 'W = U × I × t = ' + f(v.U) + ' × ' + f(v.I) + ' × ' + f(v.t)
+          : t === 'U' ? 'U = W ÷ (I × t) = ' + f(v.W) + ' ÷ (' + f(v.I) + ' × ' + f(v.t) + ')'
+            : t === 'I' ? 'I = W ÷ (U × t) = ' + f(v.W) + ' ÷ (' + f(v.U) + ' × ' + f(v.t) + ')'
+              : 't = W ÷ (U × I) = ' + f(v.W) + ' ÷ (' + f(v.U) + ' × ' + f(v.I) + ')';
+      }
+    },
+    lever: {
+      name: '杠杆平衡　F₁ × L₁ = F₂ × L₂',
+      vars: [['F1', '动力 F₁', 'N'], ['L1', '动力臂 L₁', 'm'], ['F2', '阻力 F₂', 'N'], ['L2', '阻力臂 L₂', 'm']],
+      solve: function (t, v) {
+        if (t === 'F1') return v.F2 * v.L2 / v.L1;
+        if (t === 'L1') return v.F2 * v.L2 / v.F1;
+        if (t === 'F2') return v.F1 * v.L1 / v.L2;
+        return v.F1 * v.L1 / v.F2;
+      },
+      step: function (t, v) {
+        var known = 'F₁L₁ = F₂L₂';
+        if (t === 'F1') return known + '  ⇒  F₁ = F₂L₂ ÷ L₁ = ' + f(v.F2) + ' × ' + f(v.L2) + ' ÷ ' + f(v.L1);
+        if (t === 'L1') return known + '  ⇒  L₁ = F₂L₂ ÷ F₁ = ' + f(v.F2) + ' × ' + f(v.L2) + ' ÷ ' + f(v.F1);
+        if (t === 'F2') return known + '  ⇒  F₂ = F₁L₁ ÷ L₂ = ' + f(v.F1) + ' × ' + f(v.L1) + ' ÷ ' + f(v.L2);
+        return known + '  ⇒  L₂ = F₁L₁ ÷ F₂ = ' + f(v.F1) + ' × ' + f(v.L1) + ' ÷ ' + f(v.F2);
+      }
+    },
+    heat: {
+      name: '热量　Q = c × m × Δt',
+      vars: [['Q', '热量 Q', 'J'], ['c', '比热容 c', 'J/(kg·℃)'], ['m', '质量 m', 'kg'], ['dt', '温度变化 Δt', '℃']],
+      solve: function (t, v) {
+        if (t === 'Q') return v.c * v.m * v.dt;
+        if (t === 'c') return v.Q / (v.m * v.dt);
+        if (t === 'm') return v.Q / (v.c * v.dt);
+        return v.Q / (v.c * v.m);
+      },
+      step: function (t, v) {
+        if (t === 'Q') return 'Q = c × m × Δt = ' + f(v.c) + ' × ' + f(v.m) + ' × ' + f(v.dt);
+        if (t === 'c') return 'c = Q ÷ (m × Δt) = ' + f(v.Q) + ' ÷ (' + f(v.m) + ' × ' + f(v.dt) + ')';
+        if (t === 'm') return 'm = Q ÷ (c × Δt) = ' + f(v.Q) + ' ÷ (' + f(v.c) + ' × ' + f(v.dt) + ')';
+        return 'Δt = Q ÷ (c × m) = ' + f(v.Q) + ' ÷ (' + f(v.c) + ' × ' + f(v.m) + ')';
+      }
+    }
+  };
+
+  var sel = document.getElementById('f');
+  Object.keys(FORMULAS).forEach(function (k) {
+    var o = document.createElement('option'); o.value = k; o.textContent = FORMULAS[k].name; sel.appendChild(o);
+  });
+
+  function build() {
+    var box = document.getElementById('fields');
+    box.innerHTML = '';
+    FORMULAS[sel.value].vars.forEach(function (vd) {
+      var wrap = document.createElement('div');
+      wrap.className = 'field';
+      var lb = document.createElement('label');
+      lb.textContent = vd[1] + '（' + vd[2] + '）· 要求它就留空';
+      var ip = document.createElement('input');
+      ip.type = 'number'; ip.id = 'v-' + vd[0]; ip.step = 'any'; ip.placeholder = '留空 = 求这个';
+      wrap.appendChild(lb); wrap.appendChild(ip);
+      box.appendChild(wrap);
+    });
+    var out = document.getElementById('out');
+    out.className = 'result is-empty';
+    out.textContent = '结果会显示在这里';
+  }
+  sel.addEventListener('change', build);
+  build();
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var cfg = FORMULAS[sel.value];
+    var vals = {}, empty = [], filled = [];
+
+    cfg.vars.forEach(function (vd) {
+      var raw = document.getElementById('v-' + vd[0]).value.trim();
+      if (raw === '') { empty.push(vd); return; }
+      var n = parseFloat(raw);
+      if (!isFinite(n)) throw0(out, '「' + vd[1] + '」填的不是数字');
+      vals[vd[0]] = n; filled.push(vd);
+    });
+
+    function throw0(el, msg) {
+      el.className = 'result is-error';
+      el.innerHTML = '';
+      var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ ' + msg;
+      el.appendChild(b);
+      return true;
+    }
+
+    if (empty.length === 0) { throw0(out, '要留一个空着，才知道算哪个'); return; }
+    if (empty.length > 1) { throw0(out, '只能留一个空，现在空着 ' + empty.length + ' 个'); return; }
+
+    try {
+      var target = empty[0];
+      var ans = cfg.solve(target[0], vals);
+      if (!isFinite(ans)) { throw0(out, '算不出来，检查数字（可能有 0 或填错了）'); return; }
+
+      out.className = 'result';
+      out.innerHTML = '';
+      var big = document.createElement('div');
+      big.className = 'big';
+      big.textContent = target[1] + ' = ' + f(ans) + ' ' + target[2];
+      out.appendChild(big);
+      var s = document.createElement('div');
+      s.className = 'steps';
+      s.textContent = cfg.step(target[0], vals);
+      out.appendChild(s);
+    } catch (e) {
+      throw0(out, '算不出来，检查数字（可能有 0 或填错了）');
+    }
+  });
+  </script>
+</body>
+</html>

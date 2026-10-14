@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>数与因数</title>
+  <meta name="description" content="判断质数、分解质因数、求最大公约数和最小公倍数。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>数与因数</h1>
+      <p>判断是不是质数、把数拆成质数相乘、求最大公约数和最小公倍数。</p>
+    </div>
+
+    <div class="panel">
+      <h2>分解一个正整数</h2>
+      <div class="field">
+        <label>输入一个大于 1 的整数</label>
+        <input id="n" type="number" value="60" step="1" min="2">
+      </div>
+      <button class="btn btn-primary" id="go" type="button">分析</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>两个数的最大公约数与最小公倍数</h2>
+      <div class="row">
+        <div class="field"><label>第一个数</label><input id="a" type="number" value="24" step="1" min="1"></div>
+        <div class="field"><label>第二个数</label><input id="b" type="number" value="36" step="1" min="1"></div>
+      </div>
+      <button class="btn btn-ghost" id="go2" type="button">计算</button>
+      <div class="result is-empty" id="out2">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function isPrime(n) {
+    if (n < 2) return false;
+    if (n === 2) return true;
+    if (n % 2 === 0) return false;
+    for (var i = 3; i * i <= n; i += 2) if (n % i === 0) return false;
+    return true;
+  }
+  function factorize(n) {
+    var rest = n, list = [], steps = [];
+    var d = 2;
+    while (d * d <= rest) {
+      while (rest % d === 0) {
+        list.push(d);
+        steps.push(rest + ' ÷ ' + d + ' = ' + (rest / d));
+        rest = rest / d;
+      }
+      d++;
+    }
+    if (rest > 1) list.push(rest);
+    return { list: list, steps: steps, rest: rest };
+  }
+  function divisors(n) {
+    var small = [], big = [];
+    for (var i = 1; i * i <= n; i++) {
+      if (n % i === 0) {
+        small.push(i);
+        if (i !== n / i) big.push(n / i);
+      }
+    }
+    big.reverse();
+    return small.concat(big);
+  }
+  function gcd(a, b) {
+    var steps = [];
+    while (b) {
+      steps.push(a + ' ÷ ' + b + ' = ' + Math.floor(a / b) + ' 余 ' + (a % b));
+      var t = a % b; a = b; b = t;
+    }
+    return { value: a, steps: steps };
+  }
+
+  function showError(el, msg) {
+    el.className = 'result is-error';
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ ' + msg;
+    el.appendChild(b);
+  }
+  function showResult(el, big, lines) {
+    el.className = 'result';
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big'; b.textContent = big;
+    el.appendChild(b);
+    if (lines && lines.length) {
+      var s = document.createElement('div'); s.className = 'steps'; s.textContent = lines.join('\n');
+      el.appendChild(s);
+    }
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var n = parseInt(document.getElementById('n').value, 10);
+    if (!isFinite(n) || n < 2) { showError(out, '请输入一个大于 1 的整数'); return; }
+    if (n > 1e12) { showError(out, '这个数太大了，换个小一点的'); return; }
+
+    var prime = isPrime(n);
+    var fz = factorize(n);
+    var lines = [];
+
+    lines.push(prime ? n + ' 是质数（除了 1 和它自己，没有别的因数）'
+      : n + ' 不是质数，它是合数');
+
+    if (!prime) {
+      lines.push('');
+      lines.push('质因数分解：' + n + ' = ' + fz.list.join(' × '));
+      if (fz.steps.length) {
+        lines.push('短除法过程：');
+        fz.steps.forEach(function (s) { lines.push('  ' + s); });
+      }
+    }
+
+    var ds = divisors(n);
+    lines.push('');
+    lines.push('一共有 ' + ds.length + ' 个因数：' + ds.join('、'));
+
+    showResult(out, prime ? n + ' 是质数' : n + ' = ' + fz.list.join(' × '), lines);
+  });
+
+  document.getElementById('go2').addEventListener('click', function () {
+    var out = document.getElementById('out2');
+    var a = parseInt(document.getElementById('a').value, 10);
+    var b = parseInt(document.getElementById('b').value, 10);
+    if (!isFinite(a) || !isFinite(b) || a < 1 || b < 1) { showError(out, '请输入两个正整数'); return; }
+
+    var g = gcd(a, b);
+    var l = a * b / g.value;
+    var lines = [];
+    lines.push('用辗转相除法求最大公约数：');
+    g.steps.forEach(function (s) { lines.push('  ' + s); });
+    lines.push('最后一个不是 0 的余数就是最大公约数：' + g.value);
+    lines.push('');
+    lines.push('最小公倍数 = 两数相乘 ÷ 最大公约数');
+    lines.push('= ' + a + ' × ' + b + ' ÷ ' + g.value + ' = ' + l);
+
+    showResult(out, '最大公约数 ' + g.value + '　　最小公倍数 ' + l, lines);
+  });
+  </script>
+</body>
+</html>

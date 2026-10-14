@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>进制转换</title>
+  <meta name="description" content="二进制、八进制、十进制、十六进制互转，信息技术课用得上。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>进制转换</h1>
+      <p>输入一个数，选它是几进制，其他三种进制一次全给出来。十六进制里 A~F 大小写都认。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="field">
+          <label>输入</label>
+          <input id="val" type="text" value="1011" autocomplete="off" spellcheck="false" placeholder="例如 1011 或 1A3F">
+        </div>
+        <div class="field" style="max-width:180px">
+          <label>它是几进制</label>
+          <select id="b">
+            <option value="2">二进制 (2)</option>
+            <option value="8">八进制 (8)</option>
+            <option value="10" selected>十进制 (10)</option>
+            <option value="16">十六进制 (16)</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">转换</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function parseInBase(s, b) {
+    s = s.trim().replace(/\s+/g, '');
+    if (!s) throw new Error('请输入一个数');
+    var neg = false;
+    if (s[0] === '-') { neg = true; s = s.slice(1); }
+    if (!s) throw new Error('请输入一个数');
+    var v = 0n, B = BigInt(b);
+    for (var i = 0; i < s.length; i++) {
+      var d = parseInt(s[i], 36);
+      if (isNaN(d) || d >= b) throw new Error('「' + s[i] + '」不是 ' + b + ' 进制里合法的数字');
+      v = v * B + BigInt(d);
+    }
+    return neg ? -v : v;
+  }
+
+  function expand(s, b) {
+    /* 按权展开：把每一位的贡献写出来，帮着理解 */
+    var B = BigInt(b), parts = [];
+    for (var i = 0; i < s.length; i++) {
+      var d = parseInt(s[i], 36);
+      var p = s.length - 1 - i;
+      parts.push(d + '×' + b + '^' + p);
+    }
+    return parts.join(' + ');
+  }
+
+  var NAMES = { 2: '二进制', 8: '八进制', 10: '十进制', 16: '十六进制' };
+
+  function showError(el, msg) {
+    el.className = 'result is-error';
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ ' + msg;
+    el.appendChild(b);
+  }
+
+  function run() {
+    var out = document.getElementById('out');
+    var raw = document.getElementById('val').value;
+    var b = parseInt(document.getElementById('b').value, 10);
+    try {
+      var v = parseInBase(raw, b);
+      out.className = 'result';
+      out.innerHTML = '';
+
+      var big = document.createElement('div');
+      big.className = 'big';
+      big.textContent = v.toString(10) + '（十进制）';
+      out.appendChild(big);
+
+      var tbl = document.createElement('table');
+      tbl.className = 'tbl'; tbl.style.marginTop = '16px';
+      var thead = document.createElement('thead');
+      var hr = document.createElement('tr');
+      ['进制', '写法'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+      thead.appendChild(hr); tbl.appendChild(thead);
+      var tb = document.createElement('tbody');
+      [2, 8, 10, 16].forEach(function (r) {
+        var tr = document.createElement('tr');
+        var td1 = document.createElement('td'); td1.textContent = NAMES[r] + '（' + r + '）';
+        var td2 = document.createElement('td');
+        td2.textContent = r === 16 ? v.toString(16).toUpperCase() : v.toString(r);
+        td2.style.fontFamily = 'var(--font-mono, monospace)';
+        if (r === b) td1.style.color = 'var(--brand)';
+        tr.appendChild(td1); tr.appendChild(td2); tb.appendChild(tr);
+      });
+      tbl.appendChild(tb);
+      out.appendChild(tbl);
+
+      var s = document.createElement('div');
+      s.className = 'steps';
+      s.textContent = '按权展开：' + raw.trim() + ' = ' + expand(raw.trim().replace('-', ''), b) + ' = ' + v.toString(10);
+      out.appendChild(s);
+    } catch (e) {
+      showError(out, e.message);
+    }
+  }
+
+  document.getElementById('go').addEventListener('click', run);
+  document.getElementById('val').addEventListener('input', run);
+  document.getElementById('b').addEventListener('change', run);
+  run();
+  </script>
+</body>
+</html>

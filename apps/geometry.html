@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>图形计算</title>
+  <meta name="description" content="常见平面图形和立体图形的面积、周长、表面积、体积计算。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>图形计算</h1>
+      <p>选一个图形，把量填进去，面积、周长、表面积、体积一次算完。π 取 3.14159…</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>选择图形</label>
+        <select id="shape"></select>
+      </div>
+      <div class="row" id="fields"></div>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  var PI = Math.PI;
+
+  /* 每个图形：有哪些格子、怎么算 */
+  var SHAPES = {
+    triBH: {
+      name: '三角形（知道底和高）',
+      fields: [['a', '底'], ['h', '高']],
+      run: function (v) {
+        return { rows: [['面积', v.a * v.h / 2, 'S = 底 × 高 ÷ 2']] };
+      }
+    },
+    triABC: {
+      name: '三角形（知道三条边 · 海伦公式）',
+      fields: [['a', '边 a'], ['b', '边 b'], ['c', '边 c']],
+      run: function (v) {
+        var p = (v.a + v.b + v.c) / 2;
+        if (v.a + v.b <= v.c || v.a + v.c <= v.b || v.b + v.c <= v.a) throw new Error('这三条边围不成三角形（任意两边之和必须大于第三边）');
+        var s = Math.sqrt(p * (p - v.a) * (p - v.b) * (p - v.c));
+        return { rows: [['周长', v.a + v.b + v.c, 'C = a + b + c'], ['面积', s, '海伦公式 S = √[p(p−a)(p−b)(p−c)]，其中 p = ' + f(p)]] };
+      }
+    },
+    square: {
+      name: '正方形',
+      fields: [['a', '边长']],
+      run: function (v) { return { rows: [['面积', v.a * v.a, 'S = a²'], ['周长', 4 * v.a, 'C = 4a']] }; }
+    },
+    rect: {
+      name: '长方形',
+      fields: [['a', '长'], ['b', '宽']],
+      run: function (v) { return { rows: [['面积', v.a * v.b, 'S = ab'], ['周长', 2 * (v.a + v.b), 'C = 2(a+b)'], ['对角线', Math.sqrt(v.a * v.a + v.b * v.b), 'd = √(a²+b²)']] }; }
+    },
+    para: {
+      name: '平行四边形',
+      fields: [['a', '底'], ['h', '高']],
+      run: function (v) { return { rows: [['面积', v.a * v.h, 'S = 底 × 高']] }; }
+    },
+    trap: {
+      name: '梯形',
+      fields: [['a', '上底'], ['b', '下底'], ['h', '高']],
+      run: function (v) { return { rows: [['面积', (v.a + v.b) * v.h / 2, 'S = (上底 + 下底) × 高 ÷ 2']] }; }
+    },
+    circle: {
+      name: '圆',
+      fields: [['r', '半径']],
+      run: function (v) { return { rows: [['面积', PI * v.r * v.r, 'S = πr²'], ['周长', 2 * PI * v.r, 'C = 2πr'], ['直径', 2 * v.r, 'd = 2r']] }; }
+    },
+    cube: {
+      name: '正方体',
+      fields: [['a', '棱长']],
+      run: function (v) { return { rows: [['表面积', 6 * v.a * v.a, 'S = 6a²'], ['体积', v.a * v.a * v.a, 'V = a³']] }; }
+    },
+    cuboid: {
+      name: '长方体',
+      fields: [['a', '长'], ['b', '宽'], ['c', '高']],
+      run: function (v) {
+        return { rows: [['表面积', 2 * (v.a * v.b + v.b * v.c + v.a * v.c), 'S = 2(ab + bc + ac)'], ['体积', v.a * v.b * v.c, 'V = abc']] };
+      }
+    },
+    cylinder: {
+      name: '圆柱',
+      fields: [['r', '底面半径'], ['h', '高']],
+      run: function (v) {
+        return { rows: [['侧面积', 2 * PI * v.r * v.h, 'S侧 = 2πrh'], ['表面积', 2 * PI * v.r * v.h + 2 * PI * v.r * v.r, 'S表 = 2πrh + 2πr²'], ['体积', PI * v.r * v.r * v.h, 'V = πr²h']] };
+      }
+    },
+    cone: {
+      name: '圆锥',
+      fields: [['r', '底面半径'], ['h', '高']],
+      run: function (v) {
+        var l = Math.sqrt(v.r * v.r + v.h * v.h);
+        return { rows: [['母线长', l, 'l = √(r² + h²)'], ['侧面积', PI * v.r * l, 'S侧 = πrl'], ['体积', PI * v.r * v.r * v.h / 3, 'V = πr²h ÷ 3']] };
+      }
+    },
+    sphere: {
+      name: '球',
+      fields: [['r', '半径']],
+      run: function (v) { return { rows: [['表面积', 4 * PI * v.r * v.r, 'S = 4πr²'], ['体积', 4 / 3 * PI * v.r * v.r * v.r, 'V = 4/3 πr³']] }; }
+    }
+  };
+
+  function f(v) { return String(Math.round(v * 1e6) / 1e6); }
+
+  var sel = document.getElementById('shape');
+  Object.keys(SHAPES).forEach(function (k) {
+    var o = document.createElement('option');
+    o.value = k; o.textContent = SHAPES[k].name;
+    sel.appendChild(o);
+  });
+
+  function buildFields() {
+    var cfg = SHAPES[sel.value];
+    var box = document.getElementById('fields');
+    box.innerHTML = '';
+    cfg.fields.forEach(function (fd) {
+      var wrap = document.createElement('div');
+      wrap.className = 'field';
+      var lb = document.createElement('label');
+      lb.textContent = fd[1];
+      var ip = document.createElement('input');
+      ip.type = 'number'; ip.id = 'f-' + fd[0]; ip.placeholder = fd[1]; ip.step = 'any';
+      wrap.appendChild(lb); wrap.appendChild(ip);
+      box.appendChild(wrap);
+    });
+  }
+  sel.addEventListener('change', function () {
+    buildFields();
+    var out = document.getElementById('out');
+    out.className = 'result is-empty';
+    out.textContent = '结果会显示在这里';
+  });
+  buildFields();
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var cfg = SHAPES[sel.value];
+    try {
+      var v = {};
+      cfg.fields.forEach(function (fd) {
+        var raw = document.getElementById('f-' + fd[0]).value;
+        var n = parseFloat(raw);
+        if (raw === '' || !isFinite(n)) throw new Error('「' + fd[1] + '」要填数字');
+        if (n <= 0) throw new Error('「' + fd[1] + '」要大于 0');
+        v[fd[0]] = n;
+      });
+      var res = cfg.run(v);
+
+      out.className = 'result';
+      out.innerHTML = '';
+      var big = document.createElement('div');
+      big.className = 'big';
+      big.textContent = res.rows[0][0] + ' = ' + f(res.rows[0][1]);
+      out.appendChild(big);
+
+      var tbl = document.createElement('table');
+      tbl.className = 'tbl';
+      tbl.style.marginTop = '16px';
+      tbl.innerHTML = '';
+      var head = document.createElement('tr');
+      ['项目', '结果', '公式'].forEach(function (t) {
+        var th = document.createElement('th'); th.textContent = t; head.appendChild(th);
+      });
+      var thead = document.createElement('thead'); thead.appendChild(head);
+      tbl.appendChild(thead);
+      var tb = document.createElement('tbody');
+      res.rows.forEach(function (r) {
+        var tr = document.createElement('tr');
+        [r[0], f(r[1]), r[2]].forEach(function (t) {
+          var td = document.createElement('td'); td.textContent = t; tr.appendChild(td);
+        });
+        tb.appendChild(tr);
+      });
+      tbl.appendChild(tb);
+      out.appendChild(tbl);
+    } catch (e) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var b = document.createElement('div');
+      b.className = 'big';
+      b.textContent = '⚠ ' + e.message;
+      out.appendChild(b);
+    }
+  });
+  </script>
+</body>
+</html>

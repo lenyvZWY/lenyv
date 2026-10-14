@@ -8,7 +8,7 @@
   "scripts": {
     "desktop": "electron .",
     "start": "node desktop/launcher.cjs",
-    "test": "node tests/vault.test.cjs && node tests/sync.test.mjs && node tests/integrity.test.cjs",
+    "test": "node tests/vault.test.cjs && node tests/sync.test.mjs && node tests/integrity.test.cjs && node tests/tools.test.cjs",
     "build:standalone": "node tools/build-standalone.cjs",
     "build:desktop": "node tools/build-desktop.cjs"
   },

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>单位换算</title>
+  <meta name="description" content="长度、质量、面积、体积、时间、温度、速度单位换算，含亩、斤、里。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>单位换算</h1>
+      <p>选类别 → 填数字 → 选原单位和目标单位。下面还会列出同一类别里所有常用单位的对照值。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="field">
+          <label>类别</label>
+          <select id="cat"></select>
+        </div>
+        <div class="field">
+          <label>数值</label>
+          <input id="val" type="number" value="1" step="any">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label>从</label><select id="from"></select></div>
+        <div class="field"><label>换算到</label><select id="to"></select></div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">换算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 每类给出「1 个单位 = 多少个基准单位」。温度单独处理。 */
+  var CATS = {
+    length: {
+      name: '长度', base: '米(m)', units: {
+        '纳米(nm)': 1e-9, '微米(μm)': 1e-6, '毫米(mm)': 0.001, '厘米(cm)': 0.01,
+        '分米(dm)': 0.1, '米(m)': 1, '千米(km)': 1000,
+        '里': 500, '英寸(in)': 0.0254, '英尺(ft)': 0.3048, '英里(mi)': 1609.344, '海里': 1852
+      }
+    },
+    mass: {
+      name: '质量', base: '千克(kg)', units: {
+        '毫克(mg)': 1e-6, '克(g)': 0.001, '两': 0.05, '斤': 0.5,
+        '千克(kg)': 1, '吨(t)': 1000, '盎司(oz)': 0.0283495, '磅(lb)': 0.45359237
+      }
+    },
+    area: {
+      name: '面积', base: '平方米(m²)', units: {
+        '平方毫米(mm²)': 1e-6, '平方厘米(cm²)': 1e-4, '平方分米(dm²)': 0.01,
+        '平方米(m²)': 1, '公顷(ha)': 10000, '亩': 666.6667, '平方千米(km²)': 1e6, '英亩': 4046.86
+      }
+    },
+    volume: {
+      name: '体积 / 容积', base: '升(L)', units: {
+        '毫升(mL)': 0.001, '立方厘米(cm³)': 0.001, '升(L)': 1, '立方分米(dm³)': 1,
+        '立方米(m³)': 1000, '加仑(美)': 3.78541
+      }
+    },
+    time: {
+      name: '时间', base: '秒(s)', units: {
+        '毫秒(ms)': 0.001, '秒(s)': 1, '分钟(min)': 60, '小时(h)': 3600,
+        '天': 86400, '周': 604800, '月(30天)': 2592000, '年(365天)': 31536000
+      }
+    },
+    speed: {
+      name: '速度', base: '米/秒(m/s)', units: {
+        '厘米/秒(cm/s)': 0.01, '米/秒(m/s)': 1, '千米/小时(km/h)': 1 / 3.6,
+        '米/分钟(m/min)': 1 / 60, '千米/秒(km/s)': 1000, '英里/小时(mph)': 0.44704
+      }
+    },
+    temp: { name: '温度', special: 'temp', units: { '摄氏度(℃)': 1, '华氏度(℉)': 1, '开尔文(K)': 1 } }
+  };
+
+  function toC(u, v) {
+    if (u.indexOf('华氏') >= 0) return (v - 32) * 5 / 9;
+    if (u.indexOf('开尔文') >= 0) return v - 273.15;
+    return v;
+  }
+  function fromC(u, v) {
+    if (u.indexOf('华氏') >= 0) return v * 9 / 5 + 32;
+    if (u.indexOf('开尔文') >= 0) return v + 273.15;
+    return v;
+  }
+  function f(v) {
+    if (v === 0) return '0';
+    if (Math.abs(v) >= 1e7 || Math.abs(v) < 1e-5) return v.toExponential(6);
+    return String(Math.round(v * 1e8) / 1e8);
+  }
+
+  var cat = document.getElementById('cat');
+  var from = document.getElementById('from');
+  var to = document.getElementById('to');
+
+  Object.keys(CATS).forEach(function (k) {
+    var o = document.createElement('option'); o.value = k; o.textContent = CATS[k].name; cat.appendChild(o);
+  });
+
+  function fillUnits() {
+    var names = Object.keys(CATS[cat.value].units);
+    [from, to].forEach(function (sel) {
+      var old = sel.value;
+      sel.innerHTML = '';
+      names.forEach(function (n) {
+        var o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o);
+      });
+      if (names.indexOf(old) >= 0) sel.value = old;
+    });
+    from.selectedIndex = 0;
+    to.selectedIndex = names.length > 1 ? 1 : 0;
+  }
+  cat.addEventListener('change', fillUnits);
+  fillUnits();
+
+  function convert() {
+    var out = document.getElementById('out');
+    out.className = 'result';
+    out.innerHTML = '';
+
+    var v = parseFloat(document.getElementById('val').value);
+    if (!isFinite(v)) {
+      out.className = 'result is-error';
+      var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 请填一个数字';
+      out.appendChild(e); return;
+    }
+    var cfg = CATS[cat.value];
+    var a = from.value, b = to.value;
+    var val;
+    if (cfg.special === 'temp') val = fromC(b, toC(a, v));
+    else val = v * cfg.units[a] / cfg.units[b];
+
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = f(v) + ' ' + a + ' = ' + f(val) + ' ' + b;
+    out.appendChild(big);
+
+    if (a !== b) {
+      var s = document.createElement('div');
+      s.className = 'steps';
+      if (cfg.special === 'temp') s.textContent = '先换成摄氏度：' + f(toC(a, v)) + '℃，再换成 ' + b;
+      else s.textContent = '先把 ' + a + ' 换成基准单位 ' + cfg.base + '：' + f(v * cfg.units[a]) + '\n再换成 ' + b + '：' + f(val);
+      out.appendChild(s);
+    }
+
+    var tbl = document.createElement('table');
+    tbl.className = 'tbl'; tbl.style.marginTop = '16px';
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['单位', '数值'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+    thead.appendChild(hr); tbl.appendChild(thead);
+    var tb = document.createElement('tbody');
+    Object.keys(cfg.units).forEach(function (u) {
+      var x = cfg.special === 'temp' ? fromC(u, toC(a, v)) : v * cfg.units[a] / cfg.units[u];
+      var tr = document.createElement('tr');
+      var td1 = document.createElement('td'); td1.textContent = u;
+      var td2 = document.createElement('td'); td2.textContent = f(x);
+      if (u === a) td1.style.color = 'var(--brand)';
+      tr.appendChild(td1); tr.appendChild(td2); tb.appendChild(tr);
+    });
+    tbl.appendChild(tb);
+    out.appendChild(tbl);
+  }
+
+  document.getElementById('go').addEventListener('click', convert);
+  cat.addEventListener('change', convert);
+  from.addEventListener('change', convert);
+  to.addEventListener('change', convert);
+  document.getElementById('val').addEventListener('input', convert);
+  convert();
+  </script>
+</body>
+</html>

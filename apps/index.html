@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>工具箱</title>
+  <meta name="description" content="给初中生用的小工具，点开就能用，不用装、不用联网。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav" id="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <div class="tool-head">
+      <span class="hero-eyebrow">初中生常用</span>
+      <h1>工具箱</h1>
+      <p>点开就能用。不用注册、不用联网、不装东西，算完关掉就走。</p>
+    </div>
+
+    <div class="tool-grid">
+      <a class="card" href="calculator.html">
+        <span class="mark">算</span>
+        <h3>科学计算器</h3>
+        <p>四则、括号、平方、根号、三角函数。默认角度制，可切弧度。</p>
+      </a>
+      <a class="card" href="fraction.html">
+        <span class="mark">分</span>
+        <h3>分数计算器</h3>
+        <p>分数加减乘除，自动约分，同时给出小数和百分数。</p>
+      </a>
+      <a class="card" href="equation.html">
+        <span class="mark">解</span>
+        <h3>解方程</h3>
+        <p>一元一次、一元二次方程。带判别式、求根公式和过程。</p>
+      </a>
+      <a class="card" href="geometry.html">
+        <span class="mark">形</span>
+        <h3>图形计算</h3>
+        <p>三角形、圆、梯形、长方体、圆柱、圆锥、球的面积与体积。</p>
+      </a>
+      <a class="card" href="unit.html">
+        <span class="mark">换</span>
+        <h3>单位换算</h3>
+        <p>长度、质量、面积、体积、时间、温度、速度。含亩、斤、里。</p>
+      </a>
+      <a class="card" href="stats.html">
+        <span class="mark">统</span>
+        <h3>统计分析</h3>
+        <p>平均数、中位数、众数、极差、方差、标准差，一步出结果。</p>
+      </a>
+      <a class="card" href="physics.html">
+        <span class="mark">物</span>
+        <h3>物理公式</h3>
+        <p>速度、密度、压强、欧姆定律等。填两个，自动求第三个。</p>
+      </a>
+      <a class="card" href="base.html">
+        <span class="mark">码</span>
+        <h3>进制转换</h3>
+        <p>二进制、八进制、十进制、十六进制互转，信息技术课用得上。</p>
+      </a>
+      <a class="card" href="number.html">
+        <span class="mark">数</span>
+        <h3>数与因数</h3>
+        <p>判断质数、分解质因数、最大公约数、最小公倍数。</p>
+      </a>
+      <a class="card" href="countdown.html">
+        <span class="mark">钟</span>
+        <h3>倒计时与番茄钟</h3>
+        <p>中考倒计时，外加 25 分钟专注计时，到点响一声。</p>
+      </a>
+      <a class="card" href="random.html">
+        <span class="mark">抽</span>
+        <h3>随机抽签</h3>
+        <p>课堂点名、随机分组、抽签决定顺序。也能生成随机数。</p>
+      </a>
+    </div>
+
+    <p class="footer-note" style="margin-top:var(--sp-6)">
+      所有计算都在你自己的浏览器里完成，什么数据都不会发出去。
+    </p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-note">纯前端工具，离线也能用。</p>
+      <div class="footer-links">
+        <a href="/">首页</a>
+        <a href="/apps/">工具箱</a>
+        <a href="/vault.html">保险库</a>
+      </div>
+      <p class="footer-copy">本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+</body>
+</html>
