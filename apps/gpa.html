@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>成绩与 GPA</title>
+  <meta name="description" content="百分制成绩换算 4.0 制 GPA，按学分加权，附英国学位等级对照。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>成绩与 GPA</h1>
+      <p>申请出国要算 GPA，不同学校算法还不一样。这里按学分加权算，两种常见的 4.0 算法都给你。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>课程（一行一门：课程名,学分,分数）</label>
+        <textarea id="rows">数学,4,92
+英语,3,85
+物理,3,78
+化学,2,88
+体育,1,95</textarea>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>两种常见换算标准</h2>
+      <table class="tbl">
+        <thead><tr><th>百分制</th><th>简版（4 档）</th><th>细版（常见国内算法）</th></tr></thead>
+        <tbody>
+          <tr><td>90 ~ 100</td><td>4.0</td><td>4.0</td></tr>
+          <tr><td>85 ~ 89</td><td>4.0</td><td>3.7</td></tr>
+          <tr><td>82 ~ 84</td><td>3.0</td><td>3.3</td></tr>
+          <tr><td>78 ~ 81</td><td>3.0</td><td>3.0</td></tr>
+          <tr><td>75 ~ 77</td><td>2.0</td><td>2.7</td></tr>
+          <tr><td>72 ~ 74</td><td>2.0</td><td>2.3</td></tr>
+          <tr><td>68 ~ 71</td><td>2.0</td><td>2.0</td></tr>
+          <tr><td>64 ~ 67</td><td>1.0</td><td>1.5</td></tr>
+          <tr><td>60 ~ 63</td><td>1.0</td><td>1.0</td></tr>
+          <tr><td>60 以下</td><td>0</td><td>0</td></tr>
+        </tbody>
+      </table>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        没有统一标准，对方学校会用他们自己的算法重算一遍。这里只是让你心里有个数。
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>英国本科学位等级（参考）</h2>
+      <table class="tbl">
+        <thead><tr><th>等级</th><th>英文名</th><th>百分制</th></tr></thead>
+        <tbody>
+          <tr><td>一等</td><td>First Class</td><td>70 以上</td></tr>
+          <tr><td>二等一</td><td>Upper Second (2:1)</td><td>60 ~ 69</td></tr>
+          <tr><td>二等二</td><td>Lower Second (2:2)</td><td>50 ~ 59</td></tr>
+          <tr><td>三等</td><td>Third Class</td><td>40 ~ 49</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 简版：90+→4，80+→3，70+→2，60+→1，其余 0 */
+  function gpSimple(score) {
+    if (score >= 90) return 4.0;
+    if (score >= 80) return 3.0;
+    if (score >= 70) return 2.0;
+    if (score >= 60) return 1.0;
+    return 0;
+  }
+  /* 细版：常见的国内分档 */
+  function gpFine(score) {
+    if (score >= 90) return 4.0;
+    if (score >= 85) return 3.7;
+    if (score >= 82) return 3.3;
+    if (score >= 78) return 3.0;
+    if (score >= 75) return 2.7;
+    if (score >= 72) return 2.3;
+    if (score >= 68) return 2.0;
+    if (score >= 64) return 1.5;
+    if (score >= 60) return 1.0;
+    return 0;
+  }
+  function ukClass(avg) {
+    if (avg >= 70) return '一等（First Class）';
+    if (avg >= 60) return '二等一（2:1）';
+    if (avg >= 50) return '二等二（2:2）';
+    if (avg >= 40) return '三等（Third）';
+    return '未达到学位线';
+  }
+
+  function f(v) { return String(Math.round(v * 100) / 100); }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var lines = document.getElementById('rows').value.split('\n');
+    var courses = [];
+    var bad = [];
+
+    lines.forEach(function (l) {
+      var t = l.trim();
+      if (!t) return;
+      var p = t.split(/[,，\t]+/);
+      if (p.length < 3) { bad.push(t); return; }
+      var credit = parseFloat(p[1]);
+      var score = parseFloat(p[2]);
+      if (!isFinite(credit) || !isFinite(score)) { bad.push(t); return; }
+      courses.push({ name: p[0], credit: credit, score: score, simple: gpSimple(score), fine: gpFine(score) });
+    });
+
+    if (!courses.length) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big';
+      e.textContent = '⚠ 没读到任何课程，格式是：课程名,学分,分数';
+      out.appendChild(e); return;
+    }
+
+    var totalCredit = 0, sumScore = 0, sumSimple = 0, sumFine = 0;
+    courses.forEach(function (c) {
+      totalCredit += c.credit;
+      sumScore += c.score * c.credit;
+      sumSimple += c.simple * c.credit;
+      sumFine += c.fine * c.credit;
+    });
+    var avg = sumScore / totalCredit;
+    var gpaS = sumSimple / totalCredit;
+    var gpaF = sumFine / totalCredit;
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '加权平均分 ' + f(avg) + '　GPA ' + f(gpaF) + ' / 4.0';
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['课程', '学分', '分数', '简版', '细版'].forEach(function (t) {
+      var th = document.createElement('th'); th.textContent = t; hr.appendChild(th);
+    });
+    thead.appendChild(hr); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    courses.forEach(function (c) {
+      var tr = document.createElement('tr');
+      [c.name, c.credit, c.score, c.simple.toFixed(1), c.fine.toFixed(1)].forEach(function (v) {
+        var td = document.createElement('td'); td.textContent = String(v); tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = '总学分 ' + f(totalCredit) +
+      '\n加权平均分（细版 GPA）：' + f(gpaF) + '　简版算法：' + f(gpaS) +
+      '\n英国学位等级参考：' + ukClass(avg) +
+      '\n最高分 ' + Math.max.apply(null, courses.map(function (c) { return c.score; })) +
+      '　最低分 ' + Math.min.apply(null, courses.map(function (c) { return c.score; })) +
+      '\n及格门数 ' + courses.filter(function (c) { return c.score >= 60; }).length + ' / ' + courses.length;
+    out.appendChild(s);
+
+    if (bad.length) {
+      var w = document.createElement('div');
+      w.className = 'sub';
+      w.textContent = '⚠ 这几行没读懂，已跳过：' + bad.join('；');
+      out.appendChild(w);
+    }
+  });
+  </script>
+</body>
+</html>

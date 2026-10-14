@@ -328,6 +328,56 @@ section('[12] 金融三件套：复利 / 个税 / 存款');
   near(dp.effAnnual(3, 12), (Math.pow(1 + 0.03 / 12, 12) - 1) * 100, '按月复利的实际年化略高', 1e-9);
 }
 
+/* ======================================================================== */
+section('[13] 化学与学习：分子量 / GPA / Markdown');
+{
+  /* ---- 化学式分子量 ---- */
+  var mm = run('molarmass.html', 'var M = {', 'function f(v)');
+  near(mm.parseFormula('H2O').mass, 18.015, 'H2O = 18.015', 0.01);
+  near(mm.parseFormula('CO2').mass, 44.009, 'CO2 = 44.009', 0.01);
+  near(mm.parseFormula('Ca(OH)2').mass, 74.092, 'Ca(OH)2 = 74.092', 0.01);
+  near(mm.parseFormula('CuSO4·5H2O').mass, 249.677, 'CuSO4·5H2O = 249.677', 0.01);
+  near(mm.parseFormula('C6H12O6').mass, 180.156, '葡萄糖 C6H12O6 = 180.156', 0.01);
+  eq(mm.parseFormula('H2O').atoms.H, 2, 'H2O 里有 2 个 H');
+  eq(mm.parseFormula('H2O').atoms.O, 1, 'H2O 里有 1 个 O');
+  eq(mm.parseFormula('Ca(OH)2').atoms.O, 2, 'Ca(OH)2 里 O 要乘 2');
+  eq(mm.parseFormula('CuSO4·5H2O').atoms.H, 10, '结晶水里的 H 也要算进去');
+  ['Xx2', 'h2o', '(H2O'].forEach(function (bad) {
+    var threw = false;
+    try { mm.parseFormula(bad); } catch (e) { threw = true; }
+    ok(threw, '非法化学式要报错：' + bad);
+  });
+
+  /* ---- GPA ---- */
+  var gp = run('gpa.html', 'function gpSimple(score)', 'function f(v)');
+  eq(gp.gpSimple(95), 4, '简版：95 → 4.0');
+  eq(gp.gpSimple(85), 3, '简版：85 → 3.0');
+  eq(gp.gpSimple(59), 0, '简版：不及格 → 0');
+  eq(gp.gpFine(85), 3.7, '细版：85 → 3.7');
+  eq(gp.gpFine(78), 3.0, '细版：78 → 3.0');
+  eq(gp.gpFine(100), 4, '细版：满分 → 4.0');
+  eq(gp.ukClass(72), '一等（First Class）', '72 分 → 英国一等');
+  eq(gp.ukClass(65), '二等一（2:1）', '65 分 → 2:1');
+  eq(gp.ukClass(55), '二等二（2:2）', '55 分 → 2:2');
+  eq(gp.ukClass(30), '未达到学位线', '30 分 → 未达标');
+  ok(gp.gpFine(85) >= gp.gpSimple(85) - 1, '分档算法之间没有数量级错误');
+
+  /* ---- Markdown 渲染（重点是别把 HTML 当真标签执行） ---- */
+  var md = run('markdown.html', 'function esc(s)', "var src = document.getElementById");
+  ok(md.render('# 标题').indexOf('<h1>') >= 0, '# → h1');
+  ok(md.render('## 小标题').indexOf('<h2>') >= 0, '## → h2');
+  ok(md.render('- 一项').indexOf('<li>') >= 0, '- → li');
+  ok(md.render('**粗**').indexOf('<strong>') >= 0, '** → strong');
+  ok(md.render('`code`').indexOf('<code>') >= 0, '反引号 → code');
+  ok(md.render('---').indexOf('<hr>') >= 0, '--- → hr');
+  ok(md.render('> 引用').indexOf('<blockquote>') >= 0, '> → blockquote');
+  var evil = md.render('<script>alert(1)</script>');
+  ok(evil.indexOf('<script>') < 0, '⚠ 源码里的 <script> 必须被转义，不能原样输出');
+  ok(evil.indexOf('&lt;script&gt;') >= 0, '转义成 &lt;script&gt;');
+  var evil2 = md.render('<img src=x onerror=alert(1)>');
+  ok(evil2.indexOf('<img') < 0, '⚠ <img onerror> 也必须被转义');
+}
+
 console.log('\n============================');
 console.log('  结果：' + pass + ' 通过 / ' + fail + ' 失败');
 console.log('============================');

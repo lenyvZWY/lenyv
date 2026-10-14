@@ -172,6 +172,31 @@
       ['Investopedia', 'https://www.investopedia.com', '金融术语百科（英文，讲得很细）'],
       ['雪球', 'https://xueqiu.com', '中文投资社区'],
       ['中国人民银行', 'https://www.pbc.gov.cn', '货币政策与金融知识普及']
+    ],
+    budget: [
+      ['Omni Calculator 预算', 'https://www.omnicalculator.com/finance/budget', '50/30/20 等分法都支持'],
+      ['Calculator.net 预算', 'https://www.calculator.net/budget-calculator.html', '按收入逐项分配']
+    ],
+    markdown: [
+      ['StackEdit', 'https://stackedit.io', '功能更全的在线 Markdown 编辑器'],
+      ['Markdown 语法规范', 'https://commonmark.org', '官方标准，最权威'],
+      ['Typora', 'https://typora.io', '桌面端 Markdown 编辑器（付费）']
+    ],
+    regex: [
+      ['Regex101', 'https://regex101.com', '带逐段解释，学正则首选'],
+      ['RegExr', 'https://regexr.com', '可视化匹配 + 速查表']
+    ],
+    periodic: [
+      ['Ptable 周期表', 'https://ptable.com', '完整 118 号元素，交互很酷'],
+      ['英国皇家化学会周期表', 'https://www.rsc.org/periodic-table', '带用途和数据说明']
+    ],
+    molarmass: [
+      ['Omni Calculator 摩尔质量', 'https://www.omnicalculator.com/chemistry/molar-mass', '更多化学计算'],
+      ['WolframAlpha', 'https://www.wolframalpha.com', '直接输化学式也能算']
+    ],
+    gpa: [
+      ['Omni Calculator GPA', 'https://www.omnicalculator.com/education/gpa', '多种 GPA 算法'],
+      ['WES 成绩认证', 'https://www.wes.org', '留学申请常用的成绩认证机构']
     ]
   };
 

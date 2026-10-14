@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Markdown 编辑器</title>
+  <meta name="description" content="左边写 Markdown，右边实时看效果，还能导出 HTML。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .md-wrap{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+    .md-wrap textarea{min-height:320px;font-family:var(--font-mono,ui-monospace,Consolas,monospace);font-size:.88rem;line-height:1.75}
+    .md-out{border:1px solid var(--border);border-radius:var(--r-md);padding:var(--sp-4);
+      background:var(--bg-elev);min-height:320px;overflow:auto}
+    .md-out h1,.md-out h2,.md-out h3{font-family:var(--font-display);margin:.8em 0 .4em;line-height:1.3}
+    .md-out h1{font-size:1.5rem}.md-out h2{font-size:1.25rem}.md-out h3{font-size:1.08rem}
+    .md-out p,.md-out li{color:var(--text-soft);font-size:.93rem;line-height:1.85}
+    .md-out ul,.md-out ol{padding-left:1.4em;margin:.5em 0}
+    .md-out code{font-family:var(--font-mono,monospace);background:var(--bg-subtle);
+      padding:2px 6px;border-radius:4px;font-size:.88em}
+    .md-out pre{background:var(--bg-subtle);padding:var(--sp-4);border-radius:var(--r-sm);overflow:auto;margin:.6em 0}
+    .md-out pre code{background:none;padding:0}
+    .md-out blockquote{border-left:2px solid var(--brand);margin:.6em 0;padding-left:var(--sp-4);color:var(--text-soft)}
+    .md-out hr{border:0;border-top:1px solid var(--border);margin:1em 0}
+    .md-out a{color:var(--brand)}
+    .md-out table{border-collapse:collapse;font-size:.9rem;margin:.6em 0}
+    .md-out th,.md-out td{border:1px solid var(--border);padding:6px 10px}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page" style="max-width:1000px">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>Markdown 编辑器</h1>
+      <p>左边写，右边立刻看到效果。写完可以复制成 HTML 直接用，或者存成 .md 文件。</p>
+    </div>
+
+    <div class="panel">
+      <div class="md-wrap">
+        <div>
+          <div class="field">
+            <label>Markdown 源码</label>
+            <textarea id="src" spellcheck="false"># 标题一
+## 标题二
+
+这是一段话，可以 **加粗**、*斜体*，也可以写 `代码`。
+
+- 列表项一
+- 列表项二
+  - 子项
+
+1. 第一步
+2. 第二步
+
+> 引用一句话
+
+```js
+console.log('代码块');
+```
+
+| 列 A | 列 B |
+| --- | --- |
+| 1 | 2 |
+
+[一个链接](https://lenyv.netlify.app)
+
+---
+
+普通段落结尾。</textarea>
+          </div>
+        </div>
+        <div>
+          <div class="field">
+            <label>预览</label>
+            <div class="md-out" id="preview"></div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn-ghost" id="copyHtml" type="button">复制 HTML</button>
+        <button class="btn btn-ghost" id="download" type="button">下载 .md</button>
+        <button class="btn btn-ghost" id="clear" type="button">清空</button>
+      </div>
+      <div class="hint muted" id="stat" style="margin-top:var(--sp-3)"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 一个够用的 Markdown 解析器。
+     安全做法：先把 HTML 特殊字符转义掉，再做 Markdown 语法替换，
+     这样源码里的 <script> 之类的东西不会被当成真的标签执行。 */
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function inline(s) {
+    return s
+      .replace(/`([^`]+)`/g, function (m, c) { return '<code>' + c + '</code>'; })
+      .replace(/\*\*([^*]+)\*\*/g, function (m, c) { return '<strong>' + c + '</strong>'; })
+      .replace(/(^|[^*])\*([^*\n]+)\*/g, function (m, p, c) { return p + '<em>' + c + '</em>'; })
+      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, function (m, t, u) {
+        return '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + t + '</a>';
+      });
+  }
+
+  function render(src) {
+    var lines = src.replace(/\r\n/g, '\n').split('\n');
+    var out = [];
+    var inCode = false, codeLang = '', codeBuf = [];
+    var listType = null;
+    var para = [];
+
+    function flushPara() {
+      if (para.length) {
+        out.push('<p>' + inline(esc(para.join('\n'))).replace(/\n/g, '<br>') + '</p>');
+        para = [];
+      }
+    }
+    function closeList() {
+      if (listType) { out.push('</' + listType + '>'); listType = null; }
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      // 代码块
+      var fence = line.match(/^```(\w*)\s*$/);
+      if (fence) {
+        flushPara(); closeList();
+        if (!inCode) { inCode = true; codeLang = fence[1] || ''; codeBuf = []; }
+        else {
+          out.push('<pre><code' + (codeLang ? ' class="lang-' + codeLang + '"' : '') + '>' +
+            esc(codeBuf.join('\n')) + '</code></pre>');
+          inCode = false;
+        }
+        continue;
+      }
+      if (inCode) { codeBuf.push(line); continue; }
+
+      if (!line.trim()) { flushPara(); closeList(); continue; }
+
+      var h = line.match(/^(#{1,6})\s+(.*)$/);
+      if (h) { flushPara(); closeList(); out.push('<h' + h[1].length + '>' + inline(esc(h[2])) + '</h' + h[1].length + '>'); continue; }
+
+      if (/^(---|\*\*\*)\s*$/.test(line)) { flushPara(); closeList(); out.push('<hr>'); continue; }
+
+      var bq = line.match(/^>\s?(.*)$/);
+      if (bq) { flushPara(); closeList(); out.push('<blockquote>' + inline(esc(bq[1])) + '</blockquote>'); continue; }
+
+      var ul = line.match(/^\s*[-*+]\s+(.*)$/);
+      var ol = line.match(/^\s*\d+\.\s+(.*)$/);
+      if (ul || ol) {
+        flushPara();
+        var want = ul ? 'ul' : 'ol';
+        if (listType !== want) { closeList(); out.push('<' + want + '>'); listType = want; }
+        out.push('<li>' + inline(esc((ul || ol)[1])) + '</li>');
+        continue;
+      }
+
+      // 表格（简单支持）
+      if (/^\|.*\|$/.test(line) && i + 1 < lines.length && /^\|[\s:|-]+\|$/.test(lines[i + 1])) {
+        flushPara(); closeList();
+        var head = line.slice(1, -1).split('|').map(function (c) { return esc(c.trim()); });
+        i += 2;
+        var body = [];
+        while (i < lines.length && /^\|.*\|$/.test(lines[i])) {
+          body.push(lines[i].slice(1, -1).split('|').map(function (c) { return inline(esc(c.trim())); }));
+          i++;
+        }
+        i--;
+        var t = '<table><thead><tr>' + head.map(function (c) { return '<th>' + c + '</th>'; }).join('') + '</tr></thead><tbody>';
+        body.forEach(function (r) { t += '<tr>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; });
+        out.push(t + '</tbody></table>');
+        continue;
+      }
+
+      closeList();
+      para.push(line);
+    }
+    flushPara(); closeList();
+    if (inCode) out.push('<pre><code>' + esc(codeBuf.join('\n')) + '</code></pre>');
+    return out.join('\n');
+  }
+
+  var src = document.getElementById('src');
+  var preview = document.getElementById('preview');
+  var stat = document.getElementById('stat');
+
+  function update() {
+    var s = src.value;
+    preview.innerHTML = render(s);
+    var chars = s.length;
+    var words = (s.trim().match(/[\u4e00-\u9fff]|[A-Za-z0-9_]+/g) || []).length;
+    stat.textContent = chars + ' 个字符 · 约 ' + words + ' 个词 · ' + (s ? s.split('\n').length : 0) + ' 行';
+  }
+  src.addEventListener('input', update);
+  update();
+
+  document.getElementById('copyHtml').addEventListener('click', function () {
+    var btn = this;
+    navigator.clipboard.writeText(preview.innerHTML).then(function () {
+      btn.textContent = '已复制';
+      setTimeout(function () { btn.textContent = '复制 HTML'; }, 1200);
+    }).catch(function () {});
+  });
+
+  document.getElementById('download').addEventListener('click', function () {
+    var blob = new Blob([src.value], { type: 'text/markdown;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '笔记.md';
+    a.click();
+  });
+
+  document.getElementById('clear').addEventListener('click', function () {
+    src.value = '';
+    update();
+  });
+  </script>
+</body>
+</html>

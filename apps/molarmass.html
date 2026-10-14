@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>化学式分子量</title>
+  <meta name="description" content="输入化学式算出相对分子质量，还能看每种元素占多少。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>化学式分子量</h1>
+      <p>输入化学式，算出相对分子质量。支持括号和结晶水，比如 <code>Ca(OH)2</code>、<code>CuSO4·5H2O</code>。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>化学式</label>
+        <input id="f" type="text" value="CuSO4·5H2O" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="chips" id="samples">
+        <button class="chip" data-f="H2O" type="button">H₂O</button>
+        <button class="chip" data-f="CO2" type="button">CO₂</button>
+        <button class="chip" data-f="NaCl" type="button">NaCl</button>
+        <button class="chip" data-f="Ca(OH)2" type="button">Ca(OH)₂</button>
+        <button class="chip" data-f="C6H12O6" type="button">C₆H₁₂O₆</button>
+        <button class="chip" data-f="H2SO4" type="button">H₂SO₄</button>
+        <button class="chip" data-f="CuSO4·5H2O" type="button">CuSO₄·5H₂O</button>
+        <button class="chip" data-f="CaCO3" type="button">CaCO₃</button>
+      </div>
+      <div class="row">
+        <div class="field"><label>这份样品有多少克（可选，用来算物质的量）</label><input id="g" type="number" value="0" step="any" min="0"></div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        元素符号要大小写正确（<code>Co</code> 是钴，<code>CO</code> 是一氧化碳）。结晶水用 <code>·</code> 连接。
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  var M = {
+    H: 1.008, He: 4.0026, Li: 6.94, Be: 9.0122, B: 10.81, C: 12.011, N: 14.007, O: 15.999,
+    F: 18.998, Ne: 20.180, Na: 22.990, Mg: 24.305, Al: 26.982, Si: 28.085, P: 30.974,
+    S: 32.06, Cl: 35.45, Ar: 39.95, K: 39.098, Ca: 40.078, Ti: 47.867, Cr: 51.996,
+    Mn: 54.938, Fe: 55.845, Co: 58.933, Ni: 58.693, Cu: 63.546, Zn: 65.38, As: 74.922,
+    Se: 78.971, Br: 79.904, Kr: 83.798, Ag: 107.87, Sn: 118.71, I: 126.90, Ba: 137.33,
+    Pt: 195.08, Au: 196.97, Hg: 200.59, Pb: 207.2
+  };
+
+  /* 解析化学式：支持元素+数字、括号+数字、·nH2O 结晶水。
+     返回 { mass, atoms: {元素: 个数} } */
+  function parseFormula(s) {
+    var i = 0;
+
+    function readNum() {
+      var m = s.slice(i).match(/^\d+/);
+      if (!m) return 1;
+      i += m[0].length;
+      return parseInt(m[0], 10);
+    }
+    /* 把一组原子按比例合进总数里（括号和结晶水都要乘倍数） */
+    function merge(dst, src, k) {
+      Object.keys(src).forEach(function (sym) {
+        dst[sym] = (dst[sym] || 0) + src[sym] * k;
+      });
+    }
+
+    /* 返回 { mass, atoms } —— 每个括号/结晶水的倍数要同时作用在质量和原子个数上 */
+    function group() {
+      var total = 0;
+      var atoms = {};
+      while (i < s.length) {
+        var c = s[i];
+        if (c === '(' || c === '[') {
+          i++;
+          var sub = group();
+          if (s[i] !== ')' && s[i] !== ']') throw new Error('括号没有配对，少了一个右括号');
+          i++;
+          var k = readNum();
+          merge(atoms, sub.atoms, k);
+          total += sub.mass * k;
+          continue;
+        }
+        if (c === ')' || c === ']') break;
+        // 结晶水：·5H2O —— 点号后面可能带系数
+        if (c === '·' || c === '•' || c === '*') {
+          i++;
+          var coef = readNum();
+          var hyd = group();
+          merge(atoms, hyd.atoms, coef);
+          total += hyd.mass * coef;
+          break;
+        }
+        var m = s.slice(i).match(/^([A-Z][a-z]?)(\d*)/);
+        if (!m) throw new Error('看不懂「' + c + '」，检查大小写');
+        var sym = m[1];
+        if (!M[sym]) throw new Error('不认识的元素：' + sym);
+        var cnt = m[2] ? parseInt(m[2], 10) : 1;
+        atoms[sym] = (atoms[sym] || 0) + cnt;
+        total += M[sym] * cnt;
+        i += m[0].length;
+      }
+      return { mass: total, atoms: atoms };
+    }
+
+    var lead = readNum();          // 最前面的系数，如 2H2O
+    var res = group();
+    var out = {};
+    Object.keys(res.atoms).forEach(function (sym) { out[sym] = res.atoms[sym] * lead; });
+    return { mass: res.mass * lead, atoms: out };
+  }
+
+  function f(v) { return String(Math.round(v * 10000) / 10000); }
+
+  document.getElementById('samples').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    document.getElementById('f').value = b.dataset.f;
+    run();
+  });
+
+  function run() {
+    var out = document.getElementById('out');
+    var raw = document.getElementById('f').value.trim();
+    if (!raw) { out.className = 'result is-empty'; out.textContent = '填一个化学式'; return; }
+
+    var res;
+    try { res = parseFormula(raw); }
+    catch (e) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ ' + e.message;
+      out.appendChild(b);
+      return;
+    }
+
+    var grams = parseFloat(document.getElementById('g').value) || 0;
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = 'Mr = ' + f(res.mass);
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['元素', '个数', '质量贡献', '占比'].forEach(function (t) {
+      var th = document.createElement('th'); th.textContent = t; hr.appendChild(th);
+    });
+    thead.appendChild(hr); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    Object.keys(res.atoms).forEach(function (sym) {
+      var n = res.atoms[sym];
+      var contrib = M[sym] * n;
+      var tr = document.createElement('tr');
+      [sym, n, f(contrib), (contrib / res.mass * 100).toFixed(2) + '%'].forEach(function (v) {
+        var td = document.createElement('td'); td.textContent = String(v); tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+
+    var s = document.createElement('div');
+    s.className = 'steps';
+    var lines = ['相对分子质量（Mr）= 各元素相对原子质量 × 个数 之和'];
+    if (grams > 0) {
+      var mol = grams / res.mass;
+      lines.push('');
+      lines.push('物质的量 n = ' + f(grams) + ' g ÷ ' + f(res.mass) + ' g/mol = ' + f(mol) + ' mol');
+      lines.push('（1 mol ≈ 6.02 × 10²³ 个微粒）');
+    }
+    s.textContent = lines.join('\n');
+    out.appendChild(s);
+  }
+
+  document.getElementById('go').addEventListener('click', run);
+  document.getElementById('f').addEventListener('input', run);
+  document.getElementById('g').addEventListener('input', run);
+  run();
+  </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>预算分配</title>
+  <meta name="description" content="按 50/30/20 或自定义比例分配月收入，看清每一笔钱该去哪。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .bar-row{display:grid;grid-template-columns:96px 1fr 110px;gap:10px;align-items:center;margin-bottom:10px}
+    .bar-track{height:22px;border-radius:6px;background:var(--bg-subtle);overflow:hidden}
+    .bar-fill{height:100%;background:var(--brand)}
+    .bar-row .amt{text-align:right;font-variant-numeric:tabular-nums;font-size:.92rem}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>预算分配</h1>
+      <p>最经典的分法是 <strong>50 / 30 / 20</strong>：一半给必须的开销，三成给想要的，两成存起来还债。比例都能改。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>税后月收入（元）</label>
+        <input id="income" type="number" value="12000" step="any" min="0">
+      </div>
+      <div class="chips" id="presets">
+        <button class="chip on" data-p="50,30,20" type="button">50 / 30 / 20（经典）</button>
+        <button class="chip" data-p="60,20,20" type="button">60 / 20 / 20（省着花）</button>
+        <button class="chip" data-p="40,40,20" type="button">40 / 40 / 20（活得松点）</button>
+        <button class="chip" data-p="50,20,30" type="button">50 / 20 / 30（多存点）</button>
+      </div>
+      <div class="row">
+        <div class="field"><label>必需开销 %</label><input id="a" type="number" value="50" step="any" min="0"></div>
+        <div class="field"><label>想要的花 %</label><input id="b" type="number" value="30" step="any" min="0"></div>
+        <div class="field"><label>储蓄 / 还债 %</label><input id="c" type="number" value="20" step="any" min="0"></div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">分配</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>各类别里大概装什么</h2>
+      <table class="tbl">
+        <thead><tr><th>类别</th><th>包含</th></tr></thead>
+        <tbody>
+          <tr><td>必需</td><td>房租/房贷、水电、吃饭、交通、通讯、保险、最低还款</td></tr>
+          <tr><td>想要</td><td>下馆子、娱乐、旅行、 shopping、 hobby</td></tr>
+          <tr><td>储蓄 / 还债</td><td>应急基金、还超出最低额度的欠款、长期投资、养老</td></tr>
+        </tbody>
+      </table>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        顺序建议：<strong>先把应急基金攒到 3~6 个月生活费</strong>，再去考虑投资。
+        这一条比任何投资技巧都重要。
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function f(v) { return String(Math.round(v * 100) / 100); }
+
+  function split(income, a, b, c) {
+    var sum = a + b + c;
+    if (sum <= 0) return null;
+    return [
+      { name: '必需', pct: a, amt: income * a / sum },
+      { name: '想要', pct: b, amt: income * b / sum },
+      { name: '储蓄/还债', pct: c, amt: income * c / sum }
+    ];
+  }
+
+  document.getElementById('presets').addEventListener('click', function (e) {
+    var btn = e.target.closest('.chip');
+    if (!btn) return;
+    var all = this.querySelectorAll('.chip');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === btn);
+    var p = btn.dataset.p.split(',');
+    document.getElementById('a').value = p[0];
+    document.getElementById('b').value = p[1];
+    document.getElementById('c').value = p[2];
+    run();
+  });
+
+  function run() {
+    var out = document.getElementById('out');
+    var income = parseFloat(document.getElementById('income').value);
+    var a = parseFloat(document.getElementById('a').value) || 0;
+    var b = parseFloat(document.getElementById('b').value) || 0;
+    var c = parseFloat(document.getElementById('c').value) || 0;
+
+    if (!isFinite(income) || income <= 0) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 收入填一个正数';
+      out.appendChild(e); return;
+    }
+    var rows = split(income, a, b, c);
+    if (!rows) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e2 = document.createElement('div'); e2.className = 'big'; e2.textContent = '⚠ 三个百分比加起来要大于 0';
+      out.appendChild(e2); return;
+    }
+
+    var total = a + b + c;
+    out.className = 'result';
+    out.innerHTML = '';
+
+    var big = document.createElement('div');
+    big.className = 'big';
+    var save = rows[2].amt;
+    big.textContent = '每月能存下 ' + f(save) + ' 元（一年 ' + f(save * 12) + '）';
+    out.appendChild(big);
+
+    var max = Math.max.apply(null, rows.map(function (r) { return r.amt; })) || 1;
+    rows.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'bar-row';
+      var n = document.createElement('div'); n.style.fontSize = '.9rem'; n.textContent = r.name;
+      var track = document.createElement('div'); track.className = 'bar-track';
+      var fill = document.createElement('div');
+      fill.className = 'bar-fill';
+      fill.style.width = (r.amt / max * 100) + '%';
+      track.appendChild(fill);
+      var amt = document.createElement('div');
+      amt.className = 'amt';
+      amt.textContent = f(r.amt) + ' 元';
+      row.appendChild(n); row.appendChild(track); row.appendChild(amt);
+      out.appendChild(row);
+    });
+
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = '比例合计 ' + f(total) + '%' + (Math.abs(total - 100) > 0.01 ? '（不是 100%，已按相对比例折算）' : '') +
+      '\n按这个存钱速度，攒够 6 个月生活费（按必需开销算）大约要 ' +
+      (rows[0].amt > 0 ? Math.ceil(rows[0].amt * 6 / save) + ' 个月' : '—');
+    out.appendChild(s);
+  }
+
+  document.getElementById('go').addEventListener('click', run);
+  ['income', 'a', 'b', 'c'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', run);
+  });
+  run();
+  </script>
+</body>
+</html>

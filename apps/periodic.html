@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>元素周期表</title>
+  <meta name="description" content="常见元素的符号、中文名、相对原子质量，点一下看详情。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .ptable{display:grid;gap:6px;grid-template-columns:repeat(auto-fill,minmax(76px,1fr))}
+    .el{border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 4px;text-align:center;
+      background:var(--bg-elev);cursor:pointer;transition:border-color .15s,transform .15s}
+    .el:hover{border-color:var(--brand);transform:translateY(-2px)}
+    .el.on{border-color:var(--brand);background:var(--bg-subtle)}
+    .el .n{font-size:.7rem;color:var(--text-soft)}
+    .el .s{font-family:var(--font-display);font-size:1.15rem;font-weight:700;line-height:1.2}
+    .el .c{font-size:.74rem;color:var(--text-soft)}
+    .el .m{font-size:.65rem;color:var(--text-soft);opacity:.8}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page" style="max-width:940px">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>元素周期表</h1>
+      <p>收了前 36 号元素，外加银、锡、碘、钡、铂、金、汞、铅这些常考的常见元素。点一下看详情。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>搜索（中文名、符号或原子序数）</label>
+        <input id="q" type="text" placeholder="比如 铁、Fe、26">
+      </div>
+      <div class="ptable" id="table"></div>
+    </div>
+
+    <div class="panel">
+      <div class="result is-empty" id="detail">点上面任意一个元素</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* [原子序数, 符号, 中文名, 相对原子质量, 类别] */
+  var ELEMENTS = [
+    [1, 'H', '氢', 1.008, '非金属'], [2, 'He', '氦', 4.0026, '稀有气体'],
+    [3, 'Li', '锂', 6.94, '碱金属'], [4, 'Be', '铍', 9.0122, '碱土金属'],
+    [5, 'B', '硼', 10.81, '类金属'], [6, 'C', '碳', 12.011, '非金属'],
+    [7, 'N', '氮', 14.007, '非金属'], [8, 'O', '氧', 15.999, '非金属'],
+    [9, 'F', '氟', 18.998, '卤素'], [10, 'Ne', '氖', 20.180, '稀有气体'],
+    [11, 'Na', '钠', 22.990, '碱金属'], [12, 'Mg', '镁', 24.305, '碱土金属'],
+    [13, 'Al', '铝', 26.982, '主族金属'], [14, 'Si', '硅', 28.085, '类金属'],
+    [15, 'P', '磷', 30.974, '非金属'], [16, 'S', '硫', 32.06, '非金属'],
+    [17, 'Cl', '氯', 35.45, '卤素'], [18, 'Ar', '氩', 39.95, '稀有气体'],
+    [19, 'K', '钾', 39.098, '碱金属'], [20, 'Ca', '钙', 40.078, '碱土金属'],
+    [21, 'Sc', '钪', 44.956, '过渡金属'], [22, 'Ti', '钛', 47.867, '过渡金属'],
+    [23, 'V', '钒', 50.942, '过渡金属'], [24, 'Cr', '铬', 51.996, '过渡金属'],
+    [25, 'Mn', '锰', 54.938, '过渡金属'], [26, 'Fe', '铁', 55.845, '过渡金属'],
+    [27, 'Co', '钴', 58.933, '过渡金属'], [28, 'Ni', '镍', 58.693, '过渡金属'],
+    [29, 'Cu', '铜', 63.546, '过渡金属'], [30, 'Zn', '锌', 65.38, '过渡金属'],
+    [31, 'Ga', '镓', 69.723, '主族金属'], [32, 'Ge', '锗', 72.630, '类金属'],
+    [33, 'As', '砷', 74.922, '类金属'], [34, 'Se', '硒', 78.971, '非金属'],
+    [35, 'Br', '溴', 79.904, '卤素'], [36, 'Kr', '氪', 83.798, '稀有气体'],
+    [47, 'Ag', '银', 107.87, '过渡金属'], [50, 'Sn', '锡', 118.71, '主族金属'],
+    [53, 'I', '碘', 126.90, '卤素'], [56, 'Ba', '钡', 137.33, '碱土金属'],
+    [78, 'Pt', '铂', 195.08, '过渡金属'], [79, 'Au', '金', 196.97, '过渡金属'],
+    [80, 'Hg', '汞', 200.59, '过渡金属'], [82, 'Pb', '铅', 207.2, '主族金属']
+  ];
+
+  var table = document.getElementById('table');
+  var q = document.getElementById('q');
+
+  function showDetail(e) {
+    var out = document.getElementById('detail');
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = e[2] + ' ' + e[1] + '　（第 ' + e[0] + ' 号）';
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['项目', '值'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+    thead.appendChild(hr); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    [['原子序数', e[0]],
+     ['元素符号', e[1]],
+     ['中文名', e[2]],
+     ['相对原子质量', e[3]],
+     ['类别', e[4]],
+     ['质子数 / 电子数', e[0] + ' / ' + e[0]]
+    ].forEach(function (r) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = r[0];
+      var b = document.createElement('td'); b.textContent = String(r[1]);
+      tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+  }
+
+  function draw() {
+    var kw = q.value.trim().toLowerCase();
+    table.innerHTML = '';
+    var list = ELEMENTS.filter(function (e) {
+      if (!kw) return true;
+      return e[2].indexOf(kw) >= 0 || e[1].toLowerCase() === kw || e[1].toLowerCase().indexOf(kw) === 0 || String(e[0]) === kw;
+    });
+    if (!list.length) {
+      var p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = '没找到「' + kw + '」';
+      table.appendChild(p);
+      return;
+    }
+    list.forEach(function (e) {
+      var d = document.createElement('div');
+      d.className = 'el';
+      d.setAttribute('data-n', e[0]);
+      var n = document.createElement('div'); n.className = 'n'; n.textContent = e[0];
+      var s = document.createElement('div'); s.className = 's'; s.textContent = e[1];
+      var c = document.createElement('div'); c.className = 'c'; c.textContent = e[2];
+      var m = document.createElement('div'); m.className = 'm'; m.textContent = e[3];
+      d.appendChild(n); d.appendChild(s); d.appendChild(c); d.appendChild(m);
+      d.addEventListener('click', function () {
+        var all = table.querySelectorAll('.el');
+        for (var i = 0; i < all.length; i++) all[i].classList.remove('on');
+        d.classList.add('on');
+        showDetail(e);
+      });
+      table.appendChild(d);
+    });
+  }
+
+  q.addEventListener('input', draw);
+  draw();
+  showDetail(ELEMENTS[25]);   // 默认先展示铁
+  </script>
+</body>
+</html>
