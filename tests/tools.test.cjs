@@ -292,6 +292,42 @@ section('[11] 第二批工具：油耗 / 身份证 / 颜色');
   near(co.contrast([128, 128, 128], [128, 128, 128]), 1, '同色对比度 = 1:1', 0.001);
 }
 
+/* ======================================================================== */
+section('[12] 金融三件套：复利 / 个税 / 存款');
+{
+  /* ---- 复利与定投 ---- */
+  var cp = run('compound.html', 'function futureValue(', 'function money(v)');
+  var one = cp.futureValue(10000, 0, 7, 20, 12);
+  near(one.total, 10000 * Math.pow(1 + 0.07 / 12, 240), '一次性投入：按月复利 20 年', 1e-6);
+  ok(Math.abs(one.principal - 10000) < 1e-9, '本金就是 10000');
+  var zero = cp.futureValue(1000, 100, 0, 10, 12);
+  near(zero.total, 1000 + 100 * 120, '收益率为 0 时退化成本金相加', 1e-9);
+  var ann = cp.futureValue(0, 1000, 7, 20, 12);
+  ok(ann.total > 1000 * 240, '定投 20 年，最后比本金多（复利起作用了）');
+  ok(cp.futureValue(10000, 0, 7, 20, 1).total < cp.futureValue(10000, 0, 7, 20, 12).total,
+    '同样年利率，按月复利比按年复利多');
+
+  /* ---- 个人所得税（七级累进） ---- */
+  var tx = run('tax.html', 'var BRACKETS = [', 'function f(v)');
+  eq(tx.THRESHOLD, 60000, '起征点是每年 6 万');
+  eq(tx.incomeTax(0).tax, 0, '应纳税所得额为 0 → 不交税');
+  eq(tx.incomeTax(-5000).tax, 0, '负数也不交税');
+  eq(tx.incomeTax(36000).tax, 1080, '36000 → 3%，1080 元');
+  near(tx.incomeTax(36001).tax, 36001 * 0.10 - 2520, '刚过 36000 → 进第二档', 1e-9);
+  near(tx.incomeTax(150000).tax, 150000 * 0.20 - 16920, '15 万 → 20% 档', 1e-9);
+  near(tx.incomeTax(1000000).tax, 1000000 * 0.45 - 181920, '100 万 → 45% 档', 1e-9);
+  eq(tx.incomeTax(36000).rate, 0.03, '36000 落在 3% 档');
+
+  /* ---- 存款：单利 vs 复利 ---- */
+  var dp = run('deposit.html', 'function deposit(', 'function f(v)');
+  near(dp.deposit(100000, 3, 3, 'simple').interest, 9000, '10 万 × 3% × 3 年单利 = 9000', 1e-9);
+  near(dp.deposit(100000, 3, 3, 1).total, 100000 * Math.pow(1.03, 3), '按年复利', 1e-6);
+  ok(dp.deposit(100000, 3, 3, 12).total > dp.deposit(100000, 3, 3, 1).total, '按月复利 > 按年复利');
+  ok(dp.deposit(100000, 3, 3, 'simple').total < dp.deposit(100000, 3, 3, 1).total, '单利 < 复利');
+  near(dp.effAnnual(3, 1), 3, '按年复利的实际年化就是 3%', 1e-9);
+  near(dp.effAnnual(3, 12), (Math.pow(1 + 0.03 / 12, 12) - 1) * 100, '按月复利的实际年化略高', 1e-9);
+}
+
 console.log('\n============================');
 console.log('  结果：' + pass + ' 通过 / ' + fail + ' 失败');
 console.log('============================');

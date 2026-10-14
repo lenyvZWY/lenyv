@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>金融常识小课堂</title>
+  <meta name="description" content="复利、72 法则、通胀、风险收益、资产配置……把金融里最该懂的几件事讲清楚。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .note{border-left:2px solid var(--brand);padding-left:var(--sp-4);margin:var(--sp-4) 0;
+      color:var(--text-soft);font-size:.92rem;line-height:1.8}
+    .kb{border:1px solid var(--border);border-radius:var(--r-md);padding:var(--sp-5);
+      background:var(--bg-elev);margin-bottom:var(--sp-4)}
+    .kb h3{margin:0 0 var(--sp-2);font-size:1.05rem;font-family:var(--font-display)}
+    .kb p{margin:0 0 var(--sp-2);color:var(--text-soft);font-size:.93rem;line-height:1.85}
+    .kb p:last-child{margin-bottom:0}
+    .kb strong{color:var(--text)}
+    .cat h2{font-family:var(--font-display);font-size:1.15rem;margin:var(--sp-7) 0 var(--sp-4);
+      padding-bottom:var(--sp-2);border-bottom:1px solid var(--border)}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page" style="max-width:820px">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>金融常识小课堂</h1>
+      <p>不讲术语堆砌，只讲<strong>真正影响你钱包</strong>的那几件事。看完再去用上面的复利、个税、通胀计算器，会更有感觉。</p>
+    </div>
+
+    <div class="kb">
+      <h3>先说一句最重要的话</h3>
+      <p>这一页是<strong>知识普及，不是投资建议</strong>。任何"稳赚""保本高收益"的说法都要打问号 ——
+        收益和风险是一对双胞胎，看得见的收益背后一定有你看不见的风险。</p>
+    </div>
+
+    <div class="cat">
+      <h2>一、复利：时间才是最猛的那味药</h2>
+      <div class="kb">
+        <p>复利的公式很简单：<strong>最后的钱 = 本金 × (1 + 收益率)^年数</strong>。</p>
+        <p>关键是那个 <strong>指数</strong>。前十年看起来平平无奇，后十年会突然变得很夸张 ——
+          这就是大家说的"滚雪球"。所以两件事最重要：<strong>早点开始</strong>，和<strong>别中途下车</strong>。</p>
+        <div class="note">
+          举例：每月投 1000 元、年化 7%，20 年后本金是 24 万，最后大约 52 万 —— 其中超过一半是收益。
+          同样的钱放活期（按 0.3% 算），20 年后只有约 24.7 万。
+        </div>
+      </div>
+    </div>
+
+    <div class="cat">
+      <h2>二、72 法则：心算翻倍要多久</h2>
+      <div class="kb">
+        <p>想知道本金翻倍大概要几年，用 <strong>72 ÷ 年化收益率(%)</strong> 就能估出来。</p>
+        <div class="row">
+          <div class="field"><label>年化收益率（%）</label><input id="r72" type="number" value="7" step="any"></div>
+          <div class="field"><label>或者：想几年翻倍</label><input id="y72" type="number" value="10" step="any"></div>
+        </div>
+        <button class="btn btn-primary" id="go72" type="button">算</button>
+        <div class="result is-empty" id="o72">—</div>
+        <p style="margin-top:var(--sp-4)">比如 7% 大约 10 年翻倍；3% 要 24 年；反过来，想 5 年翻倍就得找到约 14.4% 的收益率 ——
+          这时候你就该问一句：<strong>这么高的收益，风险有多大？</strong></p>
+      </div>
+    </div>
+
+    <div class="cat">
+      <h2>三、通货膨胀：钱放着不动其实在变少</h2>
+      <div class="kb">
+        <p>如果通胀是 3%，今年 100 块能买的东西，明年要 103 块。
+          换算一下：<strong>购买力 = 金额 ÷ (1 + 通胀率)^年数</strong>。</p>
+        <p>所以"把钱全放活期"不是没风险，只是风险换了个名字 —— 它叫<strong>购买力被慢慢吃掉</strong>。
+          这也是为什么理财的第一步通常不是"怎么赚更多"，而是"怎么别被通胀吃太狠"。</p>
+      </div>
+    </div>
+
+    <div class="cat">
+      <h2>四、风险与收益：天下没有免费的午餐</h2>
+      <div class="kb">
+        <p>大致排个序（风险从低到高）：<strong>活期/存款 → 国债/货币基金 → 债券基金 → 指数基金/宽基 → 行业基金/个股 → 期货/杠杆</strong>。</p>
+        <p>记住一条：<strong>承诺"高收益且零风险"的，基本可以直接判定为骗局。</strong>
+          真实世界里，收益是对"承担风险"的补偿，不是对"运气好"的奖励。</p>
+      </div>
+    </div>
+
+    <div class="cat">
+      <h2>五、分散：别把鸡蛋放在一个篮子里</h2>
+      <div class="kb">
+        <p>分散不是买很多只股票就算数 —— 买十家同一行业的公司，跟买一家差别不大。</p>
+        <p>真正有用的是<strong>跨类别分散</strong>：不同行业、不同类型资产（股、债、现金）、不同地区。
+          这也是"指数基金/宽基"被反复推荐的原因：买一个指数，等于一次买下一篮子。</p>
+      </div>
+    </div>
+
+    <div class="cat">
+      <h2>六、定投：用纪律对抗情绪</h2>
+      <div class="kb">
+        <p>定投就是<strong>固定时间投固定金额</strong>。价格高时买得少，价格低时买得多，长期下来成本被摊平。</p>
+        <p>它最大的好处其实不是收益更高，而是<strong>让你不用去猜什么时候是低点</strong> ——
+          绝大多数人亏钱，不是因为选错了东西，而是因为在高点追进去、在低点吓跑。</p>
+      </div>
+    </div>
+
+    <div class="cat">
+      <h2>七、常听到的名词，一句话说清</h2>
+      <div class="kb">
+        <table class="tbl">
+          <thead><tr><th>名词</th><th>一句话</th></tr></thead>
+          <tbody>
+            <tr><td>PE（市盈率）</td><td>多少年能靠利润回本，大致 价格 ÷ 每股盈利</td></tr>
+            <tr><td>PB（市净率）</td><td>价格 ÷ 净资产，比 PE 更"看家底"</td></tr>
+            <tr><td>ROE（净资产收益率）</td><td>公司用股东的钱赚钱的效率，长期看很重要</td></tr>
+            <tr><td>ETF / 指数基金</td><td>一次买一篮子，手续费低、不需要挑个股</td></tr>
+            <tr><td>宽基 / 行业基</td><td>宽基覆盖全市场（风险分散），行业基押单一赛道（波动大）</td></tr>
+            <tr><td>货币基金</td><td>流动性好、风险低，收益也低，适合放短期要用的钱</td></tr>
+            <tr><td>债券</td><td>相当于借钱给别人，收益相对稳，但不是没风险</td></tr>
+            <tr><td>年化收益率</td><td>把不同期限的收益折算成"一年的"，方便横向比较</td></tr>
+            <tr><td>最大回撤</td><td>历史上从最高点跌到最低点最多跌了多少 —— 衡量"你扛不扛得住"</td></tr>
+            <tr><td>夏普比率</td><td>每承担一单位风险换来多少超额收益，越高越"划算"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="cat">
+      <h2>八、家庭资产怎么分：四笔钱</h2>
+      <div class="kb">
+        <p>常见的分法是把钱分成四份，各自有各自的使命：</p>
+        <table class="tbl">
+          <thead><tr><th>哪笔钱</th><th>管什么</th><th>特点</th></tr></thead>
+          <tbody>
+            <tr><td>要花的钱</td><td>3~6 个月生活费</td><td>随时能取，活期/货币基金</td></tr>
+            <tr><td>保命的钱</td><td>意外、重疾</td><td>用保险把大风险转走</td></tr>
+            <tr><td>生钱的钱</td><td>长期增值</td><td>股票、基金，能接受波动</td></tr>
+            <tr><td>保本的钱</td><td>养老、子女教育</td><td>稳健为主，别去赌</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:var(--sp-4)">比例没有标准答案，看年龄、收入稳定性和你能不能扛住波动。
+          但顺序是通用的：<strong>先留够要花的钱，再谈投资。</strong></p>
+      </div>
+    </div>
+
+    <div class="cat">
+      <h2>九、几个最容易踩的坑</h2>
+      <div class="kb">
+        <p><strong>1. 追涨杀跌。</strong>涨了才买、跌了就卖，等于长期做"高买低卖"。</p>
+        <p><strong>2. 加杠杆。</strong>借钱投资会放大收益，也会放大亏损，跌起来本金可能直接没了。</p>
+        <p><strong>3. 听消息。</strong>等消息传到你这儿，价格早就反映了。</p>
+        <p><strong>4. 频繁交易。</strong>手续费和税会一点点吃掉收益，上面那个盈亏计算器可以算给你看。</p>
+        <p><strong>5. 相信"稳赚"。</strong>再说一次：高收益 + 零风险，基本等于骗局。</p>
+      </div>
+    </div>
+
+    <p class="hint muted" style="margin-top:var(--sp-7)">
+      本页内容只是常识普及，不构成投资建议。真要做决策前，多查、多问、别急着下手。
+    </p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 72 法则：年数 ≈ 72 ÷ 年化%；反过来 年化% ≈ 72 ÷ 年数 */
+  function yearsToDouble(rate) { return rate > 0 ? 72 / rate : NaN; }
+  function rateToDouble(years) { return years > 0 ? 72 / years : NaN; }
+
+  document.getElementById('go72').addEventListener('click', function () {
+    var out = document.getElementById('o72');
+    var r = parseFloat(document.getElementById('r72').value);
+    var y = parseFloat(document.getElementById('y72').value);
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = (isFinite(r) && r > 0 ? '约 ' + yearsToDouble(r).toFixed(1) + ' 年翻倍' : '—') +
+      '　　' + (isFinite(y) && y > 0 ? '要 ' + rateToDouble(y).toFixed(2) + '% 才够' : '');
+    out.appendChild(big);
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = '72 ÷ ' + r + '% = ' + (isFinite(r) && r > 0 ? yearsToDouble(r).toFixed(1) : '—') + ' 年\n' +
+      '72 ÷ ' + y + ' 年 = ' + (isFinite(y) && y > 0 ? rateToDouble(y).toFixed(2) : '—') + '%';
+    out.appendChild(s);
+  });
+  </script>
+</body>
+</html>

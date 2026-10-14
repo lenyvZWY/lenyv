@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>存款与理财收益</title>
+  <meta name="description" content="定期、大额存单、理财的到期收益，含单利复利和不同计息频率的真实年化对比。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>存款与理财收益</h1>
+      <p>同样写着"年利率 3%"，<strong>到期一次付息</strong>和<strong>按月复利</strong>拿到手的钱是不一样的。这里把它算清楚。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="field"><label>本金（元）</label><input id="p" type="number" value="100000" step="any" min="0"></div>
+        <div class="field"><label>年利率（%）</label><input id="r" type="number" value="2.5" step="any" min="0"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>期限</label><input id="t" type="number" value="3" step="any" min="0"></div>
+        <div class="field" style="max-width:180px">
+          <label>期限单位</label>
+          <select id="unit">
+            <option value="1">年</option>
+            <option value="12">个月</option>
+            <option value="365">天</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:220px">
+          <label>计息方式</label>
+          <select id="mode">
+            <option value="simple">到期一次还本付息（单利，定期常见）</option>
+            <option value="1">按年复利</option>
+            <option value="4">按季复利</option>
+            <option value="12">按月复利</option>
+            <option value="365">按日复利</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>为什么"名义利率"和"实际到手"不一样</h2>
+      <p class="muted" style="font-size:.92rem;line-height:1.8;margin:0">
+        同样年利率 3%，按年复利的实际年化就是 3.00%，按月复利是
+        <strong>(1 + 3%/12)^12 − 1 ≈ 3.04%</strong>，按日复利约 3.05%。
+        期限越长、复利次数越多，差距越明显。反过来，<strong>单利永远是最少的那种</strong>。
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 返回 { total, interest }。
+     mode === 'simple' → 单利：P·(1 + r·t)
+     否则 → 复利：P·(1 + r/m)^(m·t) */
+  function deposit(P, annualRate, years, mode) {
+    var r = annualRate / 100;
+    if (mode === 'simple') {
+      var interest = P * r * years;
+      return { total: P + interest, interest: interest };
+    }
+    var m = mode;
+    var total = P * Math.pow(1 + r / m, m * years);
+    return { total: total, interest: total - P };
+  }
+  /* 复利的实际年化：(1 + r/m)^m − 1 */
+  function effAnnual(annualRate, mode) {
+    if (mode === 'simple') return annualRate;
+    var r = annualRate / 100;
+    return (Math.pow(1 + r / mode, mode) - 1) * 100;
+  }
+
+  function f(v) { return String(Math.round(v * 100) / 100); }
+  function money(v) {
+    if (Math.abs(v) >= 1e4) return (v / 1e4).toFixed(2) + ' 万';
+    return String(Math.round(v * 100) / 100);
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var P = parseFloat(document.getElementById('p').value);
+    var r = parseFloat(document.getElementById('r').value);
+    var t = parseFloat(document.getElementById('t').value);
+    var unit = parseFloat(document.getElementById('unit').value);
+    var modeV = document.getElementById('mode').value;
+    var mode = modeV === 'simple' ? 'simple' : parseInt(modeV, 10);
+
+    if (!isFinite(P) || P <= 0) { err('本金要填一个正数'); return; }
+    if (!isFinite(r) || r < 0) { err('年利率填一个不小于 0 的数'); return; }
+    if (!isFinite(t) || t <= 0) { err('期限要填一个正数'); return; }
+
+    var years = t / unit;   // 单位换算：月 /12，天 /365
+    var res = deposit(P, r, years, mode);
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '到期拿到 ' + money(res.total) + ' 元，利息 ' + money(res.interest) + ' 元';
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var head = document.createElement('tr');
+    ['项目', '数值'].forEach(function (x) { var th = document.createElement('th'); th.textContent = x; head.appendChild(th); });
+    var thead = document.createElement('thead'); thead.appendChild(head); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    var eff = mode === 'simple' ? r : effAnnual(r, mode);
+    [['本金', money(P) + ' 元'],
+     ['名义年利率', f(r) + '%'],
+     ['实际年化（算上复利）', f(eff) + '%'],
+     ['期限', f(t) + (unit === 1 ? ' 年' : unit === 12 ? ' 个月' : ' 天') + '（' + f(years) + ' 年）'],
+     ['到期利息', money(res.interest) + ' 元'],
+     ['到期本息合计', money(res.total) + ' 元'],
+     ['总收益率', f(P ? res.interest / P * 100 : 0) + '%']
+    ].forEach(function (row) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = row[0];
+      var b = document.createElement('td'); b.textContent = row[1];
+      tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+
+    function err(m) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ ' + m;
+      out.appendChild(b);
+    }
+  });
+  </script>
+</body>
+</html>

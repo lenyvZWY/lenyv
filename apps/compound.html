@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>复利与定投</title>
+  <meta name="description" content="算复利、算每月定投多少年后变成多少，还画出增长曲线。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .chart{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-elev);padding:var(--sp-4)}
+    .legend{display:flex;gap:var(--sp-4);font-size:.82rem;color:var(--text-soft);margin-top:8px}
+    .legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>复利与定投</h1>
+      <p>一笔钱放那儿不动，或者每个月固定投一点，若干年后变成多少。下面那条曲线就是"时间 × 复利"的力量。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="field"><label>一开始投入（元）</label><input id="p" type="number" value="10000" step="any" min="0"></div>
+        <div class="field"><label>每月再投（元，0 = 不投）</label><input id="pm" type="number" value="1000" step="any" min="0"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>预期年化收益率（%）</label><input id="r" type="number" value="7" step="any"></div>
+        <div class="field"><label>年数</label><input id="y" type="number" value="20" step="1" min="1"></div>
+        <div class="field" style="max-width:170px">
+          <label>计息频率</label>
+          <select id="m">
+            <option value="1">按年</option>
+            <option value="2">半年</option>
+            <option value="4">按季</option>
+            <option value="12" selected>按月</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="chart" id="chart"></div>
+
+    <p class="hint muted" style="margin-top:var(--sp-4)">
+      这只是数学推演，不是收益承诺。<strong>任何投资都可能亏钱，年化收益率也是不确定的。</strong>
+    </p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 复利（每期期末投入）：
+     一次性部分：P·(1+i)^n
+     定投部分  ：PMT·((1+i)^n − 1)/i        （i=0 时退化为 PMT·n） */
+  function futureValue(P, PMT, annualRate, years, m) {
+    var i = annualRate / 100 / m;
+    var n = Math.round(years * m);
+    var growth = Math.pow(1 + i, n);
+    var lump = P * growth;
+    var annuity = i === 0 ? PMT * n : PMT * (growth - 1) / i;
+    return { total: lump + annuity, principal: P + PMT * n, growth: growth };
+  }
+
+  function money(v) {
+    var a = Math.abs(v);
+    if (a >= 1e8) return (v / 1e8).toFixed(2) + ' 亿';
+    if (a >= 1e4) return (v / 1e4).toFixed(2) + ' 万';
+    return String(Math.round(v * 100) / 100);
+  }
+  function f(v) { return String(Math.round(v * 100) / 100); }
+
+  function drawChart(P, PMT, rate, years, m) {
+    var box = document.getElementById('chart');
+    box.innerHTML = '';
+    var W = 640, H = 260, padL = 56, padB = 34, padT = 16, padR = 12;
+
+    var pts = [];
+    var maxV = 0;
+    for (var y = 0; y <= years; y++) {
+      var fv = futureValue(P, PMT, rate, y, m);
+      pts.push({ y: y, total: fv.total, prin: fv.principal });
+      if (fv.total > maxV) maxV = fv.total;
+    }
+    if (maxV <= 0) maxV = 1;
+
+    function X(y) { return padL + (W - padL - padR) * (years ? y / years : 0); }
+    function Y(v) { return H - padB - (H - padB - padT) * (v / maxV); }
+
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('width', '100%');
+    svg.style.display = 'block';
+
+    function line(key, color) {
+      var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(p.y).toFixed(1) + ' ' + Y(p[key]).toFixed(1); }).join(' ');
+      var pa = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pa.setAttribute('d', d);
+      pa.setAttribute('fill', 'none');
+      pa.setAttribute('stroke', color);
+      pa.setAttribute('stroke-width', '2');
+      svg.appendChild(pa);
+    }
+
+    // 网格 + 横轴年份
+    for (var g = 0; g <= 4; g++) {
+      var yy = padT + (H - padB - padT) * g / 4;
+      var ln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      ln.setAttribute('x1', padL); ln.setAttribute('x2', W - padR);
+      ln.setAttribute('y1', yy); ln.setAttribute('y2', yy);
+      ln.setAttribute('stroke', 'currentColor');
+      ln.setAttribute('opacity', '0.12');
+      svg.appendChild(ln);
+    }
+    var step = Math.max(1, Math.round(years / 6));
+    for (var y2 = 0; y2 <= years; y2 += step) {
+      var t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', X(y2)); t.setAttribute('y', H - 12);
+      t.setAttribute('font-size', '11');
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('fill', 'currentColor');
+      t.setAttribute('opacity', '0.6');
+      t.textContent = y2 + '年';
+      svg.appendChild(t);
+    }
+
+    line('prin', '#888780');
+    line('total', '#4f6bff');
+
+    box.appendChild(svg);
+
+    var lg = document.createElement('div');
+    lg.className = 'legend';
+    lg.innerHTML = '';
+    [['#888780', '累计本金'], ['#4f6bff', '账户总值']].forEach(function (x) {
+      var s = document.createElement('span');
+      var i = document.createElement('i');
+      i.style.background = x[0];
+      s.appendChild(i);
+      s.appendChild(document.createTextNode(x[1]));
+      lg.appendChild(s);
+    });
+    box.appendChild(lg);
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var P = parseFloat(document.getElementById('p').value) || 0;
+    var PMT = parseFloat(document.getElementById('pm').value) || 0;
+    var r = parseFloat(document.getElementById('r').value);
+    var y = parseInt(document.getElementById('y').value, 10);
+    var m = parseInt(document.getElementById('m').value, 10);
+
+    if (!isFinite(r) || !isFinite(y) || y < 1) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 收益率和年数要填对（年数至少 1）';
+      out.appendChild(e); return;
+    }
+
+    var res = futureValue(P, PMT, r, y, m);
+    var gain = res.total - res.principal;
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '最后约 ' + money(res.total) + ' 元';
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var head = document.createElement('tr');
+    ['项目', '金额'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; head.appendChild(th); });
+    var thead = document.createElement('thead'); thead.appendChild(head); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    [['累计投入本金', money(res.principal) + ' 元'],
+     ['最后的钱', money(res.total) + ' 元'],
+     ['赚的（利息/收益）', money(gain) + ' 元'],
+     ['收益率', f(res.principal ? gain / res.principal * 100 : 0) + '%'],
+     ['翻倍要多久（72 法则）', r > 0 ? f(72 / r) + ' 年' : '—']
+    ].forEach(function (row) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = row[0];
+      var b = document.createElement('td'); b.textContent = row[1];
+      tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+
+    drawChart(P, PMT, r, y, m);
+  });
+  </script>
+</body>
+</html>

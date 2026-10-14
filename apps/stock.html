@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>股票 / 基金买卖盈亏</title>
+  <meta name="description" content="算上佣金、印花税、过户费之后，这笔交易到底是赚是赔，保本价是多少。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .warn{border:1px solid var(--border);border-radius:var(--r-md);padding:var(--sp-4);
+      background:var(--bg-subtle);color:var(--text-soft);font-size:.86rem;line-height:1.8}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>股票 / 基金买卖盈亏</h1>
+      <p>"涨了 3% 就卖，怎么还亏了？" —— 因为中间还有佣金、印花税、过户费。这个页面把费用全算进去。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="field"><label>买入价（元）</label><input id="bp" type="number" value="10" step="any" min="0"></div>
+        <div class="field"><label>卖出价（元）</label><input id="sp" type="number" value="11" step="any" min="0"></div>
+        <div class="field"><label>数量（股）</label><input id="qty" type="number" value="1000" step="100" min="0"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>佣金比例（‰，万 2.5 就填 0.25）</label><input id="comm" type="number" value="0.25" step="any" min="0"></div>
+        <div class="field"><label>佣金最低（元）</label><input id="commMin" type="number" value="5" step="any" min="0"></div>
+        <div class="field"><label>印花税（‰，卖出单边）</label><input id="stamp" type="number" value="0.5" step="any" min="0"></div>
+        <div class="field"><label>过户费（‰，沪市双边）</label><input id="trans" type="number" value="0.01" step="any" min="0"></div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        费率都可以改，各家券商不一样。基金（场外）没有印花税和过户费，只有申购赎回费，把下面几项填 0 就行。
+      </p>
+    </div>
+
+    <div class="warn">
+      <strong>提醒</strong>：这只是算术，把成本和费用算清楚，帮你看明白"到底赚没赚"。
+      它<strong>不构成任何投资建议</strong>，也不预测涨跌 —— 投资有风险，亏了没人替你承担。
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 佣金：按比例算，但不低于最低收费；买卖各收一次 */
+  function commission(amount, ratePermille, minFee) {
+    var c = amount * ratePermille / 1000;
+    return c < minFee ? minFee : c;
+  }
+
+  function f(v) {
+    var a = Math.abs(v);
+    if (a >= 1e4) return (v / 1e4).toFixed(2) + '万';
+    return String(Math.round(v * 100) / 100);
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var bp = parseFloat(document.getElementById('bp').value);
+    var sp = parseFloat(document.getElementById('sp').value);
+    var qty = parseFloat(document.getElementById('qty').value);
+    var commR = parseFloat(document.getElementById('comm').value) || 0;
+    var commMin = parseFloat(document.getElementById('commMin').value) || 0;
+    var stampR = parseFloat(document.getElementById('stamp').value) || 0;
+    var transR = parseFloat(document.getElementById('trans').value) || 0;
+
+    if (![bp, sp, qty].every(function (x) { return isFinite(x) && x > 0; })) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 买入价、卖出价、数量都要填大于 0 的数';
+      out.appendChild(e); return;
+    }
+
+    var buyAmt = bp * qty;
+    var sellAmt = sp * qty;
+
+    var buyComm = commission(buyAmt, commR, commMin);
+    var buyTrans = buyAmt * transR / 1000;
+    var sellComm = commission(sellAmt, commR, commMin);
+    var sellStamp = sellAmt * stampR / 1000;
+    var sellTrans = sellAmt * transR / 1000;
+
+    var cost = buyAmt + buyComm + buyTrans;
+    var income = sellAmt - sellComm - sellStamp - sellTrans;
+    var net = income - cost;
+    var rate = cost ? net / cost * 100 : 0;
+    var fees = buyComm + buyTrans + sellComm + sellStamp + sellTrans;
+
+    // 保本卖出价：卖出到手 = 总成本
+    var totalFeeRate = (commR + transR) / 1000;         // 卖出侧比例费用
+    var fixedSell = commMin + 0;                         // 卖出侧固定（佣金最低）
+    var breakEven = (cost + fixedSell) / (qty * (1 - totalFeeRate - stampR / 1000));
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = (net >= 0 ? '净赚 ' : '净亏 ') + f(Math.abs(net)) + ' 元（' + (rate >= 0 ? '+' : '') + rate.toFixed(2) + '%）';
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var head = document.createElement('tr');
+    ['项目', '金额'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; head.appendChild(th); });
+    var thead = document.createElement('thead'); thead.appendChild(head); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    [['买入金额', f(buyAmt) + ' 元'],
+     ['买入佣金', f(buyComm) + ' 元'],
+     ['买入过户费', f(buyTrans) + ' 元'],
+     ['卖出金额', f(sellAmt) + ' 元'],
+     ['卖出佣金', '− ' + f(sellComm) + ' 元'],
+     ['印花税（卖出单边）', '− ' + f(sellStamp) + ' 元'],
+     ['卖出过户费', '− ' + f(sellTrans) + ' 元'],
+     ['总费用', f(fees) + ' 元'],
+     ['实际成本', f(cost) + ' 元'],
+     ['实际到手', f(income) + ' 元'],
+     ['净盈亏', f(net) + ' 元'],
+     ['保本卖出价', f(breakEven) + ' 元（低于这个价卖就是亏）']
+    ].forEach(function (row) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = row[0];
+      var b = document.createElement('td'); b.textContent = row[1];
+      tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = '毛利：(' + f(sp) + ' − ' + f(bp) + ') × ' + f(qty) + ' = ' + f(sellAmt - buyAmt) +
+      ' 元\n扣掉费用 ' + f(fees) + ' 元后：' + f(net) + ' 元\n' +
+      '也就是说，光「涨一点」不够，得涨过 ' + f(breakEven - bp) + ' 元/股才开始真正赚钱。';
+    out.appendChild(s);
+  });
+  </script>
+</body>
+</html>

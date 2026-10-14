@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>个人所得税</title>
+  <meta name="description" content="按现行年度累进税率算工资个税，含五险一金和专项附加扣除。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>个人所得税</h1>
+      <p>按<strong>年度累计</strong>的算法算：一年挣多少 − 6 万起征 − 五险一金 − 专项附加扣除，剩下的按七级累进税率算。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="field"><label>税前月薪（元）</label><input id="salary" type="number" value="15000" step="any" min="0"></div>
+        <div class="field"><label>一年发几个月（含年终奖就往上加）</label><input id="months" type="number" value="13" step="any" min="1"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>每月五险一金个人部分（元）</label><input id="insure" type="number" value="2000" step="any" min="0"></div>
+        <div class="field"><label>每月专项附加扣除（元）</label><input id="special" type="number" value="1500" step="any" min="0"></div>
+      </div>
+      <p class="hint muted">
+        专项附加扣除包括：子女教育、继续教育、大病医疗、住房贷款利息或住房租金、赡养老人、3 岁以下婴幼儿照护。
+        不清楚就填 0 或 1500 估一下。
+      </p>
+      <button class="btn btn-primary" id="go" type="button">计算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>七级累进税率表（年度）</h2>
+      <table class="tbl">
+        <thead><tr><th>全年应纳税所得额</th><th>税率</th><th>速算扣除数</th></tr></thead>
+        <tbody>
+          <tr><td>不超过 36,000</td><td>3%</td><td>0</td></tr>
+          <tr><td>36,000 ~ 144,000</td><td>10%</td><td>2,520</td></tr>
+          <tr><td>144,000 ~ 300,000</td><td>20%</td><td>16,920</td></tr>
+          <tr><td>300,000 ~ 420,000</td><td>25%</td><td>31,920</td></tr>
+          <tr><td>420,000 ~ 660,000</td><td>30%</td><td>52,920</td></tr>
+          <tr><td>660,000 ~ 960,000</td><td>35%</td><td>85,920</td></tr>
+          <tr><td>超过 960,000</td><td>45%</td><td>181,920</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 年度综合所得：级距下限 / 税率 / 速算扣除数 */
+  var BRACKETS = [
+    [0, 0.03, 0],
+    [36000, 0.10, 2520],
+    [144000, 0.20, 16920],
+    [300000, 0.25, 31920],
+    [420000, 0.30, 52920],
+    [660000, 0.35, 85920],
+    [960000, 0.45, 181920]
+  ];
+  var THRESHOLD = 60000;   // 每年基本减除费用
+
+  /* 返回 { taxable, rate, quick, tax } */
+  function incomeTax(taxable) {
+    if (taxable <= 0) return { taxable: taxable, rate: 0, quick: 0, tax: 0 };
+    var b = BRACKETS[0];
+    for (var i = 0; i < BRACKETS.length; i++) {
+      if (taxable > BRACKETS[i][0]) b = BRACKETS[i];
+    }
+    var tax = taxable * b[1] - b[2];
+    return { taxable: taxable, rate: b[1], quick: b[2], tax: Math.max(0, tax) };
+  }
+
+  function f(v) { return String(Math.round(v * 100) / 100); }
+  function money(v) {
+    if (Math.abs(v) >= 1e4) return (v / 1e4).toFixed(2) + ' 万';
+    return String(Math.round(v * 100) / 100);
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var salary = parseFloat(document.getElementById('salary').value);
+    var months = parseFloat(document.getElementById('months').value) || 12;
+    var insure = parseFloat(document.getElementById('insure').value) || 0;
+    var special = parseFloat(document.getElementById('special').value) || 0;
+
+    if (!isFinite(salary) || salary < 0) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 月薪填一个正数';
+      out.appendChild(e); return;
+    }
+
+    var yearIncome = salary * months;
+    var yearInsure = insure * 12;
+    var yearSpecial = special * 12;
+    var taxable = yearIncome - THRESHOLD - yearInsure - yearSpecial;
+    var r = incomeTax(taxable);
+
+    var afterTax = yearIncome - yearInsure - r.tax;
+    var realRate = yearIncome ? r.tax / yearIncome * 100 : 0;
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = taxable > 0
+      ? '一年交税约 ' + money(r.tax) + ' 元（税率 ' + (r.rate * 100) + '%）'
+      : '不用交税（扣除后已经没有应纳税所得额了）';
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var head = document.createElement('tr');
+    ['项目', '金额'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; head.appendChild(th); });
+    var thead = document.createElement('thead'); thead.appendChild(head); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    [['一年总收入', money(yearIncome) + ' 元'],
+     ['减：基本减除', '− ' + money(THRESHOLD) + ' 元'],
+     ['减：五险一金（年）', '− ' + money(yearInsure) + ' 元'],
+     ['减：专项附加（年）', '− ' + money(yearSpecial) + ' 元'],
+     ['应纳税所得额', money(taxable) + ' 元'],
+     ['适用税率 / 速算扣除', (r.rate * 100) + '% / ' + r.quick],
+     ['全年个税', money(r.tax) + ' 元'],
+     ['月均个税', money(r.tax / 12) + ' 元'],
+     ['税后年收入（扣完五险一金和税）', money(afterTax) + ' 元'],
+     ['月均到手', money(afterTax / 12) + ' 元'],
+     ['实际税负占收入', f(realRate) + '%']
+    ].forEach(function (row) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = row[0];
+      var b = document.createElement('td'); b.textContent = row[1];
+      tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = '算法：应纳税所得额 × 税率 − 速算扣除数\n' +
+      '= ' + f(taxable) + ' × ' + (r.rate * 100) + '% − ' + r.quick + ' = ' + f(r.tax);
+    out.appendChild(s);
+  });
+  </script>
+</body>
+</html>

@@ -146,6 +146,32 @@
     idcard: [
       ['居民身份证号码规则', 'https://baike.baidu.com/item/居民身份证号码', '国家标准 GB 11643 的编码规则'],
       ['CyberChef', 'https://gchq.github.io/CyberChef/', '其他各类校验与转换']
+    ],
+    compound: [
+      ['Omni Calculator 复利', 'https://www.omnicalculator.com/finance/compound-interest', '复利与定投，参数更多'],
+      ['Calculator.net 利息', 'https://www.calculator.net/interest-calculator.html', '各种计息方式对比']
+    ],
+    tax: [
+      ['国家税务总局', 'https://www.chinatax.gov.cn', '政策原文、专项附加扣除说明'],
+      ['中国政府网', 'https://www.gov.cn', '政策发布与解读']
+    ],
+    stock: [
+      ['雪球', 'https://xueqiu.com', '看行情、看别人的分析'],
+      ['东方财富', 'https://www.eastmoney.com', '行情与财务数据'],
+      ['Omni Calculator', 'https://www.omnicalculator.com', '各类收益与成本计算']
+    ],
+    inflation: [
+      ['Omni Calculator 通胀', 'https://www.omnicalculator.com/finance/inflation', '购买力换算'],
+      ['国家统计局', 'https://www.stats.gov.cn', '查 CPI 等官方数据']
+    ],
+    deposit: [
+      ['中国银行', 'https://www.boc.cn', '存款利率挂牌价'],
+      ['Omni Calculator 储蓄', 'https://www.omnicalculator.com/finance/savings', '各种计息方式对比']
+    ],
+    finance101: [
+      ['Investopedia', 'https://www.investopedia.com', '金融术语百科（英文，讲得很细）'],
+      ['雪球', 'https://xueqiu.com', '中文投资社区'],
+      ['中国人民银行', 'https://www.pbc.gov.cn', '货币政策与金融知识普及']
     ]
   };
 

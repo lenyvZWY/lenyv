@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>通货膨胀与购买力</title>
+  <meta name="description" content="算算钱放那儿不动会「变毛」多少，名义涨薪到底涨没涨。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>通货膨胀与购买力</h1>
+      <p>为什么"钱放着不动其实在变少"？这个页面把它算成具体的数字给你看。</p>
+    </div>
+
+    <div class="panel">
+      <h2>① 现在的钱，N 年后还值多少</h2>
+      <div class="row">
+        <div class="field"><label>现在的金额（元）</label><input id="a1" type="number" value="100000" step="any"></div>
+        <div class="field"><label>年通胀率（%）</label><input id="r1" type="number" value="3" step="any"></div>
+        <div class="field"><label>年数</label><input id="y1" type="number" value="20" step="1" min="1"></div>
+      </div>
+      <button class="btn btn-primary" data-c="1" type="button">算</button>
+      <div class="result is-empty" id="o1">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>② 想维持同样的购买力，得有多少钱</h2>
+      <div class="row">
+        <div class="field"><label>今天要花的钱（元）</label><input id="a2" type="number" value="5000" step="any"></div>
+        <div class="field"><label>年通胀率（%）</label><input id="r2" type="number" value="3" step="any"></div>
+        <div class="field"><label>多少年后</label><input id="y2" type="number" value="20" step="1" min="1"></div>
+      </div>
+      <button class="btn btn-primary" data-c="2" type="button">算</button>
+      <div class="result is-empty" id="o2">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>③ 涨薪到底涨没涨（扣除通胀后）</h2>
+      <div class="row">
+        <div class="field"><label>工资名义涨幅（%）</label><input id="g3" type="number" value="5" step="any"></div>
+        <div class="field"><label>年通胀率（%）</label><input id="r3" type="number" value="3" step="any"></div>
+      </div>
+      <button class="btn btn-primary" data-c="3" type="button">算</button>
+      <div class="result is-empty" id="o3">—</div>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        实际涨幅 = (1 + 名义涨幅) ÷ (1 + 通胀率) − 1，不是简单相减。
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function f(v) {
+    if (Math.abs(v) >= 1e4) return (v / 1e4).toFixed(2) + ' 万';
+    return String(Math.round(v * 100) / 100);
+  }
+  function rd(id) {
+    var v = parseFloat(document.getElementById(id).value);
+    if (!isFinite(v)) throw new Error('空格都要填数字');
+    return v;
+  }
+  function show(el, big, step, err) {
+    el.className = 'result' + (err ? ' is-error' : '');
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big';
+    b.textContent = err ? '⚠ ' + err : big;
+    el.appendChild(b);
+    if (step) { var s = document.createElement('div'); s.className = 'steps'; s.textContent = step; el.appendChild(s); }
+  }
+
+  var JOBS = {
+    1: function () {
+      var a = rd('a1'), r = rd('r1'), y = rd('y1');
+      if (y < 1) throw new Error('年数至少 1');
+      var left = a / Math.pow(1 + r / 100, y);
+      var lost = 1 - left / a;
+      return ['相当于今天的 ' + f(left) + ' 元',
+        '算的是：' + f(a) + ' ÷ (1 + ' + r + '%)^' + y + ' = ' + f(left) +
+        '\n购买力缩水了约 ' + (lost * 100).toFixed(1) + '%（剩下的 ' + ((1 - lost) * 100).toFixed(1) + '%）。'];
+    },
+    2: function () {
+      var a = rd('a2'), r = rd('r2'), y = rd('y2');
+      if (y < 1) throw new Error('年数至少 1');
+      var need = a * Math.pow(1 + r / 100, y);
+      return ['到时候要 ' + f(need) + ' 元',
+        '算的是：' + f(a) + ' × (1 + ' + r + '%)^' + y + ' = ' + f(need) +
+        '\n也就是说，今天 ' + f(a) + ' 元能买到的东西，' + y + ' 年后要花 ' + f(need) + ' 元。'];
+    },
+    3: function () {
+      var g = rd('g3'), r = rd('r3');
+      var real = (1 + g / 100) / (1 + r / 100) - 1;
+      return ['实际购买力 ' + (real >= 0 ? '涨了 ' : '降了 ') + Math.abs(real * 100).toFixed(2) + '%',
+        '算的是：(1 + ' + g + '%) ÷ (1 + ' + r + '%) − 1 = ' + (real * 100).toFixed(2) + '%' +
+        '\n（注意不是 ' + (g - r).toFixed(2) + '%，两者略有差别）'];
+    }
+  };
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-c]');
+    if (!b) return;
+    var n = b.dataset.c;
+    var el = document.getElementById('o' + n);
+    try {
+      var r = JOBS[n]();
+      show(el, r[0], r[1]);
+    } catch (err) { show(el, null, null, err.message); }
+  });
+  </script>
+</body>
+</html>
