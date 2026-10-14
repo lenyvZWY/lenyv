@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>紧急电话与求助</title>
+  <meta name="description" content="各国报警、急救、火警电话，中国领事保护热线，常用国际区号。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .hot{border:1px solid var(--brand);border-radius:var(--r-md);padding:var(--sp-5);
+      background:var(--bg-subtle);margin-bottom:var(--sp-4)}
+    .hot .num{font-family:var(--font-display);font-size:1.8rem;font-weight:700;color:var(--brand)}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page" style="max-width:880px">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>紧急电话与求助</h1>
+      <p>出国在外最怕的就是出事时不知道打哪个号。这一页抄下来、截图存手机里，<strong>断网也能看</strong>。</p>
+    </div>
+
+    <div class="hot">
+      <div class="hint">在国外遇到麻烦，先打这个</div>
+      <div class="num">+86-10-12308</div>
+      <p class="muted" style="margin:8px 0 0">
+        中国外交部全球领事保护与服务应急热线，24 小时有人接。护照丢了、被扣了、出事了都先找它。
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>各国紧急电话</h2>
+      <div class="field">
+        <label>搜索国家 / 地区</label>
+        <input id="q" type="text" placeholder="比如 日本、美国、泰国……">
+      </div>
+      <div id="tbl"></div>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        小知识：整个欧盟通用 <strong>112</strong>；美国、加拿大、墨西哥都是 <strong>911</strong>；
+        手机就算没信号、没插卡，很多国家也能拨通 112 或 911。
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>常用国际区号（打电话前加）</h2>
+      <div id="tbl2"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  var SOS = [
+    ['中国内地', '110', '120', '119', ''],
+    ['中国香港', '999', '999', '999', ''],
+    ['中国澳门', '999', '999', '999', ''],
+    ['中国台湾', '110', '119', '119', ''],
+    ['美国 / 加拿大', '911', '911', '911', ''],
+    ['墨西哥', '911', '911', '911', ''],
+    ['英国', '999 或 112', '999 或 112', '999 或 112', ''],
+    ['欧盟全境', '112', '112', '112', ''],
+    ['德国', '110', '112', '112', ''],
+    ['法国', '17', '15（SAMU）', '18', ''],
+    ['意大利', '112（宪兵）', '118', '115', ''],
+    ['西班牙', '112', '112', '112', ''],
+    ['荷兰', '112', '112', '112', ''],
+    ['瑞士', '117', '144', '118', ''],
+    ['俄罗斯', '102', '103', '101', ''],
+    ['日本', '110', '119（救护+火警）', '119', ''],
+    ['韩国', '112', '119', '119', ''],
+    ['新加坡', '999', '995', '995', ''],
+    ['泰国', '191', '1669', '199', '旅游警察 1155'],
+    ['马来西亚', '999', '999', '994', ''],
+    ['印度尼西亚', '110', '118 或 119', '113', ''],
+    ['越南', '113', '115', '114', ''],
+    ['印度', '100', '102', '101', ''],
+    ['阿联酋', '999', '998', '997', ''],
+    ['沙特阿拉伯', '999', '997', '998', ''],
+    ['土耳其', '155', '112', '110', ''],
+    ['澳大利亚', '000', '000', '000', ''],
+    ['新西兰', '111', '111', '111', ''],
+    ['南非', '10111', '10177', '10111', ''],
+    ['巴西', '190', '192', '193', ''],
+    ['阿根廷', '911', '107', '100', ''],
+    ['埃及', '122', '123', '180', '']
+  ];
+
+  var DIAL = [
+    ['中国', '+86'], ['中国香港', '+852'], ['中国澳门', '+853'], ['中国台湾', '+886'],
+    ['美国 / 加拿大', '+1'], ['英国', '+44'], ['日本', '+81'], ['韩国', '+82'],
+    ['新加坡', '+65'], ['马来西亚', '+60'], ['泰国', '+66'], ['越南', '+84'],
+    ['印度尼西亚', '+62'], ['菲律宾', '+63'], ['印度', '+91'], ['澳大利亚', '+61'],
+    ['新西兰', '+64'], ['德国', '+49'], ['法国', '+33'], ['意大利', '+39'],
+    ['西班牙', '+34'], ['荷兰', '+31'], ['瑞士', '+41'], ['俄罗斯', '+7'],
+    ['阿联酋', '+971'], ['沙特', '+966'], ['土耳其', '+90'], ['巴西', '+55'],
+    ['南非', '+27'], ['埃及', '+20']
+  ];
+
+  function table(rows, heads) {
+    var tb = document.createElement('table');
+    tb.className = 'tbl';
+    var hr = document.createElement('tr');
+    heads.forEach(function (t) { var th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+    var thead = document.createElement('thead'); thead.appendChild(hr); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      r.forEach(function (cell) {
+        var td = document.createElement('td'); td.textContent = cell; tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    return tb;
+  }
+
+  var q = document.getElementById('q');
+  function draw() {
+    var kw = q.value.trim();
+    var rows = kw ? SOS.filter(function (r) { return r[0].indexOf(kw) >= 0; }) : SOS;
+    var box = document.getElementById('tbl');
+    box.innerHTML = '';
+    if (!rows.length) {
+      var p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = '没找到「' + kw + '」，换一个词试试（也可以只填一个字，比如「日」）。';
+      box.appendChild(p);
+      return;
+    }
+    box.appendChild(table(rows, ['国家 / 地区', '报警', '急救', '火警', '其他']));
+  }
+  q.addEventListener('input', draw);
+  draw();
+
+  document.getElementById('tbl2').appendChild(
+    table(DIAL.map(function (r) { return [r[0], r[1]]; }), ['国家 / 地区', '区号'])
+  );
+  </script>
+</body>
+</html>

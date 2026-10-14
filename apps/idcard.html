@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>身份证号校验</title>
+  <meta name="description" content="校验 18 位身份证号对不对，顺带读出出生日期、性别和所在省份。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>身份证号校验</h1>
+      <p>填错一位、抄错一个数字，用这个一查就知道。会读出<strong>出生日期、性别、发证省份</strong>。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>18 位身份证号（最后一位可能是 X）</label>
+        <input id="id" type="text" value="11010519491231002X" spellcheck="false" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" id="go" type="button">校验</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+      <p class="hint muted" style="margin-top:var(--sp-4)">
+        只会告诉你这个号码<strong>格式对不对</strong>，查不到是不是真人、也不能验证姓名。
+      </p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 前两位 → 省 / 直辖市 / 自治区 */
+  var PROV = {
+    '11': '北京', '12': '天津', '13': '河北', '14': '山西', '15': '内蒙古',
+    '21': '辽宁', '22': '吉林', '23': '黑龙江',
+    '31': '上海', '32': '江苏', '33': '浙江', '34': '安徽', '35': '福建',
+    '36': '江西', '37': '山东',
+    '41': '河南', '42': '湖北', '43': '湖南', '44': '广东', '45': '广西', '46': '海南',
+    '50': '重庆', '51': '四川', '52': '贵州', '53': '云南', '54': '西藏',
+    '61': '陕西', '62': '甘肃', '63': '青海', '64': '宁夏', '65': '新疆',
+    '71': '台湾', '81': '香港', '82': '澳门', '91': '国外'
+  };
+
+  /* 校验位算法：
+     前 17 位 × 加权因子求和 → 对 11 取模 → 查表得到第 18 位 */
+  var W = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+  var CODES = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
+
+  function checkId(raw) {
+    var s = String(raw).trim().toUpperCase().replace(/\s/g, '');
+    var res = { ok: false, reason: '', birth: '', sex: '', prov: '', correct: '' };
+
+    if (s.length !== 18) { res.reason = '长度不对：应该 18 位，你填了 ' + s.length + ' 位'; return res; }
+    if (!/^\d{17}[\dX]$/.test(s)) { res.reason = '前 17 位得是数字，最后一位是数字或 X'; return res; }
+
+    var sum = 0;
+    for (var i = 0; i < 17; i++) sum += (+s[i]) * W[i];
+    var want = CODES[sum % 11];
+    res.correct = want;
+
+    if (s[17] !== want) {
+      res.reason = '校验位不对：按前 17 位算出来应该是 ' + want + '，你填的是 ' + s[17];
+      return res;
+    }
+
+    var y = +s.slice(6, 10), m = +s.slice(10, 12), d = +s.slice(12, 14);
+    var dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) {
+      res.reason = '出生日期不像真的：' + y + ' 年 ' + m + ' 月 ' + d + ' 日';
+      return res;
+    }
+    if (y < 1900 || dt > new Date()) { res.reason = '出生年份不合理：' + y; return res; }
+
+    res.ok = true;
+    res.birth = y + ' 年 ' + m + ' 月 ' + d + ' 日';
+    res.sex = (+s[16]) % 2 === 1 ? '男' : '女';   // 第 17 位奇男偶女
+    res.prov = PROV[s.slice(0, 2)] || '未知';
+    return res;
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var r = checkId(document.getElementById('id').value);
+
+    out.className = 'result' + (r.ok ? '' : ' is-error');
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = r.ok ? '这个号码格式没问题' : '⚠ ' + r.reason;
+    out.appendChild(big);
+
+    var lines = [];
+    if (r.ok) {
+      lines.push('出生日期：' + r.birth);
+      lines.push('性别：' + r.sex + '（看第 17 位，奇数男、偶数女）');
+      lines.push('发证省份：' + r.prov);
+      lines.push('');
+      lines.push('校验位算法：前 17 位分别乘 7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2 后求和，');
+      lines.push('再用和对 11 取余，查表得到最后一位 —— 算出来正是 ' + r.correct);
+    } else {
+      lines.push('算法：前 17 位乘加权因子求和 → 对 11 取模 → 查表。');
+      if (r.correct) lines.push('按你填的前 17 位，最后一位应该是 ' + r.correct + '。');
+    }
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = lines.join('\n');
+    out.appendChild(s);
+  });
+  </script>
+</body>
+</html>

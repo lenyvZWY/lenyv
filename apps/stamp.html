@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>时间戳转换</title>
+  <meta name="description" content="Unix 时间戳和日期互相转换，秒和毫秒都支持，含 UTC 对照。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>时间戳转换</h1>
+      <p>Unix 时间戳 ↔ 日期时间。写代码、看日志、查接口返回时经常要用。</p>
+    </div>
+
+    <div class="panel">
+      <h2>现在</h2>
+      <div class="result">
+        <div class="big" id="now-s">—</div>
+        <div class="sub" id="now-ms">—</div>
+      </div>
+      <button class="btn btn-ghost" id="refresh" type="button">刷新</button>
+    </div>
+
+    <div class="panel">
+      <h2>时间戳 → 日期</h2>
+      <div class="field">
+        <label>时间戳（秒或毫秒都行）</label>
+        <input id="ts" type="text" value="1760000000" inputmode="numeric" spellcheck="false">
+      </div>
+      <button class="btn btn-primary" id="go1" type="button">转换</button>
+      <div class="result is-empty" id="o1">—</div>
+    </div>
+
+    <div class="panel">
+      <h2>日期 → 时间戳</h2>
+      <div class="row">
+        <div class="field"><label>日期</label><input id="date" type="date"></div>
+        <div class="field"><label>时间</label><input id="time" type="time" step="1" value="00:00:00"></div>
+        <div class="field" style="max-width:170px">
+          <label>按哪个时区</label>
+          <select id="tz">
+            <option value="local">本地时区</option>
+            <option value="utc">UTC</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="go2" type="button">转换</button>
+      <div class="result is-empty" id="o2">—</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function pad(v) { return String(v).padStart(2, '0'); }
+  function fmtLocal(d) {
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+  function fmtUTC(d) {
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()) + ' ' +
+      pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()) + ':' + pad(d.getUTCSeconds());
+  }
+  function show(el, big, step, err) {
+    el.className = 'result' + (err ? ' is-error' : '');
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big';
+    b.textContent = err ? '⚠ ' + err : big;
+    el.appendChild(b);
+    if (step) { var s = document.createElement('div'); s.className = 'steps'; s.textContent = step; el.appendChild(s); }
+  }
+
+  function tickNow() {
+    var now = Date.now();
+    document.getElementById('now-s').textContent = Math.floor(now / 1000) + ' （秒）';
+    document.getElementById('now-ms').textContent = now + ' （毫秒）　·　本地 ' + fmtLocal(new Date(now));
+  }
+  tickNow();
+  setInterval(tickNow, 1000);
+  document.getElementById('refresh').addEventListener('click', tickNow);
+
+  document.getElementById('go1').addEventListener('click', function () {
+    var el = document.getElementById('o1');
+    var raw = String(document.getElementById('ts').value).trim();
+    var n = Number(raw);
+    if (raw === '' || !isFinite(n)) { show(el, null, null, '填一个数字'); return; }
+    var ms = Math.abs(n) < 1e11 ? n * 1000 : n;   // 10 位数按秒算，13 位按毫秒算
+    var d = new Date(ms);
+    if (isNaN(d.getTime())) { show(el, null, null, '这个数转成日期不合法'); return; }
+    show(el, fmtLocal(d) + '（本地）',
+      'UTC：' + fmtUTC(d) +
+      '\n秒：' + Math.floor(ms / 1000) + '　毫秒：' + ms +
+      '\n（' + (Math.abs(n) < 1e11 ? '按秒解析' : '按毫秒解析') + '）');
+  });
+
+  var dEl = document.getElementById('date');
+  (function () {
+    var t = new Date();
+    dEl.value = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+  })();
+
+  document.getElementById('go2').addEventListener('click', function () {
+    var el = document.getElementById('o2');
+    var dv = dEl.value, tv = document.getElementById('time').value || '00:00:00';
+    if (!dv) { show(el, null, null, '先选一个日期'); return; }
+    var parts = tv.split(':');
+    var hh = +(parts[0] || 0), mi = +(parts[1] || 0), ss = +(parts[2] || 0);
+
+    var ms;
+    if (document.getElementById('tz').value === 'utc') {
+      var dp = dv.split('-');
+      ms = Date.UTC(+dp[0], +dp[1] - 1, +dp[2], hh, mi, ss);
+    } else {
+      var d = new Date(dv + 'T' + pad(hh) + ':' + pad(mi) + ':' + pad(ss));
+      ms = d.getTime();
+    }
+    if (!isFinite(ms)) { show(el, null, null, '日期时间不合法'); return; }
+    show(el, Math.floor(ms / 1000) + ' （秒）　/　' + ms + ' （毫秒）',
+      '对应时间：本地 ' + fmtLocal(new Date(ms)) + '　UTC ' + fmtUTC(new Date(ms)));
+  });
+  </script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>图片处理</title>
+  <meta name="description" content="压缩图片、改尺寸、转格式，全在你自己浏览器里做，不上传到任何服务器。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .previews{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+    .previews figure{margin:0;border:1px solid var(--border);border-radius:var(--r-md);padding:var(--sp-3);background:var(--bg-elev)}
+    .previews img{max-width:100%;height:170px;object-fit:contain;background:var(--bg-subtle);border-radius:6px}
+    .previews figcaption{font-size:.82rem;color:var(--text-soft);margin-top:8px;line-height:1.6}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>图片处理</h1>
+      <p>压缩、改尺寸、换格式。<strong>全程在你自己电脑上处理，图片不会上传到任何地方</strong>——断网也能用。</p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>选一张图片</label>
+        <input id="file" type="file" accept="image/*">
+      </div>
+      <div class="row">
+        <div class="field"><label>最大宽度（像素，0 = 不改）</label><input id="w" type="number" value="1600" min="0" step="1"></div>
+        <div class="field"><label>最大高度（像素，0 = 不改）</label><input id="h" type="number" value="0" min="0" step="1"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>输出格式</label>
+          <select id="fmt">
+            <option value="image/jpeg">JPEG（照片首选，体积小）</option>
+            <option value="image/png">PNG（无损，适合截图）</option>
+            <option value="image/webp">WebP（又小又清楚）</option>
+          </select>
+        </div>
+        <div class="field"><label>质量（1 = 最好，仅 JPEG/WebP 有效）</label><input id="q" type="number" value="0.8" min="0.1" max="1" step="0.05"></div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">处理</button>
+      <div class="result is-empty" id="out">先选一张图片</div>
+    </div>
+
+    <div class="previews" id="previews"></div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  var srcImg = null;
+  var srcFile = null;
+
+  function sizeText(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  document.getElementById('file').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    var out = document.getElementById('out');
+    if (!f) return;
+    srcFile = f;
+    var url = URL.createObjectURL(f);
+    var img = new Image();
+    img.onload = function () {
+      srcImg = img;
+      out.className = 'result';
+      out.innerHTML = '';
+      var b = document.createElement('div');
+      b.className = 'big';
+      b.textContent = sizeText(f.size) + '　' + img.naturalWidth + ' × ' + img.naturalHeight;
+      out.appendChild(b);
+      var s = document.createElement('div');
+      s.className = 'steps';
+      s.textContent = '原图：' + f.name + '\n点「处理」看看能压到多小。';
+      out.appendChild(s);
+      drawPreviews(null);
+    };
+    img.onerror = function () {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ 这个文件读不出来，可能不是图片';
+      out.appendChild(b);
+    };
+    img.src = url;
+  });
+
+  function drawPreviews(blob) {
+    var box = document.getElementById('previews');
+    box.innerHTML = '';
+    if (!srcImg) return;
+
+    function fig(title, url, note) {
+      var f = document.createElement('figure');
+      var im = document.createElement('img');
+      im.src = url; im.alt = title;
+      var cap = document.createElement('figcaption');
+      cap.textContent = title + (note ? '\n' + note : '');
+      cap.style.whiteSpace = 'pre-line';
+      f.appendChild(im); f.appendChild(cap);
+      box.appendChild(f);
+      return f;
+    }
+
+    fig('原图', srcImg.src, sizeText(srcFile.size) + ' · ' + srcImg.naturalWidth + '×' + srcImg.naturalHeight +
+      ' · ' + (srcFile.type || '未知格式'));
+
+    if (blob) {
+      var link = document.createElement('a');
+      link.className = 'btn btn-primary';
+      link.style.marginTop = '10px';
+      link.textContent = '下载处理后的图片';
+      link.href = URL.createObjectURL(blob);
+      link.download = outName(srcFile.name);
+      var f2 = fig('处理后', URL.createObjectURL(blob), sizeText(blob.size) + ' · ' + blob.type);
+      f2.appendChild(link);
+    }
+  }
+
+  function outName(name) {
+    var map = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+    var ext = map[document.getElementById('fmt').value] || '.jpg';
+    return name.replace(/\.[^.]+$/, '') + '-已处理' + ext;
+  }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    if (!srcImg) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 先选一张图片';
+      out.appendChild(e);
+      return;
+    }
+    var maxW = parseInt(document.getElementById('w').value, 10) || 0;
+    var maxH = parseInt(document.getElementById('h').value, 10) || 0;
+    var fmt = document.getElementById('fmt').value;
+    var q = parseFloat(document.getElementById('q').value);
+
+    var w = srcImg.naturalWidth, h = srcImg.naturalHeight;
+    var scale = 1;
+    if (maxW > 0 && w > maxW) scale = Math.min(scale, maxW / w);
+    if (maxH > 0 && h > maxH) scale = Math.min(scale, maxH / h);
+    var tw = Math.max(1, Math.round(w * scale));
+    var th = Math.max(1, Math.round(h * scale));
+
+    var cv = document.createElement('canvas');
+    cv.width = tw; cv.height = th;
+    var ctx = cv.getContext('2d');
+    // PNG 透明背景：转成 JPEG 时要先铺一层白底，否则透明区会变黑
+    if (fmt === 'image/jpeg') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, tw, th);
+    }
+    ctx.drawImage(srcImg, 0, 0, tw, th);
+
+    cv.toBlob(function (blob) {
+      if (!blob) {
+        out.className = 'result is-error';
+        out.innerHTML = '';
+        var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 这个浏览器不支持导出该格式，换一个试试';
+        out.appendChild(e);
+        return;
+      }
+      var saved = srcFile.size ? (1 - blob.size / srcFile.size) * 100 : 0;
+      out.className = 'result';
+      out.innerHTML = '';
+      var b = document.createElement('div');
+      b.className = 'big';
+      b.textContent = sizeText(srcFile.size) + ' → ' + sizeText(blob.size) +
+        (saved > 0 ? '（省了 ' + saved.toFixed(0) + '%）' : saved < 0 ? '（反而大了 ' + Math.abs(saved).toFixed(0) + '%）' : '');
+      out.appendChild(b);
+      var s = document.createElement('div');
+      s.className = 'steps';
+      s.textContent = '尺寸：' + w + '×' + h + ' → ' + tw + '×' + th +
+        '\n格式：' + blob.type + '，质量 ' + q;
+      out.appendChild(s);
+      drawPreviews(blob);
+    }, fmt, (fmt === 'image/jpeg' || fmt === 'image/webp') ? q : undefined);
+  });
+  </script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>颜色转换</title>
+  <meta name="description" content="HEX、RGB、HSL、HSV 互转，还能查两个颜色的对比度够不够。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .swatch{height:84px;border-radius:var(--r-md);border:1px solid var(--border);margin-bottom:var(--sp-4)}
+    .row-tight{display:flex;gap:var(--sp-3);flex-wrap:wrap;align-items:flex-end}
+    input[type=color]{width:64px;height:38px;padding:2px;border:1px solid var(--border);
+      border-radius:var(--r-sm);background:var(--bg)}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>颜色转换</h1>
+      <p>把颜色在 HEX / RGB / HSL / HSV 之间来回换，顺便查一下两个颜色放一起看不看得清（对比度）。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row-tight">
+        <div class="field" style="flex:0"><label>取色</label><input id="picker" type="color" value="#4f6bff"></div>
+        <div class="field"><label>HEX</label><input id="hex" type="text" value="#4F6BFF" spellcheck="false"></div>
+      </div>
+      <div class="swatch" id="swatch"></div>
+      <div class="row">
+        <div class="field"><label>R、G、B</label><input id="rgb" type="text" value="79, 107, 255" spellcheck="false"></div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">转换</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>对比度够不够（做 PPT、做网页时用）</h2>
+      <div class="row">
+        <div class="field"><label>文字颜色</label><input id="c1" type="color" value="#ffffff"></div>
+        <div class="field"><label>背景颜色</label><input id="c2" type="color" value="#4f6bff"></div>
+      </div>
+      <div class="swatch" id="demo" style="display:grid;place-items:center;font-size:1.3rem;font-weight:600">
+        这是示例文字
+      </div>
+      <div class="result is-empty" id="out2">—</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+
+  function hexToRgb(hex) {
+    var s = String(hex).trim().replace(/^#/, '');
+    if (s.length === 3) s = s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
+    if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+    return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+  }
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(function (v) {
+      return clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0');
+    }).join('').toUpperCase();
+  }
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h = 0, s = 0, l = (max + min) / 2, d = max - min;
+    if (d) {
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0));
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return [Math.round(h), Math.round(s * 100), Math.round(l * 100)];
+  }
+  function rgbToHsv(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    var h = 0, s = max ? d / max : 0, v = max;
+    if (d) {
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0));
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return [Math.round(h), Math.round(s * 100), Math.round(v * 100)];
+  }
+  /* WCAG 相对亮度 */
+  function lum(r, g, b) {
+    var a = [r, g, b].map(function (v) {
+      v /= 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+  }
+  function contrast(c1, c2) {
+    var l1 = lum(c1[0], c1[1], c1[2]), l2 = lum(c2[0], c2[1], c2[2]);
+    var hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  var hexEl = document.getElementById('hex');
+  var rgbEl = document.getElementById('rgb');
+  var picker = document.getElementById('picker');
+  var swatch = document.getElementById('swatch');
+
+  function parseInput() {
+    var fromHex = hexToRgb(hexEl.value);
+    if (fromHex) return fromHex;
+    var m = String(rgbEl.value).match(/(-?\d+)\D+(-?\d+)\D+(-?\d+)/);
+    if (m) return [clamp(+m[1], 0, 255), clamp(+m[2], 0, 255), clamp(+m[3], 0, 255)];
+    return null;
+  }
+
+  function run() {
+    var out = document.getElementById('out');
+    var c = parseInput();
+    if (!c) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big';
+      e.textContent = '⚠ 认不出来，HEX 写成 #4F6BFF，RGB 写成 79,107,255';
+      out.appendChild(e);
+      return;
+    }
+    var r = c[0], g = c[1], b = c[2];
+    var hex = rgbToHex(r, g, b);
+    var hsl = rgbToHsl(r, g, b);
+    var hsv = rgbToHsv(r, g, b);
+
+    hexEl.value = hex;
+    rgbEl.value = r + ', ' + g + ', ' + b;
+    picker.value = hex.toLowerCase();
+    swatch.style.background = hex;
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = hex;
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var head = document.createElement('tr');
+    ['写法', '值'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; head.appendChild(th); });
+    var thead = document.createElement('thead'); thead.appendChild(head); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    [['HEX', hex],
+     ['RGB', 'rgb(' + r + ', ' + g + ', ' + b + ')'],
+     ['HSL', 'hsl(' + hsl[0] + ', ' + hsl[1] + '%, ' + hsl[2] + '%)'],
+     ['HSV', 'hsv(' + hsv[0] + ', ' + hsv[1] + '%, ' + hsv[2] + '%)'],
+     ['整数值', (r << 16) + (g << 8) + b]
+    ].forEach(function (row) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = row[0];
+      var c2 = document.createElement('td'); c2.textContent = String(row[1]);
+      tr.appendChild(a); tr.appendChild(c2); body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+  }
+
+  document.getElementById('go').addEventListener('click', run);
+  hexEl.addEventListener('input', run);
+  rgbEl.addEventListener('input', run);
+  picker.addEventListener('input', function () {
+    hexEl.value = picker.value;
+    run();
+  });
+
+  var c1 = document.getElementById('c1'), c2 = document.getElementById('c2'), demo = document.getElementById('demo');
+  function run2() {
+    var a = hexToRgb(c1.value), b = hexToRgb(c2.value);
+    var ratio = contrast(a, b);
+    demo.style.color = c1.value;
+    demo.style.background = c2.value;
+
+    var out = document.getElementById('out2');
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '对比度 ' + ratio.toFixed(2) + ' : 1';
+    out.appendChild(big);
+
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent =
+      (ratio >= 7 ? 'AAA 级：非常清楚' :
+        ratio >= 4.5 ? 'AA 级：正文够用' :
+          ratio >= 3 ? 'AA 级（大字号）：只适合标题等大字' :
+            '不达标：看不清，建议换个颜色') +
+      '\n参考标准：正文至少 4.5，大字号（18pt 以上或加粗 14pt）至少 3。';
+    out.appendChild(s);
+  }
+  c1.addEventListener('input', run2);
+  c2.addEventListener('input', run2);
+
+  run();
+  run2();
+  </script>
+</body>
+</html>

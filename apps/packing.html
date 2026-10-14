@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出行打包清单</title>
+  <meta name="description" content="出门前的清单，勾一项划一项，进度存在你自己的浏览器里。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+    .bar{height:8px;border-radius:999px;background:var(--bg-subtle);overflow:hidden;margin:8px 0 var(--sp-5)}
+    .bar i{display:block;height:100%;background:var(--brand);transition:width .25s}
+    .item{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border);font-size:.95rem}
+    .item:last-child{border-bottom:0}
+    .item input[type=checkbox]{width:auto;margin-top:5px}
+    .item.done span{text-decoration:line-through;color:var(--text-soft)}
+    .add{display:flex;gap:8px;margin-top:var(--sp-4)}
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>出行打包清单</h1>
+      <p>出门前照着勾，勾完就走。勾选状态存在你自己的浏览器里，<strong>关掉再打开还在</strong>（换设备就没了）。</p>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <strong id="progress">0 / 0</strong>
+        <button class="btn btn-ghost" id="reset" type="button">全部清空</button>
+      </div>
+      <div class="bar"><i id="bar" style="width:0%"></i></div>
+      <div id="list"></div>
+    </div>
+
+    <div class="panel">
+      <h2>自己加一项</h2>
+      <div class="add">
+        <input id="new" type="text" placeholder="比如「泳镜」">
+        <button class="btn btn-primary" id="add" type="button">加进清单</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  var DEFAULT_ITEMS = [
+    ['证件 · 钱', ['护照（有效期还剩 6 个月以上）', '签证 / 入境许可', '身份证', '驾照（租车用）',
+      '机票 / 行程单', '酒店确认单', '旅行保险', '银行卡 + 一点现金', '证件照片 2 张（补办用）']],
+    ['电子', ['手机 + 充电器', '充电宝（随身，不能托运）', '转换插头', '耳机',
+      '数据线', '相机 / 存储卡']],
+    ['衣物', ['换洗内衣袜子', '外套（早晚温差）', '舒服的鞋', '雨伞 / 雨衣',
+      '帽子 / 墨镜', '睡衣']],
+    ['洗漱 · 药品', ['牙刷牙膏', '防晒霜', '常用药（感冒、肠胃、晕车）',
+      '创可贴', '隐形眼镜 + 护理液', '纸巾湿巾']],
+    ['出发前别忘了', ['手机开国际漫游 / 买好流量卡', '下载离线地图', '告诉家人行程',
+      '倒垃圾、关窗断电', '把紧急电话那一页截图存手机']]
+  ];
+
+  var KEY = 'packing-list-v1';
+  var items = [];
+
+  try {
+    var saved = localStorage.getItem(KEY);
+    if (saved) {
+      items = JSON.parse(saved);
+    }
+  } catch (e) {}
+
+  if (!items || !items.length) {
+    items = [];
+    DEFAULT_ITEMS.forEach(function (g) {
+      g[1].forEach(function (t) { items.push({ g: g[0], t: t, d: false }); });
+    });
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(items)); } catch (e) {}
+  }
+
+  function draw() {
+    var box = document.getElementById('list');
+    box.innerHTML = '';
+
+    var groups = [];
+    items.forEach(function (it) {
+      var g = groups.filter(function (x) { return x.name === it.g; })[0];
+      if (!g) { g = { name: it.g, list: [] }; groups.push(g); }
+      g.list.push(it);
+    });
+
+    groups.forEach(function (g) {
+      var h = document.createElement('h3');
+      h.style.margin = '18px 0 6px';
+      h.style.fontSize = '.95rem';
+      h.style.fontFamily = 'var(--font-display)';
+      h.textContent = g.name;
+      box.appendChild(h);
+
+      g.list.forEach(function (it) {
+        var row = document.createElement('label');
+        row.className = 'item' + (it.d ? ' done' : '');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!it.d;
+        cb.addEventListener('change', function () {
+          it.d = cb.checked;
+          save();
+          draw();
+        });
+        var sp = document.createElement('span');
+        sp.textContent = it.t;
+        row.appendChild(cb);
+        row.appendChild(sp);
+        box.appendChild(row);
+      });
+    });
+
+    var done = items.filter(function (i) { return i.d; }).length;
+    document.getElementById('progress').textContent = '已收拾 ' + done + ' / ' + items.length;
+    document.getElementById('bar').style.width = (items.length ? done / items.length * 100 : 0) + '%';
+  }
+
+  document.getElementById('add').addEventListener('click', function () {
+    var v = document.getElementById('new').value.trim();
+    if (!v) return;
+    items.push({ g: '自己加的', t: v, d: false });
+    document.getElementById('new').value = '';
+    save();
+    draw();
+  });
+  document.getElementById('new').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('add').click();
+  });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    items.forEach(function (i) { i.d = false; });
+    save();
+    draw();
+  });
+
+  draw();
+  </script>
+</body>
+</html>

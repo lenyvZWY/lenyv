@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSON 格式化</title>
+  <meta name="description" content="把挤成一团的 JSON 展开成人看得懂的样子，顺带查出哪里写错了。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>JSON 格式化</h1>
+      <p>接口返回一堆挤在一起看不懂？粘进来，一键展开。<strong>写错了还会告诉你是第几个字符附近出问题。</strong></p>
+    </div>
+
+    <div class="panel">
+      <div class="field">
+        <label>粘进来</label>
+        <textarea id="src" spellcheck="false" placeholder='{"name":"小明","age":15,"scores":[85,92,76]}'>{"name":"小明","age":15,"scores":[85,92,76],"city":"北京"}</textarea>
+      </div>
+      <div class="row">
+        <div class="field" style="max-width:150px">
+          <label>缩进</label>
+          <select id="ind"><option value="2">2 空格</option><option value="4">4 空格</option><option value="tab">Tab</option></select>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" id="beautify" type="button">格式化</button>
+        <button class="btn btn-ghost" id="minify" type="button">压缩成一行</button>
+        <button class="btn btn-ghost" id="copy" type="button">复制结果</button>
+      </div>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  var last = '';
+
+  function show(el, big, body, err) {
+    el.className = 'result' + (err ? ' is-error' : '');
+    el.innerHTML = '';
+    var b = document.createElement('div'); b.className = 'big';
+    b.textContent = err ? '⚠ ' + err : big;
+    el.appendChild(b);
+    if (body !== undefined && body !== null) {
+      var pre = document.createElement('div');
+      pre.className = 'steps';
+      pre.style.whiteSpace = 'pre-wrap';
+      pre.style.maxHeight = '360px';
+      pre.style.overflow = 'auto';
+      pre.textContent = body;
+      el.appendChild(pre);
+    }
+  }
+
+  /* 从 JSON.parse 的报错里把出错位置抠出来，指给用户看 */
+  function locate(msg, text) {
+    var m = String(msg).match(/position (\d+)/);
+    if (!m) return '';
+    var pos = +m[1];
+    var from = Math.max(0, pos - 40);
+    var to = Math.min(text.length, pos + 40);
+    return '出错位置在第 ' + pos + ' 个字符附近：\n' +
+      '…' + text.slice(from, to).replace(/\n/g, ' ') + '…' +
+      '\n（前面第 ' + (pos - from) + ' 个字符就是出问题的地方）';
+  }
+
+  function parse() {
+    var text = document.getElementById('src').value;
+    if (!text.trim()) throw new Error('还没有内容');
+    return JSON.parse(text);
+  }
+
+  document.getElementById('beautify').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var ind = document.getElementById('ind').value === 'tab' ? '\t' : parseInt(document.getElementById('ind').value, 10);
+    try {
+      var obj = parse();
+      last = JSON.stringify(obj, null, ind);
+      var lines = last.split('\n').length;
+      show(out, '格式化好了（' + lines + ' 行）', last);
+    } catch (e) {
+      show(out, null, locate(e.message, document.getElementById('src').value), e.message);
+    }
+  });
+
+  document.getElementById('minify').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    try {
+      var obj = parse();
+      last = JSON.stringify(obj);
+      show(out, '压成一行了（' + last.length + ' 个字符）', last);
+    } catch (e) {
+      show(out, null, locate(e.message, document.getElementById('src').value), e.message);
+    }
+  });
+
+  document.getElementById('copy').addEventListener('click', function () {
+    if (!last) return;
+    var btn = this;
+    navigator.clipboard.writeText(last).then(function () {
+      btn.textContent = '已复制';
+      setTimeout(function () { btn.textContent = '复制结果'; }, 1200);
+    }).catch(function () {});
+  });
+  </script>
+</body>
+</html>

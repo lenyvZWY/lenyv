@@ -251,6 +251,47 @@ section('[10] 每个工具页都要有「同类免费网站」跳板（app-shell
   });
 }
 
+/* ======================================================================== */
+section('[11] 第二批工具：油耗 / 身份证 / 颜色');
+{
+  /* ---- 油耗单位互转 ---- */
+  var fu = run('fuel.html', 'var K_US', "document.getElementById('go')");
+  near(fu.toL100(8, 'l100'), 8, 'toL100：本来就是升/百公里', 0);
+  near(fu.fromL100(8, 'kmpl'), 12.5, '8 升/百公里 = 12.5 公里每升', 1e-9);
+  near(fu.fromL100(10, 'mpgus'), 23.5214583, '10 升/百公里 ≈ 23.52 MPG（美）', 1e-6);
+  near(fu.fromL100(10, 'mpguk'), 28.2480936, '10 升/百公里 ≈ 28.25 MPG（英）', 1e-6);
+  ok(fu.fromL100(10, 'mpguk') > fu.fromL100(10, 'mpgus'), '英制加仑更大 → MPG(英) 数值更高');
+  near(fu.toL100(fu.fromL100(7.5, 'mpgus'), 'mpgus'), 7.5, '转过去再转回来要能对上', 1e-9);
+
+  /* ---- 身份证校验 ---- */
+  var id = run('idcard.html', 'var PROV = {', "document.getElementById('go')");
+  ok(id.checkId('123').ok === false, '长度不够 → 不通过');
+  ok(id.checkId('11010519491231002').ok === false, '17 位 → 不通过');
+  ok(id.checkId('abcdefghijklmnopqr').ok === false, '不是数字 → 不通过');
+  var good = id.checkId('11010519491231002X');
+  ok(good.ok === true, '标准样例号 → 通过（' + good.reason + '）');
+  eq(good.birth, '1949 年 12 月 31 日', '读出出生日期');
+  eq(good.prov, '北京', '读出省份');
+  eq(good.sex, '女', '第 17 位是 2（偶数）→ 女');
+  var bad = id.checkId('110105194912310021');
+  ok(bad.ok === false, '把最后一位改掉 → 校验失败');
+  ok(bad.reason.indexOf('校验位') >= 0, '并且提示是校验位的问题');
+  var odd = id.checkId('110105194912310031');
+  ok(odd.ok === false, '随便换一位也不该通过');
+
+  /* ---- 颜色转换 ---- */
+  var co = run('color.html', 'function clamp(', "var hexEl = document.getElementById('hex')");
+  eq(co.hexToRgb('#4F6BFF'), [79, 107, 255], '#4F6BFF → RGB');
+  eq(co.hexToRgb('fff'), [255, 255, 255], '三位缩写也能认');
+  eq(co.hexToRgb('#12345'), null, '长度不对要返回 null');
+  eq(co.rgbToHex(79, 107, 255), '#4F6BFF', 'RGB → HEX');
+  eq(co.rgbToHsl(255, 0, 0), [0, 100, 50], '纯红 → HSL(0,100%,50%)');
+  eq(co.rgbToHsl(0, 255, 0), [120, 100, 50], '纯绿 → HSL(120,100%,50%)');
+  eq(co.rgbToHsv(0, 0, 255), [240, 100, 100], '纯蓝 → HSV(240,100%,100%)');
+  near(co.contrast([255, 255, 255], [0, 0, 0]), 21, '黑白对比度 = 21:1', 0.01);
+  near(co.contrast([128, 128, 128], [128, 128, 128]), 1, '同色对比度 = 1:1', 0.001);
+}
+
 console.log('\n============================');
 console.log('  结果：' + pass + ' 通过 / ' + fail + ' 失败');
 console.log('============================');

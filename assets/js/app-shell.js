@@ -112,6 +112,40 @@
     random: [
       ['Random.org', 'https://www.random.org', '真随机数（大气噪声生成）'],
       ['Wheel of Names', 'https://wheelofnames.com', '转盘抽签']
+    ],
+    image: [
+      ['TinyPNG', 'https://tinypng.com', '在线压缩，画质几乎不变'],
+      ['Squoosh', 'https://squoosh.app', 'Google 出的，也是本地处理'],
+      ['CloudConvert', 'https://cloudconvert.com', '格式互转，支持的类型多']
+    ],
+    color: [
+      ['Coolors 配色', 'https://coolors.co', '生成配色方案，做设计用'],
+      ['WebAIM 对比度检查', 'https://webaim.org/resources/contrastchecker/', '无障碍标准下的对比度判定'],
+      ['Color Hunt', 'https://colorhunt.co', '现成好看的配色组合']
+    ],
+    stamp: [
+      ['Epoch Converter', 'https://www.epochconverter.com', '时间戳转换的老牌子，还有各语言写法'],
+      ['CyberChef', 'https://gchq.github.io/CyberChef/', '批量处理时间戳']
+    ],
+    json: [
+      ['JSONLint', 'https://jsonlint.com', '专门查 JSON 哪里写错了'],
+      ['CyberChef', 'https://gchq.github.io/CyberChef/', 'JSON 美化、转义、转换都能做']
+    ],
+    fuel: [
+      ['Omni Calculator 油耗', 'https://www.omnicalculator.com', '各种油耗单位换算'],
+      ['FuelEconomy.gov', 'https://www.fueleconomy.gov', '美国官方，查具体车型的真实油耗']
+    ],
+    sos: [
+      ['中国领事服务网', 'https://cs.mfa.gov.cn', '护照、公证、紧急求助'],
+      ['外交部官网', 'https://www.mfa.gov.cn', '出国提醒、安全通报']
+    ],
+    packing: [
+      ['PackPoint', 'https://packpoint.com', '按目的地和天数自动生成清单'],
+      ['中国天气网', 'https://www.weather.com.cn', '出发前看看目的地天气']
+    ],
+    idcard: [
+      ['居民身份证号码规则', 'https://baike.baidu.com/item/居民身份证号码', '国家标准 GB 11643 的编码规则'],
+      ['CyberChef', 'https://gchq.github.io/CyberChef/', '其他各类校验与转换']
     ]
   };
 

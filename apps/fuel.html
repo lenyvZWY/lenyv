@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>油耗与里程</title>
+  <meta name="description" content="L/100km、km/L、MPG(美/英) 互转，算出一段路要花多少油钱。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="/assets/css/tools.css">
+  <style>
+    #nl-badge-frame, #nl-hud-frame { display: none !important; }
+  </style>
+</head>
+<body data-page="apps">
+  <div id="nl-badge-frame" hidden aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/"><span class="brand-mark">◇</span><span class="brand-name">我的工具箱</span></a>
+      <nav class="site-nav">
+        <a href="/">首页</a>
+        <a href="/apps/" class="is-active">工具箱</a>
+        <a href="/vault.html">保险库</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" title="切换深浅色">◐</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="tool-page">
+    <a class="back-link" href="/apps/">← 返回工具箱</a>
+    <div class="tool-head">
+      <h1>油耗与里程</h1>
+      <p>国内说「百公里几个油」，美国说 MPG，欧洲又是另一套。出国租车看不懂油耗时就用它。</p>
+    </div>
+
+    <div class="panel">
+      <h2>油耗单位互转</h2>
+      <div class="row">
+        <div class="field"><label>数值</label><input id="v" type="number" value="8" step="any"></div>
+        <div class="field" style="max-width:230px">
+          <label>单位</label>
+          <select id="u">
+            <option value="l100">升 / 100 公里（国内常用）</option>
+            <option value="kmpl">公里 / 升</option>
+            <option value="mpgus">MPG（美制，美国用）</option>
+            <option value="mpguk">MPG（英制，英国用）</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="go" type="button">换算</button>
+      <div class="result is-empty" id="out">结果会显示在这里</div>
+    </div>
+
+    <div class="panel">
+      <h2>跑一趟要多少油钱</h2>
+      <div class="row">
+        <div class="field"><label>路程（公里）</label><input id="dist" type="number" value="300" step="any"></div>
+        <div class="field"><label>油耗（升/100 公里）</label><input id="cons" type="number" value="8" step="any"></div>
+        <div class="field"><label>油价（元/升）</label><input id="price" type="number" value="7.5" step="any"></div>
+        <div class="field"><label>几个人分摊</label><input id="ppl" type="number" value="1" step="1" min="1"></div>
+      </div>
+      <button class="btn btn-primary" id="go2" type="button">算</button>
+      <div class="result is-empty" id="out2">结果会显示在这里</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p class="footer-copy"><a href="/apps/">工具箱</a> · 本地运行 · <span id="year"></span></p>
+    </div>
+  </footer>
+
+  <script src="/assets/js/app-shell.js"></script>
+  <script>
+  /* 基准统一用「升 / 100 公里」。
+     MPG(US) = 235.214583 / (L/100km)
+     MPG(UK) = 282.480936 / (L/100km)   —— 英制加仑比美制大约 20%
+     km/L    = 100 / (L/100km) */
+  var K_US = 235.214583;
+  var K_UK = 282.4809363;
+
+  function toL100(v, unit) {
+    if (unit === 'l100') return v;
+    if (unit === 'kmpl') return 100 / v;
+    if (unit === 'mpgus') return K_US / v;
+    if (unit === 'mpguk') return K_UK / v;
+    return NaN;
+  }
+  function fromL100(l, unit) {
+    if (unit === 'l100') return l;
+    if (unit === 'kmpl') return 100 / l;
+    if (unit === 'mpgus') return K_US / l;
+    if (unit === 'mpguk') return K_UK / l;
+    return NaN;
+  }
+  function f(v) { return String(Math.round(v * 1000) / 1000); }
+
+  document.getElementById('go').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    var v = parseFloat(document.getElementById('v').value);
+    var u = document.getElementById('u').value;
+    if (!isFinite(v) || v <= 0) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var e = document.createElement('div'); e.className = 'big'; e.textContent = '⚠ 填一个大于 0 的数';
+      out.appendChild(e); return;
+    }
+    var l = toL100(v, u);
+
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = f(l) + ' 升/100 公里　=　' + f(fromL100(l, 'mpgus')) + ' MPG（美）';
+    out.appendChild(big);
+
+    var tb = document.createElement('table');
+    tb.className = 'tbl'; tb.style.marginTop = '16px';
+    var head = document.createElement('tr');
+    ['单位', '数值'].forEach(function (t) { var th = document.createElement('th'); th.textContent = t; head.appendChild(th); });
+    var thead = document.createElement('thead'); thead.appendChild(head); tb.appendChild(thead);
+    var body = document.createElement('tbody');
+    [['升 / 100 公里', fromL100(l, 'l100')],
+     ['公里 / 升', fromL100(l, 'kmpl')],
+     ['MPG（美制）', fromL100(l, 'mpgus')],
+     ['MPG（英制）', fromL100(l, 'mpguk')]].forEach(function (r) {
+      var tr = document.createElement('tr');
+      var a = document.createElement('td'); a.textContent = r[0];
+      var b = document.createElement('td'); b.textContent = f(r[1]);
+      tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
+    });
+    tb.appendChild(body);
+    out.appendChild(tb);
+  });
+
+  document.getElementById('go2').addEventListener('click', function () {
+    var out = document.getElementById('out2');
+    var dist = parseFloat(document.getElementById('dist').value);
+    var cons = parseFloat(document.getElementById('cons').value);
+    var price = parseFloat(document.getElementById('price').value);
+    var ppl = parseInt(document.getElementById('ppl').value, 10) || 1;
+
+    function err(m) {
+      out.className = 'result is-error';
+      out.innerHTML = '';
+      var b = document.createElement('div'); b.className = 'big'; b.textContent = '⚠ ' + m;
+      out.appendChild(b);
+    }
+    if (![dist, cons, price].every(function (x) { return isFinite(x) && x > 0; })) { err('空格都填大于 0 的数'); return; }
+
+    var liters = dist * cons / 100;
+    var cost = liters * price;
+    out.className = 'result';
+    out.innerHTML = '';
+    var big = document.createElement('div');
+    big.className = 'big';
+    big.textContent = '油费约 ' + f(cost) + ' 元' + (ppl > 1 ? '，每人 ' + f(cost / ppl) + ' 元' : '');
+    out.appendChild(big);
+    var s = document.createElement('div');
+    s.className = 'steps';
+    s.textContent = '用油：' + f(dist) + ' × ' + f(cons) + ' ÷ 100 = ' + f(liters) + ' 升\n' +
+      '油费：' + f(liters) + ' 升 × ' + f(price) + ' 元/升 = ' + f(cost) + ' 元';
+    out.appendChild(s);
+  });
+  </script>
+</body>
+</html>
